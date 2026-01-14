@@ -18,9 +18,14 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $empleados = \App\Models\Empleado::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'puesto']);
+
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            'empleados' => $empleados,
         ]);
     }
 
@@ -29,15 +34,23 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        // If empleado_id is provided, sync user name with employee name
+        if ($request->filled('empleado_id')) {
+            $empleado = \App\Models\Empleado::find($request->empleado_id);
+            if ($empleado) {
+                $user->name = $empleado->nombre;
+                $user->empleado_id = $empleado->id;
+            }
+        } else {
+            // If no empleado selected, keep current name but clear empleado_id
+            $user->empleado_id = null;
         }
 
-        $request->user()->save();
+        $user->save();
 
-        return Redirect::route('profile.edit');
+        return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
     /**

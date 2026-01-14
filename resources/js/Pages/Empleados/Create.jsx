@@ -1,19 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import EmpleadoForm from './Form';
 
 export default function Create() {
-    const { post, processing } = useForm();
-
-    const handleSubmit = (data) => {
-        post(route('empleados.store'), {
-            data,
-            onSuccess: () => {
-                // Redirect handled by controller
-            },
-        });
-    };
-
     return (
         <AuthenticatedLayout
             header={
@@ -36,7 +25,10 @@ export default function Create() {
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6">
-                            <EmpleadoForm onSubmit={handleSubmit} processing={processing} />
+                            <EmpleadoForm
+                                submitUrl={route('empleados.store')}
+                                submitMethod="post"
+                            />
                         </div>
                     </div>
                 </div>

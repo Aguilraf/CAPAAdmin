@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Empleado;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Imports\EmpleadosImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EmpleadoController extends Controller
 {
@@ -54,21 +56,28 @@ class EmpleadoController extends Controller
      */
     public function store(Request $request)
     {
+        // Debug: Log incoming data
+        \Log::info('Empleado Store - Request Data:', $request->all());
+
         $validated = $request->validate([
             'clave' => 'required|string|unique:empleados,clave',
             'nombre' => 'required|string|max:255',
             'puesto' => 'required|string|max:255',
             'departamento' => 'required|string|max:255',
             'rfc' => 'nullable|string|max:13',
-            'categoria' => 'nullable|string|max:255',
-            'fecha_alta' => 'nullable|date',
+            'categoria' => 'required|in:BASE,CONFIANZA',
+            'fecha_alta' => 'required|date',
+            'nivel' => 'nullable|string|max:255',
             'salario_diario' => 'nullable|numeric|min:0',
             'salario_mensual' => 'nullable|numeric|min:0',
             'curp' => 'nullable|string|max:18',
+            'nss' => 'nullable|string|max:20',
+            'afiliacion' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:20',
             'numero_empleado' => 'nullable|string|max:255',
             'activo' => 'boolean',
+            'es_gerente' => 'boolean',
         ]);
 
         Empleado::create($validated);
@@ -108,15 +117,19 @@ class EmpleadoController extends Controller
             'puesto' => 'required|string|max:255',
             'departamento' => 'required|string|max:255',
             'rfc' => 'nullable|string|max:13',
-            'categoria' => 'nullable|string|max:255',
-            'fecha_alta' => 'nullable|date',
+            'categoria' => 'required|in:BASE,CONFIANZA',
+            'fecha_alta' => 'required|date',
+            'nivel' => 'nullable|string|max:255',
             'salario_diario' => 'nullable|numeric|min:0',
             'salario_mensual' => 'nullable|numeric|min:0',
             'curp' => 'nullable|string|max:18',
+            'nss' => 'nullable|string|max:20',
+            'afiliacion' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:20',
             'numero_empleado' => 'nullable|string|max:255',
             'activo' => 'boolean',
+            'es_gerente' => 'boolean',
         ]);
 
         $empleado->update($validated);
@@ -134,5 +147,33 @@ class EmpleadoController extends Controller
 
         return redirect()->route('empleados.index')
             ->with('success', 'Empleado eliminado exitosamente.');
+    }
+
+    /**
+     * Import employees from Excel file.
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240', // Max 10MB
+        ]);
+
+        try {
+            Excel::import(new EmpleadosImport, $request->file('file'));
+
+            return redirect()->route('empleados.index')
+                ->with('success', 'Empleados importados exitosamente.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al importar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download Excel template for importing employees.
+     */
+    public function downloadTemplate()
+    {
+        return Excel::download(new \App\Exports\EmpleadosTemplateExport, 'plantilla_empleados.xlsx');
     }
 }

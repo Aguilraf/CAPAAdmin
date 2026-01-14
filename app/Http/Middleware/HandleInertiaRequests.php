@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn() => $request->session()->get('success'),
                 'error' => fn() => $request->session()->get('error'),
             ],
+            'settings' => fn() => \App\Models\Setting::whereIn('key', ['logo_qroo', 'logo_unidos', 'logo_capa'])->pluck('value', 'key'),
         ];
     }
 }

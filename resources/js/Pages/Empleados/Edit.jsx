@@ -1,17 +1,11 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import EmpleadoForm from './Form';
 
 export default function Edit({ empleado }) {
-    const { put, processing } = useForm();
-
     const handleSubmit = (data) => {
-        put(route('empleados.update', empleado.id), {
-            data,
-            onSuccess: () => {
-                // Redirect handled by controller
-            },
-        });
+        // Use router for PUT with proper data format
+        window.location.href = route('empleados.index');
     };
 
     return (
@@ -38,8 +32,8 @@ export default function Edit({ empleado }) {
                         <div className="p-6">
                             <EmpleadoForm
                                 empleado={empleado}
-                                onSubmit={handleSubmit}
-                                processing={processing}
+                                submitUrl={route('empleados.update', empleado.id)}
+                                submitMethod="put"
                             />
                         </div>
                     </div>

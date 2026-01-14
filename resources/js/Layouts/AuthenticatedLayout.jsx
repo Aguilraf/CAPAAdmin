@@ -31,6 +31,48 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Dashboard
                                 </NavLink>
 
+                                {/* Dropdown de Reportes */}
+                                <div className="relative flex items-center pt-1">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <button className="inline-flex items-center px-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
+                                                Reportes
+                                                <svg
+                                                    className="ml-1 h-4 w-4"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                >
+                                                    <path
+                                                        fillRule="evenodd"
+                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                        clipRule="evenodd"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </Dropdown.Trigger>
+                                        <Dropdown.Content>
+                                            <Dropdown.Link href={route('reportes.index')}>
+                                                Inicio
+                                            </Dropdown.Link>
+                                            <Dropdown.Link href={route('reportes.material-request.create')}>
+                                                Nueva Solicitud
+                                            </Dropdown.Link>
+                                            <div className="border-t border-gray-100"></div>
+                                            <Dropdown.Link href={route('reportes.historial')}>
+                                                Historial
+                                            </Dropdown.Link>
+                                        </Dropdown.Content>
+                                    </Dropdown>
+                                </div>
+
+                                <NavLink
+                                    href={route('settings.index')}
+                                    active={route().current('settings.*')}
+                                >
+                                    Configuración
+                                </NavLink>
+
                                 {/* Dropdown de Catálogos */}
                                 <div className="relative flex items-center">
                                     <Dropdown>
@@ -180,6 +222,20 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('reportes.index')}
+                            active={route().current('reportes.*')}
+                        >
+                            Reportes
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('settings.index')}
+                            active={route().current('settings.*')}
+                        >
+                            Configuración
                         </ResponsiveNavLink>
 
                         {/* Enlaces de Catálogos */}

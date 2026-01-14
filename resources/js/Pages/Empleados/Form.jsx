@@ -4,27 +4,36 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import PrimaryButton from '@/Components/PrimaryButton';
 
-export default function EmpleadoForm({ empleado, onSubmit, processing }) {
-    const { data, setData, errors } = useForm({
+export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post' }) {
+    const { data, setData, post, put, processing, errors } = useForm({
         clave: empleado?.clave || '',
         nombre: empleado?.nombre || '',
         puesto: empleado?.puesto || '',
         departamento: empleado?.departamento || '',
         rfc: empleado?.rfc || '',
-        categoria: empleado?.categoria || '',
+        categoria: empleado?.categoria || 'BASE',
         fecha_alta: empleado?.fecha_alta || '',
+        nivel: empleado?.nivel || '',
         salario_diario: empleado?.salario_diario || '',
         salario_mensual: empleado?.salario_mensual || '',
         curp: empleado?.curp || '',
+        nss: empleado?.nss || '',
+        afiliacion: empleado?.afiliacion || '',
         email: empleado?.email || '',
         telefono: empleado?.telefono || '',
         numero_empleado: empleado?.numero_empleado || '',
         activo: empleado?.activo ?? true,
+        es_gerente: empleado?.es_gerente ?? false,
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit(data);
+
+        if (submitMethod === 'put') {
+            put(submitUrl);
+        } else {
+            post(submitUrl);
+        }
     };
 
     return (
@@ -116,14 +125,17 @@ export default function EmpleadoForm({ empleado, onSubmit, processing }) {
 
                 {/* Categoría */}
                 <div>
-                    <InputLabel htmlFor="categoria" value="Categoría" />
-                    <TextInput
+                    <InputLabel htmlFor="categoria" value="Categoría *" />
+                    <select
                         id="categoria"
-                        type="text"
                         value={data.categoria}
                         onChange={(e) => setData('categoria', e.target.value)}
-                        className="mt-1 block w-full"
-                    />
+                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                        required
+                    >
+                        <option value="BASE">BASE</option>
+                        <option value="CONFIANZA">CONFIANZA</option>
+                    </select>
                     <InputError message={errors.categoria} className="mt-2" />
                 </div>
 
@@ -142,15 +154,55 @@ export default function EmpleadoForm({ empleado, onSubmit, processing }) {
 
                 {/* Fecha de Alta */}
                 <div>
-                    <InputLabel htmlFor="fecha_alta" value="Fecha de Alta" />
+                    <InputLabel htmlFor="fecha_alta" value="Fecha de Alta *" />
                     <TextInput
                         id="fecha_alta"
                         type="date"
                         value={data.fecha_alta}
                         onChange={(e) => setData('fecha_alta', e.target.value)}
                         className="mt-1 block w-full"
+                        required
                     />
                     <InputError message={errors.fecha_alta} className="mt-2" />
+                </div>
+
+                {/* Nivel */}
+                <div>
+                    <InputLabel htmlFor="nivel" value="Nivel" />
+                    <TextInput
+                        id="nivel"
+                        type="text"
+                        value={data.nivel}
+                        onChange={(e) => setData('nivel', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.nivel} className="mt-2" />
+                </div>
+
+                {/* NSS */}
+                <div>
+                    <InputLabel htmlFor="nss" value="NSS (Número de Seguridad Social)" />
+                    <TextInput
+                        id="nss"
+                        type="text"
+                        value={data.nss}
+                        onChange={(e) => setData('nss', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.nss} className="mt-2" />
+                </div>
+
+                {/* Afiliación */}
+                <div>
+                    <InputLabel htmlFor="afiliacion" value="Afiliación (ISSSTE, IMSS, etc.)" />
+                    <TextInput
+                        id="afiliacion"
+                        type="text"
+                        value={data.afiliacion}
+                        onChange={(e) => setData('afiliacion', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.afiliacion} className="mt-2" />
                 </div>
 
                 {/* Salario Diario */}
@@ -217,6 +269,27 @@ export default function EmpleadoForm({ empleado, onSubmit, processing }) {
                             className="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500"
                         />
                         <span className="ml-2 text-sm text-gray-600">Empleado Activo</span>
+                    </label>
+                </div>
+
+                {/* Es Gerente */}
+                <div className="flex items-center">
+                    <label className="flex items-center">
+                        <input
+                            type="checkbox"
+                            checked={data.es_gerente}
+                            onChange={(e) => {
+                                if (!data.activo) {
+                                    alert('Debe marcar al empleado como activo primero');
+                                    return;
+                                }
+                                setData('es_gerente', e.target.checked);
+                            }}
+                            className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-600">
+                            Es Gerente (solo un empleado activo puede serlo)
+                        </span>
                     </label>
                 </div>
             </div>
