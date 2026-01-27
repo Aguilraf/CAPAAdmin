@@ -9,8 +9,8 @@ import { useState } from 'react';
 export default function Create({ materiales, materialesDefault = [], manager, empleadoActual }) {
     const { data, setData, post, processing, errors } = useForm({
         fecha: new Date().toISOString().split('T')[0],
-        destinatario_nombre: manager ? manager.nombre : 'LUIS DANIEL HEREDIA DUARTE',
-        destinatario_cargo: manager ? manager.puesto : 'GERENTE DEL ORGANISMO OPERADOR JOSÉ MARÍA MORELOS',
+        destinatario_nombre: manager ? manager.nombre : '',
+        destinatario_cargo: manager ? manager.puesto : '',
 
         // Items list - Initialize with default materials if available
         items: materialesDefault.length > 0
@@ -59,8 +59,53 @@ export default function Create({ materiales, materialesDefault = [], manager, em
 
     const submit = (e) => {
         e.preventDefault();
-        // Post to the print route
-        post(route('reportes.material-request.print'));
+
+        // Use a standard form submission for file downloads to avoid Inertia handling the binary response
+        // We'll construct a form defined data object and submit it via a temporary form or standard fetch/window.location if it was GET.
+        // Since it is POST, we can't use window.open easily with complex data.
+        // However, Inertia has a problem with downloads.
+        // Best approach for POST download: Submit the form natively.
+
+        // We can create a temporary form and submit it.
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = route('reportes.material-request.print');
+        form.target = '_blank'; // Open in new tab? Or _self for download. _blank is safer for PDF.
+
+        // CSRF Token
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (token) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_token';
+            input.value = token;
+            form.appendChild(input);
+        }
+
+        // Add all data fields
+        // Simple fields
+        ['fecha', 'destinatario_nombre', 'destinatario_cargo', 'solicitante_nombre', 'solicitante_cargo', 'solicitante_departamento'].forEach(key => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data[key] || '';
+            form.appendChild(input);
+        });
+
+        // Items array - complex structure
+        data.items.forEach((item, index) => {
+            Object.keys(item).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = `items[${index}][${key}]`;
+                input.value = item[key] || '';
+                form.appendChild(input);
+            });
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
     };
 
     return (
@@ -96,28 +141,24 @@ export default function Create({ materiales, materialesDefault = [], manager, em
                                     <h4 className="font-medium text-gray-700 mb-4">Destinatario (Gerente)</h4>
                                     {!manager && (
                                         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                            <p className="text-sm text-yellow-800">
-                                                ⚠️ No hay gerente activo configurado. Por favor, marque un empleado activo como gerente.
-                                            </p>
+                                            ⚠️ No hay gerente activo configurado. Puede ingresar el nombre manualmente.
                                         </div>
                                     )}
                                     <div className="mb-4">
                                         <InputLabel value="Nombre" />
                                         <TextInput
-                                            className="mt-1 block w-full uppercase bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            className="mt-1 block w-full uppercase"
                                             value={data.destinatario_nombre}
-                                            readOnly
-                                            disabled
+                                            onChange={(e) => setData('destinatario_nombre', e.target.value)}
                                         />
                                         <InputError message={errors.destinatario_nombre} className="mt-2" />
                                     </div>
                                     <div>
                                         <InputLabel value="Cargo" />
                                         <TextInput
-                                            className="mt-1 block w-full uppercase bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            className="mt-1 block w-full uppercase"
                                             value={data.destinatario_cargo}
-                                            readOnly
-                                            disabled
+                                            onChange={(e) => setData('destinatario_cargo', e.target.value)}
                                         />
                                         <InputError message={errors.destinatario_cargo} className="mt-2" />
                                     </div>
@@ -128,19 +169,17 @@ export default function Create({ materiales, materialesDefault = [], manager, em
                                     <div className="mb-4">
                                         <InputLabel value="Nombre" />
                                         <TextInput
-                                            className="mt-1 block w-full uppercase bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            className="mt-1 block w-full uppercase"
                                             value={data.solicitante_nombre}
-                                            readOnly
-                                            disabled
+                                            onChange={(e) => setData('solicitante_nombre', e.target.value)}
                                         />
                                     </div>
                                     <div>
                                         <InputLabel value="Cargo" />
                                         <TextInput
-                                            className="mt-1 block w-full uppercase bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            className="mt-1 block w-full uppercase"
                                             value={data.solicitante_cargo}
-                                            readOnly
-                                            disabled
+                                            onChange={(e) => setData('solicitante_cargo', e.target.value)}
                                         />
                                     </div>
                                 </div>

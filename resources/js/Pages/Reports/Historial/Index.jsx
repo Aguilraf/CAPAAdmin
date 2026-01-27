@@ -23,11 +23,24 @@ export default function Index({ reportes, filters }) {
     }, [search, fechaDesde, fechaHasta]);
 
     const handleReprint = (reportId) => {
-        // Open in new tab by submitting form to duplicate logic
-        // Since we need to POST, we can use router.post but target _blank is tricky with Inertia
-        // A simple way is to use a form ref or window.open a GET route if we changed it to GET
-        // But for security POST is better. Let's use Inertia visitor
-        router.post(route('reportes.historial.print', reportId));
+        // Create a temporary form to POST request for download
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = route('reportes.historial.print', reportId);
+        form.target = '_blank'; // Open in new tab for PDF download
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (token) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_token';
+            input.value = token;
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
     };
 
     const toggleDetails = (reportId) => {

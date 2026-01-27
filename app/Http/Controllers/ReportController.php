@@ -53,6 +53,9 @@ class ReportController extends Controller
     /**
      * Re-print a specific report from history.
      */
+    /**
+     * Re-print a specific report from history.
+     */
     public function reprint(Request $request, $id)
     {
         $bitacora = \App\Models\ReporteBitacora::findOrFail($id);
@@ -61,10 +64,18 @@ class ReportController extends Controller
         $keys = ['logo_qroo', 'logo_unidos', 'logo_capa', 'footer_organismo', 'footer_direccion', 'footer_telefono', 'footer_email', 'footer_imagen'];
         $settings = \App\Models\Setting::whereIn('key', $keys)->pluck('value', 'key');
 
-        return Inertia::render('Reports/MaterialRequest/Print', [
-            'data' => $bitacora->datos_completos,
+        $data = $bitacora->datos_completos;
+        $fecha_formateada = $this->formatDate($data['fecha'] ?? $bitacora->fecha_reporte);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.material_request', [
+            'data' => $data,
             'settings' => $settings,
+            'fecha_formateada' => $fecha_formateada,
         ]);
+
+        $pdf->setPaper('letter', 'portrait');
+
+        return $pdf->download('Solicitud_Material_' . ($data['fecha'] ?? 'date') . '.pdf');
     }
 
     /**
@@ -167,14 +178,41 @@ class ReportController extends Controller
             'datos_completos' => $validated,
         ]);
 
-        // Process items to ensure they have all display data
-        // If we trust the client to send the names, we can use them directly.
-        // Or we can re-fetch to be safe. For a print view, using client data 
-        // (which might have been edited in the UI) is often flexible.
-        // Let's rely on the posted data which should include the display strings.
+        // Fetch Branding Settings
+        $keys = ['logo_qroo', 'logo_unidos', 'logo_capa', 'footer_organismo', 'footer_direccion', 'footer_telefono', 'footer_email', 'footer_imagen'];
+        $settings = \App\Models\Setting::whereIn('key', $keys)->pluck('value', 'key');
 
-        return Inertia::render('Reports/MaterialRequest/Print', [
+        $fecha_formateada = $this->formatDate($validated['fecha']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.material_request', [
             'data' => $validated,
+            'settings' => $settings,
+            'fecha_formateada' => $fecha_formateada,
         ]);
+
+        $pdf->setPaper('letter', 'portrait');
+
+        return $pdf->download('Solicitud_Material_' . $validated['fecha'] . '.pdf');
+    }
+
+    private function formatDate($dateString)
+    {
+        $date = \Carbon\Carbon::parse($dateString);
+        $monthNames = [
+            "enero",
+            "febrero",
+            "marzo",
+            "abril",
+            "mayo",
+            "junio",
+            "julio",
+            "agosto",
+            "septiembre",
+            "octubre",
+            "noviembre",
+            "diciembre"
+        ];
+        $month = $monthNames[$date->month - 1]; // Carbon month is 1-indexed
+        return "José María Morelos, Quintana Roo, " . $date->day . " de " . $month . " del " . $date->year;
     }
 }

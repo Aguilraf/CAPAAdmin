@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Empleado extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, \Illuminate\Database\Eloquent\Factories\HasFactory;
 
     protected $table = 'empleados';
 
