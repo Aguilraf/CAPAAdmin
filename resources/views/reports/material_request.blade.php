@@ -10,7 +10,7 @@
         body {
             font-family: Arial, list-sans-serif;
             font-size: 11pt;
-            margin-top: 2cm;
+            margin-top: 1cm;
             margin-left: 2cm;
             margin-right: 2cm;
             margin-bottom: 2cm;
@@ -31,7 +31,7 @@
         /* Header Logos */
         .header-table {
             width: 100%;
-            margin-bottom: 2rem;
+            margin-bottom: 0.5rem;
             border: none;
         }
         .header-table td {
@@ -86,7 +86,7 @@
         
         /* Signature Block */
         .signature-block {
-            margin-top: 4cm;
+            margin-top: 1cm;
             text-align: center;
             page-break-inside: avoid;
         }
@@ -130,11 +130,11 @@
     </div>
 
     <!-- Addressee -->
-    <div class="mb-4 uppercase" style="line-height: 1.5;">
-        <p class="font-bold">C. {{ $data['destinatario_nombre'] }}</p>
-        <p>{{ $data['destinatario_cargo'] }}</p>
-        <p>JOSE MARIA MORELOS</p>
-        <p>Presente:</p>
+    <div class="mb-4 uppercase" style="line-height: 1.1;">
+        <p class="font-bold" style="margin: 0;">C. {{ $data['destinatario_nombre'] }}</p>
+        <p style="margin: 0;">{{ $data['destinatario_cargo'] }}</p>
+        <p style="margin: 0;">JOSE MARIA MORELOS</p>
+        <p style="margin: 0;">Presente:</p>
     </div>
 
     <!-- Body -->
@@ -171,12 +171,17 @@
 
     <!-- Signature -->
     <div class="signature-block">
-        <p class="font-bold mb-8">ATENTAMENTE</p>
-        <div style="height: 2cm;"></div> <!-- Space for signature -->
+        <p class="font-bold mb-4">ATENTAMENTE</p>
+        <div style="height: 1.5cm;"></div> <!-- Space for signature -->
         <div class="signature-line">
             <p class="font-bold uppercase" style="margin: 0;">{{ $data['solicitante_nombre'] }}</p>
             <p class="uppercase" style="font-size: 10pt; margin: 0;">{{ $data['solicitante_cargo'] }}</p>
         </div>
+    </div>
+
+    <!-- C.C.P. -->
+    <div style="font-size: 7pt; margin-top: 0.5cm; margin-left: 0; text-align: left;">
+        <p>C.C.P.-.-MINUTARIO</p>
     </div>
 
     <!-- Footer -->
@@ -188,12 +193,9 @@
         @endif
 
         <div class="footer-content">
-             <!-- Optional CAPA Logo in Footer -->
-             @if($settings['logo_capa'] ?? false)
-                <img src="{{ public_path('storage/' . $settings['logo_capa']) }}" style="position: absolute; right: 1cm; bottom: 1cm; height: 50px; opacity: 0.9;">
-            @endif
 
-            <div style="background-color: rgba(255,255,255,0.7); display: inline-block; padding: 5px; border-radius: 4px;">
+
+            <div style="display: inline-block;">
                 @if(!empty($settings['footer_organismo']))
                     <p class="font-bold">{{ $settings['footer_organismo'] }}</p>
                 @endif

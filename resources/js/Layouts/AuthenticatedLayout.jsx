@@ -73,6 +73,37 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Configuración
                                 </NavLink>
 
+                                {/* Dropdown de Usuarios y Seguridad */}
+                                <div className="relative flex items-center">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <button className="inline-flex items-center px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
+                                                Control de Acceso
+                                                <svg
+                                                    className="ml-1 h-4 w-4"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                >
+                                                    <path
+                                                        fillRule="evenodd"
+                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                        clipRule="evenodd"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </Dropdown.Trigger>
+                                        <Dropdown.Content>
+                                            <Dropdown.Link href={route('users.index')}>
+                                                Usuarios
+                                            </Dropdown.Link>
+                                            <Dropdown.Link href={route('roles.index')}>
+                                                Roles y Permisos
+                                            </Dropdown.Link>
+                                        </Dropdown.Content>
+                                    </Dropdown>
+                                </div>
+
                                 {/* Dropdown de Catálogos */}
                                 <div className="relative flex items-center">
                                     <Dropdown>
@@ -237,6 +268,19 @@ export default function AuthenticatedLayout({ header, children }) {
                         >
                             Configuración
                         </ResponsiveNavLink>
+
+                        {/* Enlaces de Seguridad */}
+                        <div className="border-t border-gray-200 pt-2 mt-2">
+                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                                Control de Acceso
+                            </div>
+                            <ResponsiveNavLink href={route('users.index')}>
+                                Usuarios
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink href={route('roles.index')}>
+                                Roles y Permisos
+                            </ResponsiveNavLink>
+                        </div>
 
                         {/* Enlaces de Catálogos */}
                         <div className="border-t border-gray-200 pt-2 mt-2">

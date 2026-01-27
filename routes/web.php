@@ -45,6 +45,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/importar', [\App\Http\Controllers\ImportController::class, 'index'])->name('import.index');
     Route::post('/importar', [\App\Http\Controllers\ImportController::class, 'store'])->name('import.store');
     Route::get('/importar/plantilla', [\App\Http\Controllers\ImportController::class, 'downloadTemplate'])->name('import.template');
+    // Rutas de Administración de Usuarios
+    Route::resource('roles', \App\Http\Controllers\RoleController::class);
+    Route::resource('users', \App\Http\Controllers\UserController::class);
 });
 
 require __DIR__ . '/auth.php';

@@ -2,7 +2,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import PrimaryButton from '@/Components/PrimaryButton';
-import TextArea from '@/Components/TextArea'; // Assuming you might have one, or use TextInput as textarea if adjusted, but sticking to basics first.
+
 // Actually standard TextInput usually is type="text", let's use TextInput or a standard textarea if needed.
 // Checking EmpleadoForm, it uses standard components. I'll stick to that.
 
