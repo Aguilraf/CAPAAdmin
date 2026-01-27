@@ -5,7 +5,7 @@ import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 
-export default function UserForm({ auth, user, roles, currentRole }) {
+export default function UserForm({ auth, user, roles, employees, currentRole }) {
     const isEditing = !!user;
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -15,6 +15,7 @@ export default function UserForm({ auth, user, roles, currentRole }) {
         password: '',
         password_confirmation: '',
         role: currentRole || (roles.length > 0 ? roles[0].name : ''),
+        empleado_id: user ? user.empleado_id : '',
     });
 
     const submit = (e) => {
@@ -25,6 +26,17 @@ export default function UserForm({ auth, user, roles, currentRole }) {
         } else {
             post(route('users.store'));
         }
+    };
+
+    const handleEmployeeChange = (e) => {
+        const selectedId = e.target.value;
+        const employee = employees.find(emp => emp.id == selectedId);
+
+        setData(data => ({
+            ...data,
+            empleado_id: selectedId,
+            name: employee ? employee.nombre : ''
+        }));
     };
 
     return (
@@ -39,17 +51,23 @@ export default function UserForm({ auth, user, roles, currentRole }) {
                         <div className="p-6 text-gray-900">
                             <form onSubmit={submit} className="max-w-xl">
                                 <div className="mb-4">
-                                    <InputLabel htmlFor="name" value="Nombre" />
-                                    <TextInput
-                                        id="name"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.name}
-                                        onChange={(e) => setData('name', e.target.value)}
+                                    <InputLabel htmlFor="empleado_id" value="Empleado (Nombre)" />
+                                    <select
+                                        id="empleado_id"
+                                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                        value={data.empleado_id}
+                                        onChange={handleEmployeeChange}
                                         required
                                         autoFocus
-                                        autoComplete="name"
-                                    />
+                                    >
+                                        <option value="">Seleccione un empleado...</option>
+                                        {employees.map((emp) => (
+                                            <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                                        ))}
+                                    </select>
+                                    <InputError className="mt-2" message={errors.empleado_id} />
+                                    {/* Campo oculto para name solo si se necesita enviar, pero setData lo maneja. 
+                                        InputError para name por si acaso llega del backend */}
                                     <InputError className="mt-2" message={errors.name} />
                                 </div>
 

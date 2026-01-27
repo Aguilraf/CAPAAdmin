@@ -24,6 +24,12 @@ class ReportController extends Controller
         $query = \App\Models\ReporteBitacora::with(['user', 'empleado'])
             ->orderBy('created_at', 'desc');
 
+        // Filter: Regular users only see their own reports
+        $user = auth()->user();
+        if (!$user->hasRole('Administrador')) {
+            $query->where('user_id', $user->id);
+        }
+
         // Search filter
         if ($request->has('search')) {
             $search = $request->search;
@@ -95,19 +101,30 @@ class ReportController extends Controller
                 ];
             });
 
-        // Fetch default materials (pre-filled in the materials list)
-        $materialesDefault = Material::with('unidadMedida')
-            ->where('es_default', true)
-            ->orderBy('articulo')
-            ->get()
-            ->map(function ($material) {
-                return [
-                    'id' => $material->id,
-                    'articulo' => $material->articulo,
-                    'unidad' => $material->unidadMedida ? $material->unidadMedida->nombre : '',
-                    'cantidad' => $material->cantidad ?: 1, // Use stored quantity or default to 1
-                ];
-            });
+        // Fetch user's default materials
+        $user = auth()->user();
+        $userDefaults = [];
+        $materialesDefault = [];
+        $hasDefaults = false;
+
+        if ($user) {
+            $userDefaults = $user->defaultMaterials()
+                ->with('unidadMedida')
+                ->get()
+                ->map(function ($material) {
+                    return [
+                        'id' => $material->id,
+                        'articulo' => $material->articulo,
+                        'unidad' => $material->unidadMedida ? $material->unidadMedida->nombre : '',
+                        'cantidad' => $material->pivot->cantidad,
+                    ];
+                });
+
+            if ($userDefaults->isNotEmpty()) {
+                $hasDefaults = true;
+                $materialesDefault = $userDefaults;
+            }
+        }
 
         // Fetch default manager (active employee marked as gerente)
         $manager = null;
@@ -121,7 +138,6 @@ class ReportController extends Controller
 
         // Get authenticated user's employee data
         $empleadoActual = null;
-        $user = auth()->user();
         if ($user && $user->empleado_id) {
             $empleadoActual = \App\Models\Empleado::find($user->empleado_id);
         }
@@ -129,6 +145,7 @@ class ReportController extends Controller
         return Inertia::render('Reports/MaterialRequest/Create', [
             'materiales' => $materiales,
             'materialesDefault' => $materialesDefault,
+            'hasDefaults' => $hasDefaults,
             'manager' => $manager,
             'empleadoActual' => $empleadoActual ? [
                 'nombre' => $empleadoActual->nombre,
@@ -137,6 +154,30 @@ class ReportController extends Controller
             ] : null,
         ]);
     }
+
+    /**
+     * Save user's default materials preference.
+     */
+    public function saveDefaults(Request $request)
+    {
+        $validated = $request->validate([
+            'items' => 'required|array',
+            'items.*.material_id' => 'required|exists:materials,id',
+            'items.*.cantidad' => 'nullable|numeric|min:0.01',
+        ]);
+
+        $user = auth()->user();
+        $defaults = [];
+
+        foreach ($validated['items'] as $item) {
+            $defaults[$item['material_id']] = ['cantidad' => $item['cantidad'] ?? 1];
+        }
+
+        $user->defaultMaterials()->sync($defaults);
+
+        return redirect()->back()->with('success', 'Lista de materiales favoritos guardada correctamente.');
+    }
+
 
     /**
      * Render the print view for the Material Request.

@@ -31,129 +31,78 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Dashboard
                                 </NavLink>
 
-                                {/* Dropdown de Reportes */}
                                 <div className="relative flex items-center pt-1">
                                     <Dropdown>
                                         <Dropdown.Trigger>
                                             <button className="inline-flex items-center px-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
                                                 Reportes
-                                                <svg
-                                                    className="ml-1 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
+                                                <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                                                 </svg>
                                             </button>
                                         </Dropdown.Trigger>
                                         <Dropdown.Content>
-                                            <Dropdown.Link href={route('reportes.index')}>
-                                                Inicio
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('reportes.material-request.create')}>
-                                                Nueva Solicitud
-                                            </Dropdown.Link>
+                                            <Dropdown.Link href={route('reportes.index')}>Inicio</Dropdown.Link>
+                                            <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
                                             <div className="border-t border-gray-100"></div>
-                                            <Dropdown.Link href={route('reportes.historial')}>
-                                                Historial
-                                            </Dropdown.Link>
+                                            <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>
                                         </Dropdown.Content>
                                     </Dropdown>
                                 </div>
 
-                                <NavLink
-                                    href={route('settings.index')}
-                                    active={route().current('settings.*')}
-                                >
-                                    Configuración
-                                </NavLink>
+                                {user.roles && user.roles.some(r => r.name === 'Administrador') && (
+                                    <>
+                                        <div className="relative flex items-center pt-1">
+                                            <Dropdown>
+                                                <Dropdown.Trigger>
+                                                    <button className="inline-flex items-center px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
+                                                        Catálogos
+                                                        <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </button>
+                                                </Dropdown.Trigger>
+                                                <Dropdown.Content>
+                                                    <Dropdown.Link href={route('empleados.index')}>Empleados</Dropdown.Link>
+                                                    <Dropdown.Link href={route('capitulos.index')}>Capítulos</Dropdown.Link>
+                                                    <Dropdown.Link href={route('partidas.index')}>Partidas</Dropdown.Link>
+                                                    <Dropdown.Link href={route('leyendas.index')}>Leyendas</Dropdown.Link>
+                                                    <Dropdown.Link href={route('materiales.index')}>Materiales</Dropdown.Link>
+                                                    <Dropdown.Link href={route('unidades-medida.index')}>Unidades de Medida</Dropdown.Link>
+                                                </Dropdown.Content>
+                                            </Dropdown>
+                                        </div>
 
-                                {/* Dropdown de Usuarios y Seguridad */}
-                                <div className="relative flex items-center">
-                                    <Dropdown>
-                                        <Dropdown.Trigger>
-                                            <button className="inline-flex items-center px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
-                                                Control de Acceso
-                                                <svg
-                                                    className="ml-1 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </Dropdown.Trigger>
-                                        <Dropdown.Content>
-                                            <Dropdown.Link href={route('users.index')}>
-                                                Usuarios
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('roles.index')}>
-                                                Roles y Permisos
-                                            </Dropdown.Link>
-                                        </Dropdown.Content>
-                                    </Dropdown>
-                                </div>
+                                        <NavLink href={route('settings.index')} active={route().current('settings.*')}>
+                                            Configuración
+                                        </NavLink>
 
-                                {/* Dropdown de Catálogos */}
-                                <div className="relative flex items-center">
-                                    <Dropdown>
-                                        <Dropdown.Trigger>
-                                            <button className="inline-flex items-center px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
-                                                Catálogos
-                                                <svg
-                                                    className="ml-1 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </Dropdown.Trigger>
-                                        <Dropdown.Content>
-                                            <Dropdown.Link href={route('empleados.index')}>
-                                                Empleados
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('capitulos.index')}>
-                                                Capítulos
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('partidas.index')}>
-                                                Partidas
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('leyendas.index')}>
-                                                Leyendas
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('materiales.index')}>
-                                                Materiales
-                                            </Dropdown.Link>
-                                            <Dropdown.Link href={route('unidades-medida.index')}>
-                                                Unidades de Medida
-                                            </Dropdown.Link>
-                                            <div className="border-t border-gray-100"></div>
-                                            <Dropdown.Link href={route('import.index')}>
-                                                Importar Datos
-                                            </Dropdown.Link>
-                                        </Dropdown.Content>
-                                    </Dropdown>
-                                </div>
+                                        <NavLink href={route('import.index')} active={route().current('import.*')}>
+                                            Importar
+                                        </NavLink>
+
+                                        <div className="relative flex items-center pt-1">
+                                            <Dropdown>
+                                                <Dropdown.Trigger>
+                                                    <button className="inline-flex items-center px-1 pt-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
+                                                        Control de Acceso
+                                                        <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </button>
+                                                </Dropdown.Trigger>
+                                                <Dropdown.Content>
+                                                    <Dropdown.Link href={route('users.index')}>Usuarios</Dropdown.Link>
+                                                    <Dropdown.Link href={route('roles.index')}>Roles y Permisos</Dropdown.Link>
+                                                </Dropdown.Content>
+                                            </Dropdown>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden sm:ms-6 sm:items-center sm:flex">
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -263,49 +212,67 @@ export default function AuthenticatedLayout({ header, children }) {
                         </ResponsiveNavLink>
 
                         <ResponsiveNavLink
-                            href={route('settings.index')}
-                            active={route().current('settings.*')}
+                            href={route('reportes.material-request.create')}
+                            active={route().current('reportes.material-request.create')}
                         >
-                            Configuración
+                            Nueva Solicitud Material
                         </ResponsiveNavLink>
 
-                        {/* Enlaces de Seguridad */}
-                        <div className="border-t border-gray-200 pt-2 mt-2">
-                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
-                                Control de Acceso
-                            </div>
-                            <ResponsiveNavLink href={route('users.index')}>
-                                Usuarios
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink href={route('roles.index')}>
-                                Roles y Permisos
-                            </ResponsiveNavLink>
-                        </div>
+                        {user.roles && user.roles.some(r => r.name === 'Administrador') && (
+                            <>
+                                <ResponsiveNavLink
+                                    href={route('settings.index')}
+                                    active={route().current('settings.*')}
+                                >
+                                    Configuración
+                                </ResponsiveNavLink>
 
-                        {/* Enlaces de Catálogos */}
-                        <div className="border-t border-gray-200 pt-2 mt-2">
-                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
-                                Catálogos
-                            </div>
-                            <ResponsiveNavLink href={route('empleados.index')}>
-                                Empleados
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink href={route('capitulos.index')}>
-                                Capítulos
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink href={route('partidas.index')}>
-                                Partidas
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink href={route('leyendas.index')}>
-                                Leyendas
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink href={route('materiales.index')}>
-                                Materiales
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink href={route('unidades-medida.index')}>
-                                Unidades de Medida
-                            </ResponsiveNavLink>
-                        </div>
+                                <ResponsiveNavLink
+                                    href={route('import.index')}
+                                    active={route().current('import.*')}
+                                >
+                                    Importar Datos
+                                </ResponsiveNavLink>
+
+                                {/* Enlaces de Seguridad */}
+                                <div className="border-t border-gray-200 pt-2 mt-2">
+                                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                                        Control de Acceso
+                                    </div>
+                                    <ResponsiveNavLink href={route('users.index')}>
+                                        Usuarios
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('roles.index')}>
+                                        Roles y Permisos
+                                    </ResponsiveNavLink>
+                                </div>
+
+                                {/* Enlaces de Catálogos */}
+                                <div className="border-t border-gray-200 pt-2 mt-2">
+                                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                                        Catálogos
+                                    </div>
+                                    <ResponsiveNavLink href={route('empleados.index')}>
+                                        Empleados
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('capitulos.index')}>
+                                        Capítulos
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('partidas.index')}>
+                                        Partidas
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('leyendas.index')}>
+                                        Leyendas
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('materiales.index')}>
+                                        Materiales
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('unidades-medida.index')}>
+                                        Unidades de Medida
+                                    </ResponsiveNavLink>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4">
@@ -332,7 +299,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         </div>
                     </div>
                 </div>
-            </nav>
+            </nav >
 
             {header && (
                 <header className="bg-white shadow">
@@ -340,18 +307,19 @@ export default function AuthenticatedLayout({ header, children }) {
                         {header}
                     </div>
                 </header>
-            )}
+            )
+            }
 
             <main>
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 mt-4">
                     {usePage().props.flash.success && (
-                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative animate-fade-out" role="alert">
                             <strong className="font-bold">¡Éxito! </strong>
                             <span className="block sm:inline">{usePage().props.flash.success}</span>
                         </div>
                     )}
                     {usePage().props.flash.error && (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative animate-fade-out" role="alert">
                             <strong className="font-bold">¡Error! </strong>
                             <span className="block sm:inline">{usePage().props.flash.error}</span>
                         </div>
@@ -359,6 +327,6 @@ export default function AuthenticatedLayout({ header, children }) {
                 </div>
                 {children}
             </main>
-        </div>
+        </div >
     );
 }

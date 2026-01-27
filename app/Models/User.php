@@ -56,4 +56,10 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Empleado::class);
     }
+    public function defaultMaterials()
+    {
+        return $this->belongsToMany(Material::class, 'user_material_defaults')
+            ->withPivot('cantidad')
+            ->withTimestamps();
+    }
 }
