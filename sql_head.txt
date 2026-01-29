@@ -1,0 +1,79 @@
+-- --------------------------------------------------------
+-- Host:                         127.0.0.1
+-- Versión del servidor:         8.4.3 - MySQL Community Server - GPL
+-- SO del servidor:              Win64
+-- HeidiSQL Versión:             12.8.0.6908
+-- --------------------------------------------------------
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET NAMES utf8 */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+
+-- Volcando estructura de base de datos para u553580668_bomberos
+CREATE DATABASE IF NOT EXISTS `u553580668_bomberos` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `u553580668_bomberos`;
+
+-- Volcando estructura para tabla u553580668_bomberos.cache
+CREATE TABLE IF NOT EXISTS `cache` (
+  `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expiration` int NOT NULL,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Volcando datos para la tabla u553580668_bomberos.cache: ~0 rows (aproximadamente)
+
+-- Volcando estructura para tabla u553580668_bomberos.cache_locks
+CREATE TABLE IF NOT EXISTS `cache_locks` (
+  `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `owner` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expiration` int NOT NULL,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Volcando datos para la tabla u553580668_bomberos.cache_locks: ~0 rows (aproximadamente)
+
+-- Volcando estructura para tabla u553580668_bomberos.captures
+CREATE TABLE IF NOT EXISTS `captures` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `date` date NOT NULL,
+  `year` int NOT NULL,
+  `community_id` bigint unsigned NOT NULL,
+  `firefighter_id` bigint unsigned NOT NULL,
+  `subtotal` decimal(10,2) NOT NULL,
+  `commission` decimal(10,2) NOT NULL,
+  `total` decimal(10,2) NOT NULL,
+  `requirement_number` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `assignment_date` date DEFAULT NULL,
+  `rounding_commission` decimal(10,2) NOT NULL,
+  `rounding_total` decimal(10,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `captures_community_id_foreign` (`community_id`),
+  KEY `captures_firefighter_id_foreign` (`firefighter_id`),
+  KEY `captures_requirement_number_index` (`requirement_number`),
+  CONSTRAINT `captures_community_id_foreign` FOREIGN KEY (`community_id`) REFERENCES `communities` (`id`),
+  CONSTRAINT `captures_firefighter_id_foreign` FOREIGN KEY (`firefighter_id`) REFERENCES `firefighters` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=506 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Volcando datos para la tabla u553580668_bomberos.captures: ~503 rows (aproximadamente)
+REPLACE INTO `captures` (`id`, `date`, `year`, `community_id`, `firefighter_id`, `subtotal`, `commission`, `total`, `requirement_number`, `assignment_date`, `rounding_commission`, `rounding_total`, `created_at`, `updated_at`) VALUES
+	(1, '2025-01-02', 2025, 31, 31, 240.00, 36.00, 204.00, '014', NULL, 0.00, 0.00, '2026-01-02 20:10:46', '2026-01-02 23:57:36'),
+	(2, '2025-01-02', 2025, 15, 15, 12888.53, 1933.28, 10955.25, '014', NULL, 0.00, 0.00, '2026-01-02 20:19:31', '2026-01-02 23:57:36'),
+	(3, '2025-01-02', 2025, 22, 22, 4119.54, 617.93, 3501.61, '014', NULL, 0.00, 0.00, '2026-01-02 20:20:24', '2026-01-02 23:57:36'),
+	(4, '2025-01-02', 2025, 14, 14, 519.55, 77.93, 441.62, '014', NULL, 0.00, 0.00, '2026-01-02 20:20:57', '2026-01-02 23:57:36'),
+	(5, '2025-01-02', 2025, 11, 11, 2362.47, 354.37, 2008.10, '014', NULL, 0.00, 0.00, '2026-01-02 20:21:37', '2026-01-02 23:57:36'),
+	(6, '2025-01-02', 2025, 35, 35, 1070.61, 160.59, 910.02, '014', NULL, 0.00, 0.00, '2026-01-02 20:24:25', '2026-01-02 23:57:36'),
+	(7, '2025-01-02', 2025, 18, 18, 4383.19, 657.48, 3725.71, '014', NULL, 0.00, 0.00, '2026-01-02 20:26:29', '2026-01-02 23:57:36'),
+	(8, '2025-01-02', 2025, 50, 50, 1577.87, 236.68, 1341.18, '014', NULL, 0.00, -0.01, '2026-01-02 20:29:18', '2026-01-02 23:57:36'),
+	(9, '2025-01-02', 2025, 36, 36, 780.89, 117.13, 663.76, '014', NULL, 0.00, 0.00, '2026-01-02 20:37:07', '2026-01-02 23:57:36'),
+	(10, '2025-01-02', 2025, 29, 29, 1918.14, 287.72, 1630.42, '014', NULL, 0.00, 0.00, '2026-01-02 20:37:39', '2026-01-02 23:57:36'),
+	(11, '2025-01-02', 2025, 21, 21, 480.09, 72.01, 408.08, '014', NULL, 0.00, 0.00, '2026-01-02 20:37:56', '2026-01-02 23:57:36'),
+	(12, '2025-01-02', 2025, 13, 13, 961.75, 144.26, 817.49, '014', NULL, 0.00, 0.00, '2026-01-02 20:38:17', '2026

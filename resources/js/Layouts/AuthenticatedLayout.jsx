@@ -50,6 +50,61 @@ export default function AuthenticatedLayout({ header, children }) {
                                     </Dropdown>
                                 </div>
 
+                                <div className="relative flex items-center pt-1">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <button className="inline-flex items-center px-1 text-sm font-medium leading-5 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
+                                                Bomberos
+                                                <svg className="ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </button>
+                                        </Dropdown.Trigger>
+                                        <Dropdown.Content>
+                                            {/* Capturar - visible para todos los usuarios con el permiso */}
+                                            {user.permissions && user.permissions.includes('capturar bomberos') && (
+                                                <Dropdown.Link href="/firefighters/capture">Capturar</Dropdown.Link>
+                                            )}
+
+                                            {/* Recibir - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('recibir bomberos') && (
+                                                <Dropdown.Link href="/firefighters/receive">Recibir</Dropdown.Link>
+                                            )}
+
+                                            {/* Reportes - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('reportes bomberos') && (
+                                                <Dropdown.Link href="/firefighters/report">Reportes</Dropdown.Link>
+                                            )}
+
+                                            {/* Separador si hay opciones administrativas */}
+                                            {user.permissions && (user.permissions.includes('ver comunidades') || user.permissions.includes('ver bomberos')) && (
+                                                <div className="border-t border-gray-100"></div>
+                                            )}
+
+                                            {/* Comunidades - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('ver comunidades') && (
+                                                <Dropdown.Link href="/firefighters/communities">Comunidades</Dropdown.Link>
+                                            )}
+
+                                            {/* Bomberos - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('ver bomberos') && (
+                                                <Dropdown.Link href="/firefighters/list">Bomberos</Dropdown.Link>
+                                            )}
+
+                                            {/* Configuración - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('configurar bomberos') && (
+                                                <Dropdown.Link href="/firefighters/settings">Configuración</Dropdown.Link>
+                                            )}
+
+                                            {/* Importar - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('importar bomberos') && (
+                                                <Dropdown.Link href="/firefighters/import">Importar</Dropdown.Link>
+                                            )}
+                                        </Dropdown.Content>
+                                    </Dropdown>
+                                </div>
+
+
                                 {user.roles && user.roles.some(r => r.name === 'Administrador') && (
                                     <>
                                         <div className="relative flex items-center pt-1">
@@ -217,6 +272,54 @@ export default function AuthenticatedLayout({ header, children }) {
                         >
                             Nueva Solicitud Material
                         </ResponsiveNavLink>
+
+                        <div className="border-t border-gray-200 pt-2 mt-2">
+                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                                Bomberos
+                            </div>
+
+                            {user.permissions && user.permissions.includes('capturar bomberos') && (
+                                <ResponsiveNavLink href="/firefighters/capture">
+                                    Capturar
+                                </ResponsiveNavLink>
+                            )}
+
+                            {user.permissions && user.permissions.includes('recibir bomberos') && (
+                                <ResponsiveNavLink href="/firefighters/receive">
+                                    Recibir
+                                </ResponsiveNavLink>
+                            )}
+
+                            {user.permissions && user.permissions.includes('reportes bomberos') && (
+                                <ResponsiveNavLink href="/firefighters/report">
+                                    Reportes
+                                </ResponsiveNavLink>
+                            )}
+
+                            {user.permissions && user.permissions.includes('ver comunidades') && (
+                                <ResponsiveNavLink href="/firefighters/communities">
+                                    Comunidades
+                                </ResponsiveNavLink>
+                            )}
+
+                            {user.permissions && user.permissions.includes('ver bomberos') && (
+                                <ResponsiveNavLink href="/firefighters/list">
+                                    Bomberos
+                                </ResponsiveNavLink>
+                            )}
+
+                            {user.permissions && user.permissions.includes('configurar bomberos') && (
+                                <ResponsiveNavLink href="/firefighters/settings">
+                                    Configuración
+                                </ResponsiveNavLink>
+                            )}
+
+                            {user.permissions && user.permissions.includes('importar bomberos') && (
+                                <ResponsiveNavLink href="/firefighters/import">
+                                    Importar
+                                </ResponsiveNavLink>
+                            )}
+                        </div>
 
                         {user.roles && user.roles.some(r => r.name === 'Administrador') && (
                             <>

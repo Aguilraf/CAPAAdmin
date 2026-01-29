@@ -55,6 +55,88 @@ Route::middleware('auth')->group(function () {
         Route::post('/reportes/solicitud-material/defaults', [\App\Http\Controllers\ReportController::class, 'saveDefaults'])->name('reportes.material-request.defaults');
         Route::post('/reportes/solicitud-material/print', [\App\Http\Controllers\ReportController::class, 'printMaterialRequest'])->name('reportes.material-request.print');
     });
+
+    // Rutas de Bomberos (Integración)
+    // Capturar - accesible con permiso
+    Route::middleware(['permission:capturar bomberos'])->group(function () {
+        Route::get('/firefighters/capture', function () {
+            return Inertia::render('Firefighters/Capture', [
+                'communities' => \App\Models\Community::all(),
+                'firefighters' => \App\Models\Firefighter::with('community')->get(),
+            ]);
+        })->name('firefighters.capture');
+    });
+
+
+    // Recibir - accesible con permiso
+    Route::middleware(['permission:recibir bomberos'])->get('/firefighters/receive', function () {
+        return Inertia::render('Firefighters/Receive', [
+            'communities' => \App\Models\Community::all(),
+            'settings' => \App\Models\FirefighterSetting::first(),
+        ]);
+    })->name('firefighters.receive');
+
+    // Reportes - accesible con permiso
+    Route::middleware(['permission:reportes bomberos'])->get('/firefighters/report', function (\Illuminate\Http\Request $request) {
+        $requirements = \App\Models\Capture::select('year', 'requirement_number', 'requirement_type')
+            ->whereNotNull('year')
+            ->whereNotNull('requirement_number')
+            ->where('requirement_type', 'bomberos') // Solo bomberos
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->orderBy('requirement_number', 'desc')
+            ->get();
+
+        $captures = [];
+        if ($request->filled('year') && $request->filled('requirement_number')) {
+            $captures = \App\Models\Capture::with(['community', 'firefighter'])
+                ->where('year', $request->year)
+                ->where('requirement_number', $request->requirement_number)
+                ->where('requirement_type', 'bomberos')
+                ->get();
+        }
+
+        return Inertia::render('Firefighters/Report', [
+            'requirements' => $requirements,
+            'captures' => $captures,
+            'filters' => $request->only(['year', 'requirement_number']),
+            'settings' => \App\Models\FirefighterSetting::first(),
+            'requirementTypes' => \App\Models\Capture::REQUIREMENT_TYPES,
+        ]);
+    })->name('firefighters.report');
+
+    // Settings - accesible con permiso
+    Route::middleware(['permission:configurar bomberos'])->group(function () {
+        Route::get('/firefighters/settings', [\App\Http\Controllers\FirefighterSettingController::class, 'index'])->name('firefighters.settings');
+        Route::post('/firefighters/settings', [\App\Http\Controllers\FirefighterSettingController::class, 'update'])->name('firefighters.settings.update');
+    });
+
+    // Comunidades - accesible con permiso
+    Route::middleware(['permission:ver comunidades'])->get('/firefighters/communities', function () {
+        return Inertia::render('Firefighters/Communities', [
+            'communities' => \App\Models\Community::all(),
+        ]);
+    })->name('firefighters.communities');
+
+    // Lista de Bomberos - accesible con permiso
+    Route::middleware(['permission:ver bomberos'])->get('/firefighters/list', function () {
+        return Inertia::render('Firefighters/Firefighters', [
+            'firefighters' => \App\Models\Firefighter::with('community')->get(),
+            'communities' => \App\Models\Community::all(),
+        ]);
+    })->name('firefighters.list');
+
+    // Configuración - accesible con permiso
+    Route::middleware(['permission:configurar bomberos'])->get('/firefighters/settings', function () {
+        return Inertia::render('Firefighters/Settings', [
+            'settings' => \App\Models\FirefighterSetting::first(),
+        ]);
+    })->name('firefighters.settings');
+
+    // Importar - accesible con permiso
+    Route::middleware(['permission:importar bomberos'])->get('/firefighters/import', function () {
+        return Inertia::render('Firefighters/ImportCaptures');
+    })->name('firefighters.import');
 });
 
 require __DIR__ . '/auth.php';
