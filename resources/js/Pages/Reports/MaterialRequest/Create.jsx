@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -140,37 +140,14 @@ export default function Create({ materiales, materialesDefault = [], hasDefaults
             cantidad: 1 // Default quantity
         }));
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = route('reportes.material-request.defaults'); // We need to add this route
-
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (token) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = '_token';
-            input.value = token;
-            form.appendChild(input);
-        }
-
-        itemsToSave.forEach((item, index) => {
-            const inputId = document.createElement('input');
-            inputId.type = 'hidden';
-            inputId.name = `items[${index}][material_id]`;
-            inputId.value = item.material_id;
-            form.appendChild(inputId);
-
-            const inputQty = document.createElement('input');
-            inputQty.type = 'hidden';
-            inputQty.name = `items[${index}][cantidad]`;
-            inputQty.value = item.cantidad;
-            form.appendChild(inputQty);
+        router.post(route('reportes.material-request.defaults'), {
+            items: itemsToSave
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowDefaultsModal(false);
+            },
         });
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-        // We let the page reload handling the redirect back
     };
 
     const toggleDefaultSelection = (id) => {
