@@ -26,24 +26,8 @@ export default function Index({ reportes, filters }) {
     }, [search, fechaDesde, fechaHasta]);
 
     const handleReprint = (reportId) => {
-        // Create a temporary form to POST request for download
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = route('reportes.historial.print', reportId);
-        form.target = '_blank'; // Open in new tab for PDF download
-
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (token) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = '_token';
-            input.value = token;
-            form.appendChild(input);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+        // Since we switched the route to GET, we can simply open it in a new tab
+        window.open(route('reportes.historial.print', reportId), '_blank');
     };
 
     const toggleDetails = (reportId) => {

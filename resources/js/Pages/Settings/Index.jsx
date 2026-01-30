@@ -26,7 +26,7 @@ export default function Index({ initialSettings }) {
     };
 
     const getLogoUrl = (path) => {
-        return path ? `/storage/${path}` : null;
+        return path ? `/media/${path}` : null;
     };
 
     return (

@@ -125,7 +125,7 @@ export default function Print({ data, settings }) {
                         <div
                             className="absolute inset-0 z-0 bg-no-repeat bg-bottom bg-cover"
                             style={{
-                                backgroundImage: `url(/storage/${settings.footer_imagen})`,
+                                backgroundImage: `url(/media/${settings.footer_imagen})`,
                                 // Adjust background size/position as needed to match the wave design
                                 opacity: 1,
                             }}
@@ -140,7 +140,7 @@ export default function Print({ data, settings }) {
                         {/* Optional Logo in Footer (CAPA) - positioned absolute right typically, or inline */}
                         {settings?.logo_capa && (
                             <img
-                                src={`/storage/${settings.logo_capa}`}
+                                src={`/media/${settings.logo_capa}`}
                                 alt="CAPA Logo"
                                 className="h-16 object-contain absolute right-4 bottom-4 opacity-90"
                             />

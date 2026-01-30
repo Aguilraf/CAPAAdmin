@@ -5,7 +5,7 @@ export default function OfficialHeader() {
     const { settings } = usePage().props;
 
     const getLogoUrl = (path) => {
-        return path ? `/storage/${path}` : null;
+        return path ? `/media/${path}` : null;
     };
 
     return (

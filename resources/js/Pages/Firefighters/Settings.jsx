@@ -63,13 +63,13 @@ export default function Settings(props) {
             });
 
             if (data.report_logo_state) {
-                setPreviews(prev => ({ ...prev, report_logo_state: `/storage/${data.report_logo_state}` }));
+                setPreviews(prev => ({ ...prev, report_logo_state: `/media/${data.report_logo_state}` }));
             }
             if (data.report_logo_campaign) {
-                setPreviews(prev => ({ ...prev, report_logo_campaign: `/storage/${data.report_logo_campaign}` }));
+                setPreviews(prev => ({ ...prev, report_logo_campaign: `/media/${data.report_logo_campaign}` }));
             }
             if (data.report_logo_footer) {
-                setPreviews(prev => ({ ...prev, report_logo_footer: `/storage/${data.report_logo_footer}` }));
+                setPreviews(prev => ({ ...prev, report_logo_footer: `/media/${data.report_logo_footer}` }));
             }
         } catch (error) {
             console.error('Error fetching settings:', error);

@@ -140,7 +140,7 @@ export default function Report({ auth, requirements, captures, filters, settings
                         <div className="flex justify-between items-end mt-4">
                             <div className="w-48 h-20 flex items-center justify-start">
                                 {settings?.report_logo_state ? (
-                                    <img src={`/storage/${settings.report_logo_state}`} className="max-h-full object-contain" alt="State Logo" />
+                                    <img src={`/media/${settings.report_logo_state}`} className="max-h-full object-contain" alt="State Logo" />
                                 ) : (
                                     <div className="w-40 h-16 bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase p-2 text-center rounded">
                                         LOGO QUINTANA ROO
@@ -150,7 +150,7 @@ export default function Report({ auth, requirements, captures, filters, settings
                             <div className="text-right flex flex-col items-end">
                                 <div className="w-40 h-16 flex items-center justify-end mb-2">
                                     {settings?.report_logo_campaign ? (
-                                        <img src={`/storage/${settings.report_logo_campaign}`} className="max-h-full object-contain" alt="Campaign Logo" />
+                                        <img src={`/media/${settings.report_logo_campaign}`} className="max-h-full object-contain" alt="Campaign Logo" />
                                     ) : (
                                         <div className="w-32 h-12 bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase p-2 text-center rounded">
                                             LOGO CAMPAÑA

@@ -5,7 +5,7 @@ export default function OfficialFooter() {
     const { settings } = usePage().props;
 
     const getLogoUrl = (path) => {
-        return path ? `/storage/${path}` : null;
+        return path ? `/media/${path}` : null;
     };
 
     return (

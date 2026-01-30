@@ -13,6 +13,11 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Ruta para servir imágenes directamente (Opción Nuclear)
+Route::get('/media/{path}', [\App\Http\Controllers\MediaController::class, 'show'])
+    ->where('path', '.*')
+    ->name('media.show');
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -50,7 +55,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['permission:generar reportes'])->group(function () {
         Route::get('/reportes', [\App\Http\Controllers\ReportController::class, 'index'])->name('reportes.index');
         Route::get('/reportes/historial', [\App\Http\Controllers\ReportController::class, 'historial'])->name('reportes.historial');
-        Route::post('/reportes/historial/{id}/print', [\App\Http\Controllers\ReportController::class, 'reprint'])->name('reportes.historial.print');
+        Route::get('/reportes/historial/{id}/print', [\App\Http\Controllers\ReportController::class, 'reprint'])->name('reportes.historial.print');
         Route::get('/reportes/solicitud-material', [\App\Http\Controllers\ReportController::class, 'createMaterialRequest'])->name('reportes.material-request.create');
         Route::post('/reportes/solicitud-material/defaults', [\App\Http\Controllers\ReportController::class, 'saveDefaults'])->name('reportes.material-request.defaults');
         Route::post('/reportes/solicitud-material/print', [\App\Http\Controllers\ReportController::class, 'printMaterialRequest'])->name('reportes.material-request.print');
