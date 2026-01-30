@@ -43,6 +43,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn() => $request->session()->get('error'),
             ],
             'settings' => fn() => \App\Models\Setting::whereIn('key', ['logo_qroo', 'logo_unidos', 'logo_capa'])->pluck('value', 'key'),
+            'csrf_token' => csrf_token(),
         ];
     }
 }

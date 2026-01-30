@@ -105,7 +105,7 @@
         <tr>
             <td>
                 @if($settings['logo_qroo'] ?? false)
-                    <img src="{{ public_path('storage/' . $settings['logo_qroo']) }}" style="height: 80px;">
+                    <img src="{{ storage_path('app/public/' . $settings['logo_qroo']) }}" style="height: 80px;">
                 @else
                     <div style="height: 80px; width: 100%; background: #eee;">[LOGO QROO]</div>
                 @endif
@@ -115,7 +115,7 @@
             </td>
             <td>
                 @if($settings['logo_unidos'] ?? false)
-                    <img src="{{ public_path('storage/' . $settings['logo_unidos']) }}" style="height: 60px;">
+                    <img src="{{ storage_path('app/public/' . $settings['logo_unidos']) }}" style="height: 60px;">
                 @else
                      <div style="height: 60px; width: 100%; background: #eee;">[LOGO UNIDOS]</div>
                 @endif
@@ -187,7 +187,7 @@
     <!-- Footer -->
     <div class="footer">
         @if($settings['footer_imagen'] ?? false)
-            <img class="footer-bg" src="{{ public_path('storage/' . $settings['footer_imagen']) }}" alt="Footer Background">
+            <img class="footer-bg" src="{{ storage_path('app/public/' . $settings['footer_imagen']) }}" alt="Footer Background">
         @else
              <div class="footer-bg" style="border-bottom: 5px solid pink;"></div>
         @endif

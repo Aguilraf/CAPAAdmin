@@ -6,7 +6,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import InputError from '@/Components/InputError';
 import { useState } from 'react';
 
-export default function Create({ materiales, materialesDefault = [], hasDefaults = false, manager, empleadoActual }) {
+export default function Create({ materiales, materialesDefault = [], hasDefaults = false, manager, empleadoActual, csrf_token }) {
     const { data, setData, post, processing, errors } = useForm({
         fecha: new Date().toISOString().split('T')[0],
         destinatario_nombre: manager ? manager.nombre : '',
@@ -27,6 +27,21 @@ export default function Create({ materiales, materialesDefault = [], hasDefaults
         solicitante_cargo: empleadoActual ? empleadoActual.puesto : '',
         solicitante_departamento: empleadoActual ? empleadoActual.departamento : '',
     });
+
+    // Effect to update items when defaults change (e.g. after saving new defaults)
+    useEffect(() => {
+        // Only update if current items are empty or just one empty row
+        const isEmpty = data.items.length === 0 || (data.items.length === 1 && !data.items[0].material_id);
+
+        if (materialesDefault.length > 0 && isEmpty) {
+            setData('items', materialesDefault.map(mat => ({
+                material_id: mat.id,
+                cantidad: mat.cantidad,
+                custom_articulo: mat.articulo,
+                custom_unidad: mat.unidad
+            })));
+        }
+    }, [materialesDefault]);
 
     const addItem = () => {
         setData('items', [
@@ -85,8 +100,8 @@ export default function Create({ materiales, materialesDefault = [], hasDefaults
         form.action = route('reportes.material-request.print');
         form.target = '_blank'; // Open in new tab? Or _self for download. _blank is safer for PDF.
 
-        // CSRF Token
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        // CSRF Token - Use the fresh one from props
+        const token = csrf_token || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (token) {
             const input = document.createElement('input');
             input.type = 'hidden';

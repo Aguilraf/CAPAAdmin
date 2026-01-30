@@ -137,7 +137,7 @@
 
         <div class="footer-image-container">
             @if(isset($settings['report_logo_footer']) && $settings['report_logo_footer'])
-                <img src="{{ public_path('storage/' . $settings['report_logo_footer']) }}" style="width: 100%; height: auto; display: block;">
+                <img src="{{ storage_path('app/public/' . $settings['report_logo_footer']) }}" style="width: 100%; height: auto; display: block;">
             @endif
         </div>
 
@@ -149,14 +149,14 @@
             <div class="logo-container">
                 <div class="logo-left">
                     @if(isset($settings['report_logo_state']) && $settings['report_logo_state'])
-                        <img src="{{ public_path('storage/' . $settings['report_logo_state']) }}" class="logo-state">
+                        <img src="{{ storage_path('app/public/' . $settings['report_logo_state']) }}" class="logo-state">
                     @else
                         <div style="font-size: 8pt; border: 1px dashed #ccc; padding: 10px;">LOGO ESTATAL</div>
                     @endif
                 </div>
                 <div class="logo-right">
                     @if(isset($settings['report_logo_campaign']) && $settings['report_logo_campaign'])
-                        <img src="{{ public_path('storage/' . $settings['report_logo_campaign']) }}" class="logo-campaign">
+                        <img src="{{ storage_path('app/public/' . $settings['report_logo_campaign']) }}" class="logo-campaign">
                     @else
                         <div style="font-size: 8pt; border: 1px dashed #ccc; padding: 10px;">LOGO CAMPAÑA</div>
                     @endif
