@@ -4,7 +4,7 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import PrimaryButton from '@/Components/PrimaryButton';
 import InputError from '@/Components/InputError';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Create({ materiales, materialesDefault = [], hasDefaults = false, manager, empleadoActual, csrf_token }) {
     const { data, setData, post, processing, errors } = useForm({
