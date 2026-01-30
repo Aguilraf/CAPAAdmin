@@ -42,10 +42,14 @@ export default function AuthenticatedLayout({ header, children }) {
                                             </button>
                                         </Dropdown.Trigger>
                                         <Dropdown.Content>
-                                            <Dropdown.Link href={route('reportes.index')}>Inicio</Dropdown.Link>
-                                            <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
-                                            <div className="border-t border-gray-100"></div>
-                                            <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>
+                                            {user.permissions && user.permissions.includes('generar reportes') && (
+                                                <>
+                                                    <Dropdown.Link href={route('reportes.index')}>Inicio</Dropdown.Link>
+                                                    <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
+                                                    <div className="border-t border-gray-100"></div>
+                                                    <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>
+                                                </>
+                                            )}
                                         </Dropdown.Content>
                                     </Dropdown>
                                 </div>
@@ -259,19 +263,23 @@ export default function AuthenticatedLayout({ header, children }) {
                             Dashboard
                         </ResponsiveNavLink>
 
-                        <ResponsiveNavLink
-                            href={route('reportes.index')}
-                            active={route().current('reportes.*')}
-                        >
-                            Reportes
-                        </ResponsiveNavLink>
+                        {user.permissions && user.permissions.includes('generar reportes') && (
+                            <>
+                                <ResponsiveNavLink
+                                    href={route('reportes.index')}
+                                    active={route().current('reportes.*')}
+                                >
+                                    Reportes
+                                </ResponsiveNavLink>
 
-                        <ResponsiveNavLink
-                            href={route('reportes.material-request.create')}
-                            active={route().current('reportes.material-request.create')}
-                        >
-                            Nueva Solicitud Material
-                        </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    href={route('reportes.material-request.create')}
+                                    active={route().current('reportes.material-request.create')}
+                                >
+                                    Nueva Solicitud Material
+                                </ResponsiveNavLink>
+                            </>
+                        )}
 
                         <div className="border-t border-gray-200 pt-2 mt-2">
                             <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
