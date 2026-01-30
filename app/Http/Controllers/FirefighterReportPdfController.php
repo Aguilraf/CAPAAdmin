@@ -34,12 +34,34 @@ class FirefighterReportPdfController extends Controller
 
         $pdf = Pdf::loadView('reports.bomberos', [
             'captures' => $captures,
-            'settings' => $settings,
+            'settings' => $this->processImagesForPdf($settings),
             'year' => $request->year,
             'requirement_number' => $request->requirement_number,
             'assignment_date' => $assignmentDate
         ]);
 
         return $pdf->download('Reporte_Bomberos_' . date('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Convert image paths in settings to Base64 data URIs for robust PDF generation.
+     */
+    private function processImagesForPdf($settings)
+    {
+        $imageKeys = ['report_logo_state', 'report_logo_campaign', 'report_logo_footer'];
+
+        foreach ($imageKeys as $key) {
+            if (isset($settings[$key]) && $settings[$key]) {
+                $path = storage_path('app/public/' . $settings[$key]);
+                if (file_exists($path)) {
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $data = file_get_contents($path);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    $settings[$key] = $base64;
+                }
+            }
+        }
+
+        return $settings;
     }
 }

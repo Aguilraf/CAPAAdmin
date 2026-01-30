@@ -75,7 +75,7 @@ class ReportController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.material_request', [
             'data' => $data,
-            'settings' => $settings,
+            'settings' => $this->processImagesForPdf($settings),
             'fecha_formateada' => $fecha_formateada,
         ]);
 
@@ -227,7 +227,7 @@ class ReportController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.material_request', [
             'data' => $validated,
-            'settings' => $settings,
+            'settings' => $this->processImagesForPdf($settings),
             'fecha_formateada' => $fecha_formateada,
         ]);
 
@@ -255,5 +255,27 @@ class ReportController extends Controller
         ];
         $month = $monthNames[$date->month - 1]; // Carbon month is 1-indexed
         return "José María Morelos, Quintana Roo, " . $date->day . " de " . $month . " del " . $date->year;
+    }
+
+    /**
+     * Convert image paths in settings to Base64 data URIs for robust PDF generation.
+     */
+    private function processImagesForPdf($settings)
+    {
+        $imageKeys = ['logo_qroo', 'logo_unidos', 'logo_capa', 'footer_imagen'];
+
+        foreach ($imageKeys as $key) {
+            if (isset($settings[$key]) && $settings[$key]) {
+                $path = storage_path('app/public/' . $settings[$key]);
+                if (file_exists($path)) {
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $data = file_get_contents($path);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    $settings[$key] = $base64;
+                }
+            }
+        }
+
+        return $settings;
     }
 }
