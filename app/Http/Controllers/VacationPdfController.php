@@ -12,6 +12,9 @@ class VacationPdfController extends Controller
 {
     public function downloadRequest(SolicitudVacaciones $solicitud)
     {
+        // Set Spanish locale for dates
+        Carbon::setLocale('es');
+
         // Permission Check
         $user = Auth::user();
         if ($user->empleado->id !== $solicitud->empleado_id && !$user->can('administrar vacaciones')) {
@@ -41,7 +44,7 @@ class VacationPdfController extends Controller
             if ($entitlement->type === 'BONO_CUATRIMESTRAL') {
                 $key = 'bono_' . $entitlement->id;
                 $grupos[$key] = [
-                    'tipo' => 'BONO CUATRIMESTRAL', // Frontend/PDF expect this string?
+                    'tipo' => 'BONO CUATRIMESTRAL',
                     'anio' => $entitlement->year,
                     'cuatrimestre' => $entitlement->meta['cuatrimestre'] ?? '?',
                     'dias' => $daysTaken,
@@ -49,14 +52,13 @@ class VacationPdfController extends Controller
                 ];
             } else {
                 // Regular Period (Ordinario, Antiguedad, Sutecapa)
-                // We group by Year + Period Number
+                // Each TYPE gets its own page/group
                 $periodNum = $entitlement->meta['period_number'] ?? 0;
-                $key = $entitlement->year . '_' . $periodNum;
+                $key = $entitlement->year . '_' . $periodNum . '_' . $entitlement->type;
 
                 if (!isset($grupos[$key])) {
                     $grupos[$key] = [
-                        'tipo' => $entitlement->type, // Will be overwritten if mixed, usually Primary Type or Just "Periodo X"
-                        'display_type' => "Periodo $periodNum", // Custom Label
+                        'tipo' => $entitlement->type,
                         'anio' => $entitlement->year,
                         'numero_periodo' => $periodNum,
                         'dias' => 0,
@@ -64,9 +66,6 @@ class VacationPdfController extends Controller
                     ];
                 }
                 $grupos[$key]['dias'] += $daysTaken;
-
-                // If mixed types, maybe append to label? e.g. "Ordinario + Antiguedad"
-                // For now, simpler is generic "Periodo X" or taking the first type.
             }
         }
 

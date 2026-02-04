@@ -88,8 +88,19 @@ class VacationController extends Controller
                     };
                     $solicitudArray['tipo_solicitud'] = "BONO {$ordinal} Cuatrimestre {$first->year}";
                 } else {
-                    $periodNum = $first->meta['period_number'] ?? '?';
-                    $solicitudArray['tipo_solicitud'] = "VACACIONES Periodo {$periodNum} - {$first->year}";
+                    // Check if all entitlements are of the same type
+                    $types = $solicitud->entitlements->pluck('type')->unique();
+
+                    if ($types->count() === 1) {
+                        // All same type - show specific type
+                        $type = $types->first();
+                        $periodNum = $first->meta['period_number'] ?? '?';
+                        $solicitudArray['tipo_solicitud'] = "VACACIONES {$type} Periodo {$periodNum} - {$first->year}";
+                    } else {
+                        // Mixed types - show generic
+                        $periodNum = $first->meta['period_number'] ?? '?';
+                        $solicitudArray['tipo_solicitud'] = "VACACIONES Periodo {$periodNum} - {$first->year}";
+                    }
                 }
             } else {
                 // Fallback if no details
@@ -202,8 +213,9 @@ class VacationController extends Controller
                         ->orderBy('valid_until', 'asc'); // Expiring first
                 } else {
                     $query->where('type', '!=', 'BONO_CUATRIMESTRAL')
-                        // Sort: Year ASC, then Type Priority
+                        // Sort: Year ASC, Period Number ASC, then Type Priority
                         ->orderBy('year', 'asc')
+                        ->orderByRaw("CAST(JSON_EXTRACT(meta, '$.period_number') AS UNSIGNED) ASC")
                         ->orderByRaw("CASE type WHEN 'ORDINARIO' THEN 1 WHEN 'ANTIGUEDAD' THEN 2 ELSE 3 END");
                 }
                 // Bypass balance check for ONOMASTICO since it's a special perk, usually doesn't consume balance OR consumes specific entitlement?

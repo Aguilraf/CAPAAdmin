@@ -96,7 +96,7 @@
         $cargoAutoriza = isset($parts[1]) ? trim($parts[1]) : "JEFE INMEDIATO";
     @endphp
 
-    @foreach($subSolicitudes as $index => $sub)
+    @foreach($grupos as $index => $sub)
         <div class="page-container {{ !$loop->first ? 'page-break' : '' }}">
             @for ($i = 0; $i < 2; $i++)
                 <div class="half-page">
@@ -113,15 +113,15 @@
 
                     <div class="content">
                         <p>
-                            Por este medio y de la manera más atenta, le solicito <strong>{{ $sub['dias_solicitados'] }}</strong> {{ $sub['dias_solicitados'] == 1 ? 'día' : 'días' }} de descanso
+                            Por este medio y de la manera más atenta, le solicito <strong>{{ $sub['dias'] }}</strong> {{ $sub['dias'] == 1 ? 'día' : 'días' }} de descanso
                             correspondiente a <strong>VACACIONES {{ $sub['tipo'] }}</strong> 
                             @if(isset($sub['cuatrimestre']))
                                 del <strong>{{ $sub['cuatrimestre'] == 1 ? '1er' : ($sub['cuatrimestre'] == 2 ? '2do' : '3er') }} Cuatrimestre del {{ $sub['anio'] }}</strong>
                             @else
                                 del <strong>{{ $sub['anio'] }}</strong>
                             @endif
-                            siendo {{ $sub['dias_solicitados'] == 1 ? 'efectivo el día' : 'efectivos los días' }} 
-                            @if($sub['dias_solicitados'] == 1)
+                            siendo {{ $sub['dias'] == 1 ? 'efectivo el día' : 'efectivos los días' }} 
+                            @if($sub['dias'] == 1)
                                 <strong>{{ mb_strtoupper($sub['fecha_inicio']) }}</strong>, por 
                             @else
                                 <strong>{{ mb_strtoupper($sub['fecha_inicio']) }} AL {{ mb_strtoupper($sub['fecha_fin']) }}</strong>, por 

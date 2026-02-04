@@ -56,14 +56,15 @@ export default function EmployeePeriods({ auth, empleado, periodos }) {
                                             </h4>
                                             <div className="text-sm text-gray-600 mt-1">
                                                 <span className="mr-4">Días Totales: <b>{periodo.total_dias}</b></span>
-                                                <span className={`${periodo.can_delete ? 'text-green-600' : 'text-red-600'} font-bold`}>
-                                                    Usados: {periodo.dias_usados}
+                                                <span className="mr-4">Usados: <b className="text-blue-600">{periodo.dias_usados}</b></span>
+                                                <span className={`${periodo.can_delete ? 'text-green-600' : 'text-orange-600'} font-bold`}>
+                                                    Pendientes: {periodo.dias_pendientes || 0}
                                                 </span>
                                             </div>
                                             <div className="mt-2 text-xs text-gray-500">
                                                 {periodo.saldos_desglosados && periodo.saldos_desglosados.map(s => (
                                                     <span key={s.id} className="mr-2 px-2 py-1 bg-white border rounded">
-                                                        {s.tipo}: {s.total - s.usados}/{s.total}
+                                                        {s.tipo}: Usados {s.usados}/{s.total} | Pendientes {s.pendientes || 0}
                                                     </span>
                                                 ))}
                                             </div>

@@ -215,14 +215,16 @@ class VacationAdminController extends Controller
                 'numero_periodo' => $first->meta['period_number'] ?? 0,
                 'total_dias' => $group->sum('total_days'),
                 'dias_usados' => $group->sum('used_days'),
+                'dias_pendientes' => $group->sum('pending_days'),
                 'status' => $first->status, // Show status
-                'can_delete' => $group->sum('used_days') == 0,
+                'can_delete' => $group->sum('used_days') == 0 && $group->sum('pending_days') == 0,
                 'saldos_desglosados' => $group->map(function ($e) {
                     return [
                         'id' => $e->id,
                         'tipo' => $e->type,
                         'total' => $e->total_days,
                         'usados' => $e->used_days,
+                        'pendientes' => $e->pending_days,
                         'status' => $e->status
                     ];
                 })
