@@ -216,7 +216,7 @@ class VacationController extends Controller
                         // Sort: Year ASC, Period Number ASC, then Type Priority
                         ->orderBy('year', 'asc')
                         ->orderByRaw("CAST(JSON_EXTRACT(meta, '$.period_number') AS UNSIGNED) ASC")
-                        ->orderByRaw("CASE type WHEN 'ORDINARIO' THEN 1 WHEN 'ANTIGUEDAD' THEN 2 ELSE 3 END");
+                        ->orderByRaw("CASE type WHEN 'ORDINARIO' THEN 1 WHEN 'ANTIGUEDAD' THEN 2 WHEN 'SUTECAPA' THEN 3 ELSE 4 END");
                 }
                 // Bypass balance check for ONOMASTICO since it's a special perk, usually doesn't consume balance OR consumes specific entitlement?
                 // User said "es permiso", usually doesn't deduct from Vacation days. 
@@ -243,40 +243,126 @@ class VacationController extends Controller
                     return back()->withErrors(['dias' => "Insuficiente saldo. Solicitas $diasSolicitados, tienes $totalAvailable."]);
                 }
 
-                // 1. Create Request
-                $solicitud = SolicitudVacaciones::create([
-                    'empleado_id' => $empleado->id,
-                    'tipo_solicitud' => $request->tipo_solicitud,
-                    'fecha_inicio' => $start->format('Y-m-d'),
-                    'fecha_fin' => $end->format('Y-m-d'),
-                    'dias_solicitados' => $diasSolicitados,
-                    'motivo' => $request->motivo,
-                    'estado' => 'PENDIENTE',
-                ]);
+                // Group entitlements into "chunks" of adjacent types to preserve temporal order
+                // Example: [Antiguedad 2025: 2 days], [Ordinario 2026: 3 days] -> 2 Requests
+                // We iterate the SORTED entitlements
 
-                // 2. Consume Entitlements
-                $diasPorAsignar = $diasSolicitados;
+                $diasPorAsignarTotal = $diasSolicitados;
+                $chunks = [];
+                $currentChunk = null;
+
                 foreach ($availableEntitlements as $entitlement) {
-                    if ($diasPorAsignar <= 0)
+                    if ($diasPorAsignarTotal <= 0)
                         break;
 
                     $available = $entitlement->total_days - $entitlement->used_days - $entitlement->pending_days;
                     if ($available <= 0)
                         continue;
 
-                    $take = min($available, $diasPorAsignar);
+                    $take = min($available, $diasPorAsignarTotal);
 
-                    // Attach to Pivot
-                    $solicitud->entitlements()->attach($entitlement->id, ['days_taken' => $take]);
+                    // Check if we can merge into current chunk (same type)
+                    // Note: Adjacent entitlements of same type should be merged into one request
+                    // even if they are from different periods, to minimize office numbers?
+                    // User said "una oficio por solicitud". Usually different periods might need different offices if strict?
+                    // But standard logic is Type-based. Let's merge by Type for now.
 
-                    // Update Pending
-                    $entitlement->pending_days += $take;
-                    $entitlement->save();
+                    if ($currentChunk && $currentChunk['type'] === $entitlement->type) {
+                        $currentChunk['days'] += $take;
+                        $currentChunk['entitlements'][] = ['id' => $entitlement->id, 'take' => $take];
+                    } else {
+                        // Close previous chunk if exists
+                        if ($currentChunk) {
+                            $chunks[] = $currentChunk;
+                        }
+                        // Start new chunk
+                        $currentChunk = [
+                            'type' => $entitlement->type,
+                            'days' => $take,
+                            'entitlements' => [['id' => $entitlement->id, 'take' => $take]]
+                        ];
+                    }
 
-                    $diasPorAsignar -= $take;
+                    $diasPorAsignarTotal -= $take;
+                }
+                if ($currentChunk) {
+                    $chunks[] = $currentChunk;
                 }
 
-                return redirect()->route('vacations.index')->with('success', 'Solicitud creada correctamente.');
+                // Now Process Chunks to Create Requests
+                $currentDate = $start->copy();
+                $createdRequests = [];
+
+                foreach ($chunks as $chunk) {
+                    $daysForChunk = $chunk['days'];
+
+                    // Calculate date range for this chunk
+                    $requestStart = $currentDate->copy();
+                    $requestEnd = $currentDate->copy();
+                    $businessDaysCount = 0;
+
+                    // Logic to find end date based on business days
+                    // Note: This logic assumes start date is a valid weekday or shifts to next.
+                    // But current loop shifts previous End+1.
+
+                    // Calculate End Date
+                    // If days=1, end=start (if weekday).
+                    while ($businessDaysCount < $daysForChunk && $requestEnd->lte($end)) {
+                        if ($requestEnd->isWeekday()) {
+                            $businessDaysCount++;
+                        }
+                        // Only advance if we haven't reached the count yet
+                        // OR if asking for >1 day
+                        // The standard "Add days" logic:
+                        if ($businessDaysCount < $daysForChunk) {
+                            $requestEnd->addDay();
+                        }
+                    }
+
+                    // Create Request
+                    $solicitud = SolicitudVacaciones::create([
+                        'empleado_id' => $empleado->id,
+                        'tipo_solicitud' => $request->tipo_solicitud, // Generic "VACACIONES", view handles display based on entitlements
+                        'fecha_inicio' => $requestStart->format('Y-m-d'),
+                        'fecha_fin' => $requestEnd->format('Y-m-d'),
+                        'dias_solicitados' => $daysForChunk,
+                        'motivo' => $request->motivo,
+                        'estado' => 'PENDIENTE',
+                    ]);
+
+                    // Attach Entitlements
+                    foreach ($chunk['entitlements'] as $item) {
+                        $entID = $item['id'];
+                        $take = $item['take'];
+
+                        // Attach
+                        $solicitud->entitlements()->attach($entID, ['days_taken' => $take]);
+
+                        // Update Entitlement Pending
+                        $ent = Entitlement::find($entID);
+                        if ($ent) {
+                            $ent->pending_days += $take;
+                            $ent->save();
+                        }
+                    }
+
+                    $createdRequests[] = $solicitud;
+
+                    // Advance Current Date for next chunk
+                    $currentDate = $requestEnd->copy()->addDay();
+                    // Ensure next start is valid weekday? Or business logic handles it inside next chunk loop?
+                    // Better to forward to next weekday here to be safe for $requestStart
+                    while (!$currentDate->isWeekday() && $currentDate->lte($end)) {
+                        $currentDate->addDay();
+                    }
+                }
+
+                $count = count($createdRequests);
+                $message = $count === 1
+                    ? 'Solicitud creada correctamente.'
+                    : "$count solicitudes creadas correctamente (se dividieron por tipo de vacación/periodo para orden administrativo).";
+
+                return redirect()->route('vacations.index')->with('success', $message);
             });
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);

@@ -101,7 +101,17 @@ class EvaluationBonusController extends Controller
             $validUntil = Carbon::create($currentYear + 1, 1, 31);
         }
 
-        // Create the Entitlement record
+        // Create BonoEvaluacion record (Historical record)
+        \App\Models\BonoEvaluacion::create([
+            'empleado_id' => $empleado->id,
+            'anio' => $request->anio,
+            'cuatrimestre' => $request->cuatrimestre,
+            'calificacion' => $diasPagados, // Using dias_pagados as score/value
+            'dias_otorgados' => $diasOtorgados,
+            'fecha_expiracion' => $validUntil,
+        ]);
+
+        // Create the Entitlement record (Balance for consumption)
         Entitlement::create([
             'empleado_id' => $empleado->id,
             'year' => $request->anio,
