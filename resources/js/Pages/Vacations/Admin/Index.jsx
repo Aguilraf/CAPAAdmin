@@ -15,6 +15,7 @@ export default function Index({ auth, empleados, filters }) {
     // Modal state
     const [showModal, setShowModal] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [isBulk, setIsBulk] = useState(false);
 
     // Form for generation
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
@@ -28,10 +29,11 @@ export default function Index({ auth, empleados, filters }) {
         router.get(route('vacations.admin.index'), { search }, { preserveState: true });
     };
 
-    const openModal = (empleado) => {
+    const openModal = (empleado = null) => {
         setSelectedEmployee(empleado);
+        setIsBulk(!empleado); // If no employee, it's bulk
         setData({
-            empleado_id: empleado.id,
+            empleado_id: empleado ? empleado.id : '',
             anio: new Date().getFullYear(),
             numero_periodo: '1'
         });
@@ -46,7 +48,8 @@ export default function Index({ auth, empleados, filters }) {
 
     const submitGeneration = (e) => {
         e.preventDefault();
-        post(route('vacations.admin.generate'), {
+        const routeName = isBulk ? 'vacations.admin.generate-bulk' : 'vacations.admin.generate';
+        post(route(routeName), {
             onSuccess: () => closeModal(),
         });
     };
@@ -76,16 +79,24 @@ export default function Index({ auth, empleados, filters }) {
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-bold">Resumen de Empleados</h3>
-                            <form onSubmit={handleSearch} className="flex gap-2">
-                                <TextInput
-                                    type="text"
-                                    placeholder="Buscar empleado..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="block w-full"
-                                />
-                                <SecondaryButton type="submit">Buscar</SecondaryButton>
-                            </form>
+                            <div className="flex gap-2">
+                                <PrimaryButton
+                                    onClick={() => openModal()}
+                                    className="bg-green-600 hover:bg-green-700"
+                                >
+                                    Generar a Todos
+                                </PrimaryButton>
+                                <form onSubmit={handleSearch} className="flex gap-2">
+                                    <TextInput
+                                        type="text"
+                                        placeholder="Buscar empleado..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        className="block w-full"
+                                    />
+                                    <SecondaryButton type="submit">Buscar</SecondaryButton>
+                                </form>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -142,11 +153,23 @@ export default function Index({ auth, empleados, filters }) {
                         Generar Periodo Vacacional
                     </h2>
 
-                    {selectedEmployee && (
+                    {selectedEmployee ? (
                         <p className="text-sm text-gray-600 mb-4">
                             Empleado: <b>{selectedEmployee.nombre}</b><br />
                             Antigüedad: {selectedEmployee.antiguedad}
                         </p>
+                    ) : (
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                            <div className="flex">
+                                <div className="ml-3">
+                                    <p className="text-sm text-yellow-700">
+                                        <b>¡Atención!</b> Estás a punto de generar este periodo para <b>TODOS</b> los empleados activos.
+                                        <br />
+                                        Al hacerlo, se <b>EXPIRARÁ AUTOMÁTICAMENTE</b> el mismo periodo del año anterior (ej. al activar 1-{data.anio}, se cerrará 1-{data.anio - 1}).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     )}
 
                     <div className="mt-4">

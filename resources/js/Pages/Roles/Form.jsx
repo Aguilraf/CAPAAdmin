@@ -65,6 +65,7 @@ export default function RoleForm({ role, permissions, rolePermissions = [] }) {
                                             'Usuarios': permissions.filter(p => p.name.includes('usuarios')),
                                             'Roles': permissions.filter(p => p.name.includes('roles')),
                                             'Reportes': permissions.filter(p => p.name.includes('reportes') && !p.name.includes('bomberos')),
+                                            'Vacaciones': permissions.filter(p => p.name.includes('vacaciones')),
                                             'Bomberos': permissions.filter(p =>
                                                 p.name.includes('bomberos') ||
                                                 p.name.includes('comunidades') ||

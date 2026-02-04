@@ -53,6 +53,7 @@ Route::middleware('auth')->group(function () {
         // Administración de Vacaciones
         Route::get('/admin/vacaciones', [\App\Http\Controllers\VacationAdminController::class, 'index'])->name('vacations.admin.index');
         Route::post('/admin/vacaciones/generar', [\App\Http\Controllers\VacationAdminController::class, 'generatePeriod'])->name('vacations.admin.generate');
+        Route::post('/admin/vacaciones/generar-masivo', [\App\Http\Controllers\VacationAdminController::class, 'bulkGenerate'])->name('vacations.admin.generate-bulk');
 
         // Rutas de Cancelación
         Route::get('/admin/vacaciones/cancelar', [\App\Http\Controllers\VacationAdminController::class, 'cancellationIndex'])->name('vacations.admin.cancellation');

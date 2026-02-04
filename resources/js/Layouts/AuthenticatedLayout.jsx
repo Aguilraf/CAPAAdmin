@@ -206,7 +206,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                                         Solicitudes Pendientes
                                                     </Dropdown.Link>
                                                     <Dropdown.Link href={route('vacations.admin.index')}>
-                                                        Generar Periodos
+                                                        Panel de Control
                                                     </Dropdown.Link>
                                                     <Dropdown.Link href={route('vacations.admin.cancellation')}>
                                                         Cancelar/Modificar
