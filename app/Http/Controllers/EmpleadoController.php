@@ -48,7 +48,22 @@ class EmpleadoController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Empleados/Create');
+        $posiblesJefes = Empleado::where('activo', true)
+            ->where(function ($query) {
+                $query->where('puesto', 'LIKE', '%JEFE%')
+                    ->orWhere('puesto', 'LIKE', '%GERENTE%')
+                    ->orWhere('puesto', 'LIKE', '%SUBGERENTE%');
+            })
+            ->orderBy('nombre')
+            ->get()
+            ->map(function ($empleado) {
+                return $empleado->nombre . ' - ' . $empleado->puesto;
+            })
+            ->values();
+
+        return Inertia::render('Empleados/Create', [
+            'posiblesJefes' => $posiblesJefes
+        ]);
     }
 
     /**
@@ -67,6 +82,7 @@ class EmpleadoController extends Controller
             'rfc' => 'nullable|string|max:13',
             'categoria' => 'required|in:BASE,CONFIANZA',
             'fecha_alta' => 'required|date',
+            'fecha_nacimiento' => 'nullable|date',
             'nivel' => 'nullable|string|max:255',
             'salario_diario' => 'nullable|numeric|min:0',
             'salario_mensual' => 'nullable|numeric|min:0',
@@ -78,7 +94,11 @@ class EmpleadoController extends Controller
             'numero_empleado' => 'nullable|string|max:255',
             'activo' => 'boolean',
             'es_gerente' => 'boolean',
+            'jefe_inmediato' => 'nullable|string|max:255',
         ]);
+
+        // Regla de Negocio: BASE = Sindicalizado
+        $validated['es_sindicalizado'] = $validated['categoria'] === 'BASE';
 
         Empleado::create($validated);
 
@@ -101,8 +121,22 @@ class EmpleadoController extends Controller
      */
     public function edit(Empleado $empleado)
     {
+        $posiblesJefes = Empleado::where('activo', true)
+            ->where(function ($query) {
+                $query->where('puesto', 'LIKE', '%JEFE%')
+                    ->orWhere('puesto', 'LIKE', '%GERENTE%')
+                    ->orWhere('puesto', 'LIKE', '%SUBGERENTE%');
+            })
+            ->orderBy('nombre')
+            ->get()
+            ->map(function ($empleado) {
+                return $empleado->nombre . ' - ' . $empleado->puesto;
+            })
+            ->values();
+
         return Inertia::render('Empleados/Edit', [
             'empleado' => $empleado,
+            'posiblesJefes' => $posiblesJefes
         ]);
     }
 
@@ -119,6 +153,7 @@ class EmpleadoController extends Controller
             'rfc' => 'nullable|string|max:13',
             'categoria' => 'required|in:BASE,CONFIANZA',
             'fecha_alta' => 'required|date',
+            'fecha_nacimiento' => 'nullable|date',
             'nivel' => 'nullable|string|max:255',
             'salario_diario' => 'nullable|numeric|min:0',
             'salario_mensual' => 'nullable|numeric|min:0',
@@ -130,7 +165,11 @@ class EmpleadoController extends Controller
             'numero_empleado' => 'nullable|string|max:255',
             'activo' => 'boolean',
             'es_gerente' => 'boolean',
+            'jefe_inmediato' => 'nullable|string|max:255',
         ]);
+
+        // Regla de Negocio: BASE = Sindicalizado
+        $validated['es_sindicalizado'] = $validated['categoria'] === 'BASE';
 
         $empleado->update($validated);
 

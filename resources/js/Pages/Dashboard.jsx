@@ -71,6 +71,32 @@ export default function Dashboard() {
                             </Link>
                         )}
 
+                        {/* Tarjeta de Mis Vacaciones */}
+                        {user.permissions && user.permissions.includes('ver vacaciones') && (
+                            <Link
+                                href={route('vacations.index')}
+                                className="block group"
+                            >
+                                <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg border-2 border-transparent hover:border-blue-500 transition-all duration-200 h-full">
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="p-3 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 mb-2">
+                                            Mis Vacaciones
+                                        </h3>
+                                        <p className="text-gray-500 text-sm">
+                                            Consulta tu saldo, historial y realiza nuevas solicitudes de vacaciones.
+                                        </p>
+                                    </div>
+                                </div>
+                            </Link>
+                        )}
+
                     </div>
                 </div>
             </div>

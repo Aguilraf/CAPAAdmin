@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmpleadoForm from './Form';
 
-export default function Create() {
+export default function Create({ posiblesJefes }) {
     return (
         <AuthenticatedLayout
             header={
@@ -28,6 +28,7 @@ export default function Create() {
                             <EmpleadoForm
                                 submitUrl={route('empleados.store')}
                                 submitMethod="post"
+                                posiblesJefes={posiblesJefes}
                             />
                         </div>
                     </div>

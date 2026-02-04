@@ -3,8 +3,9 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import PrimaryButton from '@/Components/PrimaryButton';
+import { useEffect } from 'react';
 
-export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post' }) {
+export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post', posiblesJefes = [] }) {
     const { data, setData, post, put, processing, errors } = useForm({
         clave: empleado?.clave || '',
         nombre: empleado?.nombre || '',
@@ -12,7 +13,9 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
         departamento: empleado?.departamento || '',
         rfc: empleado?.rfc || '',
         categoria: empleado?.categoria || 'BASE',
-        fecha_alta: empleado?.fecha_alta || '',
+        fecha_alta: (empleado?.fecha_alta || '').split('T')[0],
+        fecha_nacimiento: (empleado?.fecha_nacimiento || '').split('T')[0],
+        sexo: empleado?.sexo || 'H',
         nivel: empleado?.nivel || '',
         salario_diario: empleado?.salario_diario || '',
         salario_mensual: empleado?.salario_mensual || '',
@@ -24,7 +27,49 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
         numero_empleado: empleado?.numero_empleado || '',
         activo: empleado?.activo ?? true,
         es_gerente: empleado?.es_gerente ?? false,
+        jefe_inmediato: empleado?.jefe_inmediato || '',
     });
+
+    // Auto-fill Birth Date and Sex from CURP
+    useEffect(() => {
+        const curp = data.curp;
+        if (curp && curp.length === 18) {
+            // Extract Date: YYMMDD (Positions 4-9, index 4-9) -> substring(4, 10)
+            const yy = curp.substring(4, 6);
+            const mm = curp.substring(6, 8);
+            const dd = curp.substring(8, 10);
+
+            // Extract Sex: Position 11 (index 10)
+            const sexChar = curp.charAt(10).toUpperCase();
+
+            // Determine Century using Homoclave (Position 17, index 16)
+            // RENAPO Rule: 
+            // - If 0-9 (Numeric) -> Born in 1900s (19xx)
+            // - If A-Z (Letter)  -> Born in 2000s (20xx)
+            const homoclave = curp.charAt(16);
+            const is1900s = /^[0-9]$/.test(homoclave);
+            const century = is1900s ? '19' : '20';
+
+            const birthDate = `${century}${yy}-${mm}-${dd}`;
+
+            // Only update if current values are empty or different to avoid overwrite loop/user conflict (though this is desired automation)
+            // We'll update indiscriminately when a valid CURP is fully entered. 
+            // Better UX: Update only if it looks like a new entry or user explicitly wants it. 
+            // Given the requirement "cada que se ponga la CURP... se llenen", we will overwrite.
+
+            let updates = {};
+            if (data.fecha_nacimiento !== birthDate) updates.fecha_nacimiento = birthDate;
+
+            let sexoMap = { 'H': 'H', 'M': 'M' };
+            if (sexoMap[sexChar] && data.sexo !== sexoMap[sexChar]) {
+                updates.sexo = sexoMap[sexChar];
+            }
+
+            if (Object.keys(updates).length > 0) {
+                setData(prev => ({ ...prev, ...updates }));
+            }
+        }
+    }, [data.curp]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -166,6 +211,34 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                     <InputError message={errors.fecha_alta} className="mt-2" />
                 </div>
 
+                {/* Fecha de Nacimiento */}
+                <div>
+                    <InputLabel htmlFor="fecha_nacimiento" value="Fecha de Nacimiento" />
+                    <TextInput
+                        id="fecha_nacimiento"
+                        type="date"
+                        value={data.fecha_nacimiento}
+                        onChange={(e) => setData('fecha_nacimiento', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.fecha_nacimiento} className="mt-2" />
+                </div>
+
+                {/* Sexo */}
+                <div>
+                    <InputLabel htmlFor="sexo" value="Sexo" />
+                    <select
+                        id="sexo"
+                        value={data.sexo}
+                        onChange={(e) => setData('sexo', e.target.value)}
+                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                    >
+                        <option value="H">Hombre</option>
+                        <option value="M">Mujer</option>
+                    </select>
+                    <InputError message={errors.sexo} className="mt-2" />
+                </div>
+
                 {/* Nivel */}
                 <div>
                     <InputLabel htmlFor="nivel" value="Nivel" />
@@ -291,6 +364,28 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                             Es Gerente (solo un empleado activo puede serlo)
                         </span>
                     </label>
+                </div>
+                {/* Jefe Inmediato */}
+                <div className="md:col-span-2">
+                    <InputLabel htmlFor="jefe_inmediato" value="Jefe Inmediato (Para Reportes)" />
+                    <select
+                        id="jefe_inmediato"
+                        value={data.jefe_inmediato}
+                        onChange={(e) => setData('jefe_inmediato', e.target.value)}
+                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                    >
+                        <option value="">-- Seleccione un Jefe --</option>
+                        {posiblesJefes && posiblesJefes.map((jefe, index) => (
+                            <option key={index} value={jefe}>
+                                {jefe}
+                            </option>
+                        ))}
+                        {/* Si el jefe actual no está en la lista (e.g. ya no es activo), mostrarlo para no perder el dato */}
+                        {data.jefe_inmediato && posiblesJefes && !posiblesJefes.includes(data.jefe_inmediato) && (
+                            <option value={data.jefe_inmediato}>{data.jefe_inmediato} (Actual - No listado)</option>
+                        )}
+                    </select>
+                    <InputError message={errors.jefe_inmediato} className="mt-2" />
                 </div>
             </div>
 

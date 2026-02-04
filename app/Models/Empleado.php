@@ -32,6 +32,10 @@ class Empleado extends Model
         'fecha_baja',
         'activo',
         'es_gerente',
+        'es_sindicalizado',
+        'fecha_nacimiento',
+        'sexo',
+        'jefe_inmediato',
     ];
 
     protected $casts = [
@@ -41,6 +45,8 @@ class Empleado extends Model
         'salario_mensual' => 'decimal:2',
         'activo' => 'boolean',
         'es_gerente' => 'boolean',
+        'es_sindicalizado' => 'boolean',
+        'fecha_nacimiento' => 'date',
     ];
 
     protected $appends = ['antiguedad'];
@@ -87,9 +93,23 @@ class Empleado extends Model
         });
     }
 
-    // Scope para empleados activos
     public function scopeActivos($query)
     {
         return $query->where('activo', true);
+    }
+
+    public function periodosVacacionales()
+    {
+        return $this->hasMany(PeriodoVacacional::class);
+    }
+
+    public function bonosEvaluacion()
+    {
+        return $this->hasMany(BonoEvaluacion::class);
+    }
+
+    public function solicitudesVacaciones()
+    {
+        return $this->hasMany(SolicitudVacaciones::class);
     }
 }

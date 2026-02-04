@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmpleadoForm from './Form';
 
-export default function Edit({ empleado }) {
+export default function Edit({ empleado, posiblesJefes }) {
     const handleSubmit = (data) => {
         // Use router for PUT with proper data format
         window.location.href = route('empleados.index');
@@ -34,6 +34,7 @@ export default function Edit({ empleado }) {
                                 empleado={empleado}
                                 submitUrl={route('empleados.update', empleado.id)}
                                 submitMethod="put"
+                                posiblesJefes={posiblesJefes}
                             />
                         </div>
                     </div>

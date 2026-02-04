@@ -49,6 +49,20 @@ Route::middleware('auth')->group(function () {
         // Rutas de Administración de Usuarios
         Route::resource('roles', \App\Http\Controllers\RoleController::class);
         Route::resource('users', \App\Http\Controllers\UserController::class);
+
+        // Administración de Vacaciones
+        Route::get('/admin/vacaciones', [\App\Http\Controllers\VacationAdminController::class, 'index'])->name('vacations.admin.index');
+        Route::post('/admin/vacaciones/generar', [\App\Http\Controllers\VacationAdminController::class, 'generatePeriod'])->name('vacations.admin.generate');
+
+        // Rutas de Cancelación
+        Route::get('/admin/vacaciones/cancelar', [\App\Http\Controllers\VacationAdminController::class, 'cancellationIndex'])->name('vacations.admin.cancellation');
+        Route::get('/admin/vacaciones/cancelar/{empleado}', [\App\Http\Controllers\VacationAdminController::class, 'showPeriods'])->name('vacations.admin.periods');
+        Route::delete('/admin/vacaciones/periodo/{periodo}', [\App\Http\Controllers\VacationAdminController::class, 'destroyPeriod'])->name('vacations.admin.periods.destroy');
+
+        // Administración de Solicitudes
+        Route::get('/admin/solicitudes', [\App\Http\Controllers\VacationRequestAdminController::class, 'index'])->name('vacations.admin.requests');
+        Route::post('/admin/solicitudes/{id}/approve', [\App\Http\Controllers\VacationRequestAdminController::class, 'approve'])->name('vacations.admin.requests.approve');
+        Route::post('/admin/solicitudes/{id}/reject', [\App\Http\Controllers\VacationRequestAdminController::class, 'reject'])->name('vacations.admin.requests.reject');
     });
 
     // Rutas de Reportes
@@ -59,6 +73,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/reportes/solicitud-material', [\App\Http\Controllers\ReportController::class, 'createMaterialRequest'])->name('reportes.material-request.create');
         Route::post('/reportes/solicitud-material/defaults', [\App\Http\Controllers\ReportController::class, 'saveDefaults'])->name('reportes.material-request.defaults');
         Route::post('/reportes/solicitud-material/print', [\App\Http\Controllers\ReportController::class, 'printMaterialRequest'])->name('reportes.material-request.print');
+    });
+
+    // Modulo de Vacaciones
+    Route::middleware(['auth', 'permission:ver vacaciones'])->group(function () {
+        Route::get('/vacaciones', [\App\Http\Controllers\VacationController::class, 'index'])->name('vacations.index');
+        Route::post('/vacaciones', [\App\Http\Controllers\VacationController::class, 'store'])->name('vacations.store');
+        Route::get('/vacaciones/solicitud/{solicitud}/pdf', [\App\Http\Controllers\VacationPdfController::class, 'downloadRequest'])->name('vacations.pdf.request');
+
+        // Evaluation Bonus (Quarterly)
+        Route::get('/evaluaciones/bono/check', [\App\Http\Controllers\EvaluationBonusController::class, 'checkStatus'])->name('evaluation.bonus.check');
+        Route::post('/evaluaciones/bono', [\App\Http\Controllers\EvaluationBonusController::class, 'store'])->name('evaluation.bonus.store');
     });
 
     // Rutas de Bomberos (Integración)
