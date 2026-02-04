@@ -61,9 +61,9 @@ export default function EmployeePeriods({ auth, empleado, periodos }) {
                                                 </span>
                                             </div>
                                             <div className="mt-2 text-xs text-gray-500">
-                                                {periodo.saldos.map(s => (
+                                                {periodo.saldos_desglosados && periodo.saldos_desglosados.map(s => (
                                                     <span key={s.id} className="mr-2 px-2 py-1 bg-white border rounded">
-                                                        {s.tipo}: {s.dias_disponibles}/{s.total_dias}
+                                                        {s.tipo}: {s.total - s.usados}/{s.total}
                                                     </span>
                                                 ))}
                                             </div>
