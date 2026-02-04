@@ -34,7 +34,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
     const handleFechaInicioChange = (e) => {
         const value = e.target.value;
         if (isWeekend(value)) {
-            alert('No puedes seleccionar sÃ¡bado o domingo como fecha de inicio.');
+            alert('No puedes seleccionar sábado o domingo como fecha de inicio.');
             return;
         }
         setData('fecha_inicio', value);
@@ -44,7 +44,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
     const handleFechaFinChange = (e) => {
         const value = e.target.value;
         if (isWeekend(value)) {
-            alert('No puedes seleccionar sÃ¡bado o domingo como fecha de fin.');
+            alert('No puedes seleccionar sábado o domingo como fecha de fin.');
             return;
         }
         setData('fecha_fin', value);
@@ -70,7 +70,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
         const start = new Date(data.fecha_inicio);
         const end = new Date(data.fecha_fin);
 
-        if (end < start) return 0; // Fecha invÃ¡lida
+        if (end < start) return 0; // Fecha inválida
 
         // Diferencia en ms
         const diffTime = end - start;
@@ -93,7 +93,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
 
     const submitBonus = () => {
         if (selectedDiasPagados === null) {
-            alert('Por favor seleccione una opciÃ³n');
+            alert('Por favor seleccione una opción');
             return;
         }
 
@@ -125,7 +125,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
             .catch(err => {
                 setBonusSubmitting(false);
                 console.error('Error submitting bonus:', err);
-                alert('Error de conexiÃ³n');
+                alert('Error de conexión');
             });
     };
 
@@ -151,7 +151,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                         </div>
                     )}
 
-                    {/* Alerta de AntigÃ¼edad */}
+                    {/* Alerta de Antigüedad */}
                     {!canAccessVacations && (
                         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
                             <p className="font-bold">Acceso Restringido</p>
@@ -197,7 +197,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                                     <div className="bg-white rounded-lg p-4 border border-purple-200">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="font-medium text-gray-700">
-                                                DÃ­as de Descanso
+                                                Días de Descanso
                                             </span>
                                             <span className="text-sm text-gray-500">
                                                 Disponible: <span className="font-bold text-purple-700">{bono.disponibles}</span> / {bono.total}
@@ -244,9 +244,9 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                                         <option value="BONO_CUATRIMESTRAL">Bono Cuatrimestral</option>
                                     )}
                                     {isSindicalizado && (
-                                        <option value="ONOMASTICO">Permiso por OnomÃ¡stico</option>
+                                        <option value="ONOMASTICO">Permiso por Onomástico</option>
                                     )}
-                                    <option value="DEFUNCION">Permiso por DefunciÃ³n</option>
+                                    <option value="DEFUNCION">Permiso por Defunción</option>
                                     <option value="NACIMIENTO">Permiso por Nacimiento</option>
                                 </select>
                                 <InputError message={errors.tipo_solicitud} className="mt-2" />
@@ -273,7 +273,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                                     type="date"
                                     className="mt-1 block w-full"
                                     value={data.fecha_fin}
-                                    min={data.fecha_inicio} // RestricciÃ³n visual
+                                    min={data.fecha_inicio} // Restricción visual
                                     onChange={handleFechaFinChange}
                                     disabled={!canAccessVacations}
                                 />
@@ -295,7 +295,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
 
                             <div className="col-span-2 flex items-center justify-end">
                                 <span className="mr-4 text-gray-600">
-                                    DÃ­as calculados: <span className="font-bold">{calculateDays()}</span>
+                                    Días calculados: <span className="font-bold">{calculateDays()}</span>
                                 </span>
                                 <PrimaryButton disabled={processing || !canAccessVacations}>
                                     Solicitar
@@ -314,7 +314,7 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Solicitud</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periodo</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DÃ­as</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Días</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                     </tr>
@@ -399,8 +399,8 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                 <div className="p-6">
                     <h2 className="text-lg font-medium text-gray-900">Confirmar Solicitud</h2>
                     <p className="mt-1 text-sm text-gray-600">
-                        EstÃ¡s a punto de solicitar <b>{calculateDays()}</b> dÃ­as.
-                        {data.tipo_solicitud === 'VACACION' && " Estos se descontarÃ¡n de tus saldos disponibles (Ordinario > AntigÃ¼edad > Sindicato)."}
+                        Estás a punto de solicitar <b>{calculateDays()}</b> días.
+                        {data.tipo_solicitud === 'VACACION' && " Estos se descontarán de tus saldos disponibles (Ordinario > Antigüedad > Sindicato)."}
                     </p>
                     <div className="mt-6 flex justify-end">
                         <SecondaryButton onClick={() => setShowConfirm(false)}>Cancelar</SecondaryButton>
@@ -412,22 +412,22 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
             {/* Bonus Evaluation Modal */}
             <Modal show={showBonusModal} onClose={() => { }} maxWidth="2xl">
                 <div className="p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4">DeclaraciÃ³n de Incentivo Cuatrimestral</h2>
+                    <h2 className="text-lg font-bold text-gray-900 mb-4">Declaración de Incentivo Cuatrimestral</h2>
                     {bonusPeriodo && (
                         <p className="text-sm text-gray-600 mb-4">
                             Periodo: <strong>{bonusPeriodo.periodo_nombre}</strong>
                         </p>
                     )}
                     <p className="text-sm text-gray-700 mb-6">
-                        Â¿CuÃ¡ntos dÃ­as de incentivo se te pagaron en este periodo?
+                        ¿Cuántos días de incentivo se te pagaron en este periodo?
                     </p>
 
                     <div className="grid grid-cols-2 gap-4 mb-6">
                         {[
-                            { dias: 0, label: '0 DÃ­as', descanso: '0 dÃ­as libres' },
-                            { dias: 5, label: '5 DÃ­as', descanso: '1 dÃ­a libre' },
-                            { dias: 10, label: '10 DÃ­as', descanso: '2 dÃ­as libres' },
-                            { dias: 15, label: '15 DÃ­as', descanso: '3 dÃ­as libres' },
+                            { dias: 0, label: '0 Días', descanso: '0 días libres' },
+                            { dias: 5, label: '5 Días', descanso: '1 día libre' },
+                            { dias: 10, label: '10 Días', descanso: '2 días libres' },
+                            { dias: 15, label: '15 Días', descanso: '3 días libres' },
                         ].map(option => (
                             <button
                                 key={option.dias}
@@ -475,7 +475,10 @@ export default function Index({ auth, periodos, solicitudes, bonos = [], isSindi
                         )}
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                        <SecondaryButton onClick={() => setShowBonusModal(false)}>
+                            Más tarde
+                        </SecondaryButton>
                         <PrimaryButton onClick={submitBonus} disabled={bonusSubmitting || selectedDiasPagados === null}>
                             {bonusSubmitting ? 'Guardando...' : 'Confirmar'}
                         </PrimaryButton>

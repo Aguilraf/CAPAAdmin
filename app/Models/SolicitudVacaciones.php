@@ -40,8 +40,10 @@ class SolicitudVacaciones extends Model
         return $this->belongsTo(User::class, 'aprobado_por');
     }
 
-    public function detalles()
+    public function entitlements()
     {
-        return $this->hasMany(DetalleSolicitud::class, 'solicitud_id');
+        return $this->belongsToMany(Entitlement::class, 'request_entitlements', 'solicitud_id', 'entitlement_id')
+            ->withPivot('days_taken', 'numero_oficio')
+            ->withTimestamps();
     }
 }

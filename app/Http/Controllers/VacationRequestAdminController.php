@@ -3,52 +3,50 @@
 namespace App\Http\Controllers;
 
 use App\Models\SolicitudVacaciones;
+use App\Models\Entitlement;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class VacationRequestAdminController extends Controller
 {
     public function index(Request $request)
     {
-        $requests = SolicitudVacaciones::where('estado', 'PENDIENTE')
+        $query = SolicitudVacaciones::where('estado', 'PENDIENTE')
             ->orderBy('created_at', 'asc')
-            ->with(['empleado'])
-            ->get(); // Get collection first to use load()
-
-        // Manually eager load using morphWith for polymorphic relation
-        $requests->load([
-            'detalles.origen' => function ($morphTo) {
-                $morphTo->morphWith([
-                    \App\Models\SaldoVacaciones::class => ['periodo'],
-                    \App\Models\BonoEvaluacion::class => [],
-                ]);
-            }
-        ]);
+            ->with(['empleado', 'entitlements']);
 
         if ($request->has('search')) {
             $search = $request->input('search');
-            $requests = $requests->filter(function ($solicitud) use ($search) {
-                return str_contains(strtolower($solicitud->empleado->nombre), strtolower($search)) ||
-                    str_contains($solicitud->empleado->numero_empleado, $search);
+            $query->whereHas('empleado', function ($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                    ->orWhere('numero_empleado', 'like', "%{$search}%");
             });
         }
 
-        // Manual pagination for collection
-        $page = $request->input('page', 1);
-        $perPage = 15;
-        $items = $requests->forPage($page, $perPage)->values();
+        $requests = $query->paginate(15)->through(function ($solicitud) {
+            $solicitudArray = $solicitud->toArray();
 
-        $paginatedRequests = new \Illuminate\Pagination\LengthAwarePaginator(
-            $items,
-            $requests->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
+            // Format Type based on Entitlement Metadata
+            if ($solicitud->entitlements->count() > 0) {
+                $first = $solicitud->entitlements->first();
+                if ($first->type === 'BONO_CUATRIMESTRAL') {
+                    $cuatrimestre = $first->meta['cuatrimestre'] ?? '?';
+                    $ordinal = match ($cuatrimestre) {
+                        1 => '1er', 2 => '2do', 3 => '3er', default => $cuatrimestre . '°'
+                    };
+                    $solicitudArray['tipo_solicitud'] = "BONO {$ordinal} Cuatrimestre {$first->year}";
+                } else {
+                    $periodNum = $first->meta['period_number'] ?? '?';
+                    $solicitudArray['tipo_solicitud'] = "VACACIONES Periodo {$periodNum} - {$first->year}";
+                }
+            }
+            return $solicitudArray;
+        });
 
         return Inertia::render('Vacations/Admin/Requests', [
-            'requests' => $paginatedRequests,
+            'requests' => $requests,
             'filters' => $request->only(['search']),
         ]);
     }
@@ -60,54 +58,53 @@ class VacationRequestAdminController extends Controller
                 'required',
                 'string',
                 'max:50',
-                'regex:/^\d+(\sBIS)?$/' // Solo números, opcionalmente espacio y BIS
+                'regex:/^\d+(\sBIS)?$/'
             ],
         ], [
             'numero_oficio.regex' => 'El número de oficio solo debe contener números (ej. 101) o terminar en BIS con espacio (ej. 101 BIS).'
         ]);
 
-        // Validar unicidad del oficio en el año actual
-        $conflictingDetail = \App\Models\DetalleSolicitud::where('numero_oficio', $request->numero_oficio)
-            ->whereHas('solicitud', function ($q) {
-                $q->whereYear('fecha_aprobacion', now()->year);
-            })
-            ->with(['solicitud.empleado'])
+        // Validate Uniqueness: Check request_entitlements pivot for same office number in Approved requests this year
+        $conflict = DB::table('request_entitlements')
+            ->join('solicitudes_vacaciones', 'request_entitlements.solicitud_id', '=', 'solicitudes_vacaciones.id')
+            ->join('empleados', 'solicitudes_vacaciones.empleado_id', '=', 'empleados.id')
+            ->where('request_entitlements.numero_oficio', $request->numero_oficio)
+            ->whereYear('solicitudes_vacaciones.fecha_aprobacion', now()->year)
+            ->where('solicitudes_vacaciones.estado', 'APROBADA')
+            ->select('empleados.nombre as empleado_nombre', 'solicitudes_vacaciones.fecha_aprobacion')
             ->first();
 
-        if ($conflictingDetail) {
-            $empleado = $conflictingDetail->solicitud->empleado ? $conflictingDetail->solicitud->empleado->nombre : 'Usuario desconocido';
-            $fecha = $conflictingDetail->solicitud->fecha_aprobacion ? \Carbon\Carbon::parse($conflictingDetail->solicitud->fecha_aprobacion)->format('d/m/Y') : 'Fecha desconocida';
-
+        if ($conflict) {
+            $fecha = Carbon::parse($conflict->fecha_aprobacion)->format('d/m/Y');
             return back()->withErrors([
-                'numero_oficio' => "Este número de oficio ya fue utilizado por {$empleado} en la solicitud aprobada el {$fecha}."
+                'numero_oficio' => "Este número de oficio ya fue utilizado por {$conflict->empleado_nombre} en la solicitud aprobada el {$fecha}."
             ]);
         }
 
-        $solicitud = SolicitudVacaciones::with('detalles.origen')->findOrFail($id);
+        $solicitud = SolicitudVacaciones::with('entitlements')->findOrFail($id);
 
         if ($solicitud->estado !== 'PENDIENTE') {
             return back()->with('error', 'La solicitud no está pendiente.');
         }
 
         DB::transaction(function () use ($solicitud, $request) {
-            // Actualizar saldos
-            foreach ($solicitud->detalles as $detalle) {
-                $saldo = $detalle->origen; // SaldoVacaciones
-                if ($saldo instanceof \App\Models\SaldoVacaciones) {
-                    $saldo->dias_pendientes -= $detalle->dias_tomados;
-                    $saldo->dias_usados += $detalle->dias_tomados;
-                    $saldo->save();
-                } elseif ($saldo instanceof \App\Models\BonoEvaluacion) {
-                    $saldo->dias_usados += $detalle->dias_tomados;
-                    $saldo->save();
-                }
+            // Update Entitlements (Convert Pending to Used)
+            foreach ($solicitud->entitlements as $entitlement) {
+                // Pivot data: days_taken
+                $daysTaken = $entitlement->pivot->days_taken;
 
-                // Guardar número de oficio
-                $detalle->numero_oficio = $request->numero_oficio;
-                $detalle->save();
+                $entitlement->pending_days -= $daysTaken;
+                $entitlement->used_days += $daysTaken;
+                $entitlement->save();
+
+                // Save Office Number to pivot
+                // We use DB update on pivot or syncWithoutDetaching
+                $solicitud->entitlements()->updateExistingPivot($entitlement->id, [
+                    'numero_oficio' => $request->numero_oficio
+                ]);
             }
 
-            // Actualizar estado
+            // Update Request Status
             $solicitud->estado = 'APROBADA';
             $solicitud->aprobado_por = auth()->id();
             $solicitud->fecha_aprobacion = now();
@@ -119,28 +116,26 @@ class VacationRequestAdminController extends Controller
 
     public function reject($id)
     {
-        $solicitud = SolicitudVacaciones::with('detalles.origen')->findOrFail($id);
+        $solicitud = SolicitudVacaciones::with('entitlements')->findOrFail($id);
 
         if ($solicitud->estado !== 'PENDIENTE') {
             return back()->with('error', 'La solicitud no está pendiente.');
         }
 
         DB::transaction(function () use ($solicitud) {
-            // Revertir saldos pendientes
-            foreach ($solicitud->detalles as $detalle) {
-                $saldo = $detalle->origen; // SaldoVacaciones
-                if ($saldo) {
-                    $saldo->dias_pendientes -= $detalle->dias_tomados;
-                    // No sumamos a usados porque se rechaza
-                    $saldo->save();
-                }
+            // Revert Pending Days in Entitlements
+            foreach ($solicitud->entitlements as $entitlement) {
+                $daysTaken = $entitlement->pivot->days_taken;
+
+                $entitlement->pending_days -= $daysTaken;
+                // No change to used_days or total_days
+                $entitlement->save();
             }
 
-            // Actualizar estado
             $solicitud->estado = 'RECHAZADA';
             $solicitud->save();
         });
 
-        return back()->with('success', 'Solicitud rechazada correctamente.');
+        return back()->with('success', 'Solicitud rechazada y días liberados.');
     }
 }
