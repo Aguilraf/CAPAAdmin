@@ -76,6 +76,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/reportes/solicitud-material/print', [\App\Http\Controllers\ReportController::class, 'printMaterialRequest'])->name('reportes.material-request.print');
     });
 
+    // Modulo de Requerimientos
+    Route::middleware(['auth'])->group(function () {
+        Route::resource('requirements', \App\Http\Controllers\RequirementController::class);
+        Route::get('requirements/{requirement}/pdf', [\App\Http\Controllers\RequirementController::class, 'downloadPdf'])->name('requirements.pdf');
+        Route::get('requirements/{requirement}/cfe-relation', [\App\Http\Controllers\RequirementController::class, 'downloadCfeRelation'])->name('requirements.cfe-relation');
+    });
+
+
+
     // Modulo de Vacaciones
     Route::middleware(['auth', 'permission:ver vacaciones'])->group(function () {
         Route::get('/vacaciones', [\App\Http\Controllers\VacationController::class, 'index'])->name('vacations.index');

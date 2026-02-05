@@ -1,0 +1,386 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Requirement;
+use App\Models\RequirementItem;
+use App\Models\Empleado;
+use App\Models\Partida;
+use App\Models\Capitulo;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
+
+class RequirementController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Requirement::query()
+            ->with(['coordinator', 'director', 'manager', 'elaborator'])
+            ->orderBy('year', 'desc')
+            ->orderBy('requirement_number', 'desc');
+
+        if ($request->has('year')) {
+            $query->where('year', $request->year);
+        }
+
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('requirement_number', 'like', "%{$search}%");
+            });
+        }
+
+        return Inertia::render('Requirements/Index', [
+            'requirements' => $query->paginate(15)->withQueryString(),
+            'filters' => $request->only(['year', 'type', 'search']),
+            'types' => Requirement::TYPES,
+        ]);
+    }
+
+    public function create()
+    {
+        $year = date('Y');
+        $latest = Requirement::where('year', $year)->max('requirement_number');
+        $nextNumber = $latest ? $latest + 1 : 1;
+
+        // Fetch Data Directly for Props (No API)
+        $employees = Empleado::activos()->select('id', 'nombre', 'puesto')->get();
+        $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get(); // Fetch chapters
+
+        // Optimización: Si partidas son muchas, podríamos mandar solo las más usadas o categorías, 
+        // pero "No API" implica mandar todo o manejar filtrado por recarga de página.
+        // Mandaremos todo seleccionado campos mínimos.
+        $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
+
+        // Default Signatories by Job Title
+        $defaultCoordinador = Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO%')->first();
+        // Use flexible matching for Director to handle potential typos ("RECUROS" vs "RECURSOS")
+        $defaultDirector = Empleado::where('puesto', 'LIKE', '%DIRECTOR DE REC%MATERIALES%')->first();
+
+        return Inertia::render('Requirements/Create', [
+            'nextNumber' => $nextNumber,
+            'year' => $year,
+            'employees' => $employees,
+            'capitulos' => $capitulos,
+            'partidas' => $partidas,
+            'types' => Requirement::TYPES,
+            'defaultSignatories' => [
+                'coordinator_id' => $defaultCoordinador ? $defaultCoordinador->id : '',
+                'director_id' => $defaultDirector ? $defaultDirector->id : '',
+            ]
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'year' => 'required|integer',
+            'requirement_number' => 'required|integer',
+            'type' => 'required|string',
+            'assignment_date' => 'nullable|date',
+            'coordinator_id' => 'nullable|exists:empleados,id',
+            'director_id' => 'nullable|exists:empleados,id',
+            'manager_id' => 'nullable|exists:empleados,id',
+            'elaborator_id' => 'nullable|exists:empleados,id',
+            'month_charged' => 'nullable|string',
+            'month_billed' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'due_date' => 'nullable|date',
+            'description' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.partida_id' => 'required|exists:partidas,id',
+            'items.*.amount' => 'required|numeric|min:0',
+            'items.*.description' => 'nullable|string',
+            'cfe_receipts' => 'nullable|array',
+            'cfe_receipts.*.uuid' => 'nullable|string',
+            'cfe_receipts.*.rpu' => 'nullable|string',
+            'cfe_receipts.*.description' => 'nullable|string',
+            'cfe_receipts.*.period_start' => 'nullable|date',
+            'cfe_receipts.*.period_end' => 'nullable|date',
+            'cfe_receipts.*.subtotal' => 'nullable|numeric',
+            'cfe_receipts.*.iva' => 'nullable|numeric',
+            'cfe_receipts.*.rounding' => 'nullable|numeric',
+            'cfe_receipts.*.total' => 'nullable|numeric',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            // Calculation Logic
+            if (!empty($validated['cfe_receipts'])) {
+                // CFE Logic: Sum from receipts table for exact precision
+                $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
+                $iva = collect($validated['cfe_receipts'])->sum('iva');
+                $total = collect($validated['cfe_receipts'])->sum('total');
+            } else {
+                // Standard Logic
+                $subtotal = collect($validated['items'])->sum('amount');
+                $iva = $subtotal * 0.16;
+                $total = $subtotal + $iva;
+            }
+
+            $requirement = Requirement::create([
+                ...$validated,
+                'subtotal' => $subtotal,
+                'iva' => $iva,
+                'total' => $total,
+                'status' => 'pending'
+            ]);
+
+            // Save Items
+            foreach ($validated['items'] as $item) {
+                $requirement->items()->create([
+                    'partida_id' => $item['partida_id'],
+                    'description' => $item['description'] ?? null,
+                    'amount' => $item['amount'],
+                ]);
+            }
+
+            // Save CFE Receipts
+            if (!empty($validated['cfe_receipts'])) {
+                foreach ($validated['cfe_receipts'] as $receipt) {
+                    $requirement->cfeReceipts()->create($receipt);
+                }
+            }
+        });
+
+        return redirect()->route('requirements.index')->with('success', 'Requerimiento creado exitosamente.');
+    }
+
+    public function edit(Requirement $requirement)
+    {
+        $requirement->load(['items', 'cfeReceipts']); // Load receipts
+
+        $employees = Empleado::activos()->select('id', 'nombre', 'puesto')->get();
+        $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get();
+        $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
+
+        return Inertia::render('Requirements/Edit', [
+            'requirement' => $requirement,
+            'employees' => $employees,
+            'capitulos' => $capitulos,
+            'partidas' => $partidas,
+            'types' => Requirement::TYPES,
+        ]);
+    }
+
+    public function update(Request $request, Requirement $requirement)
+    {
+        $validated = $request->validate([
+            'year' => 'required|integer',
+            'requirement_number' => 'required|integer',
+            'type' => 'required|string',
+            'assignment_date' => 'nullable|date',
+            'coordinator_id' => 'nullable|exists:empleados,id',
+            'director_id' => 'nullable|exists:empleados,id',
+            'manager_id' => 'nullable|exists:empleados,id',
+            'elaborator_id' => 'nullable|exists:empleados,id',
+            'month_charged' => 'nullable|string',
+            'month_billed' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'due_date' => 'nullable|date',
+            'description' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.partida_id' => 'required|exists:partidas,id',
+            'items.*.amount' => 'required|numeric|min:0',
+            'items.*.description' => 'nullable|string',
+            'cfe_receipts' => 'nullable|array',
+            'cfe_receipts.*.uuid' => 'nullable|string',
+            'cfe_receipts.*.rpu' => 'nullable|string',
+            'cfe_receipts.*.description' => 'nullable|string',
+            'cfe_receipts.*.period_start' => 'nullable|date',
+            'cfe_receipts.*.period_end' => 'nullable|date',
+            'cfe_receipts.*.subtotal' => 'nullable|numeric',
+            'cfe_receipts.*.iva' => 'nullable|numeric',
+            'cfe_receipts.*.rounding' => 'nullable|numeric',
+            'cfe_receipts.*.total' => 'nullable|numeric',
+        ]);
+
+        DB::transaction(function () use ($validated, $requirement) {
+            if (!empty($validated['cfe_receipts'])) {
+                $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
+                $iva = collect($validated['cfe_receipts'])->sum('iva');
+                $total = collect($validated['cfe_receipts'])->sum('total');
+            } else {
+                $subtotal = collect($validated['items'])->sum('amount');
+                $iva = $subtotal * 0.16;
+                $total = $subtotal + $iva;
+            }
+
+            $requirement->update([
+                ...$validated,
+                'subtotal' => $subtotal,
+                'iva' => $iva,
+                'total' => $total,
+            ]);
+
+            // Sync Items
+            $requirement->items()->delete();
+            foreach ($validated['items'] as $item) {
+                $requirement->items()->create([
+                    'partida_id' => $item['partida_id'],
+                    'description' => $item['description'] ?? null,
+                    'amount' => $item['amount'],
+                ]);
+            }
+
+            // Sync CFE Receipts
+            $requirement->cfeReceipts()->delete();
+            if (!empty($validated['cfe_receipts'])) {
+                foreach ($validated['cfe_receipts'] as $receipt) {
+                    $requirement->cfeReceipts()->create($receipt);
+                }
+            }
+        });
+
+        return redirect()->route('requirements.index')->with('success', 'Requerimiento actualizado exitosamente.');
+    }
+
+    public function destroy(Requirement $requirement)
+    {
+        $requirement->delete();
+        return redirect()->back()->with('success', 'Requerimiento eliminado.');
+    }
+
+    public function downloadPdf(Requirement $requirement)
+    {
+        $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator']);
+
+        // Fetch settings
+        $rawSettings = \App\Models\Setting::pluck('value', 'key')->toArray();
+        $settings = [];
+
+        // Process images for DomPDF (Must be Base64 or Absolute Path)
+        foreach ($rawSettings as $key => $value) {
+            if (in_array($key, ['logo_qroo', 'logo_unidos', 'footer_imagen']) && $value) {
+                // Assuming values are stored as 'logos/filename.png' in public disk
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($value)) {
+                    $path = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $data = file_get_contents($path);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    $settings[$key] = $base64;
+                } else {
+                    // Fallback or leave as is if not found (might be external URL though unlikely)
+                    $settings[$key] = $value;
+                }
+            } else {
+                $settings[$key] = $value;
+            }
+        }
+
+        // Fetch year legend from leyendas catalog based on requirement year
+        $requirementYear = \Carbon\Carbon::parse($requirement->assignment_date)->year;
+        $leyenda = \App\Models\Leyenda::where('anio', $requirementYear)->first();
+        $settings['leyenda_anio'] = $leyenda ? $leyenda->texto : '';
+
+        // Prepare data for the view
+        $fecha = \Carbon\Carbon::parse($requirement->assignment_date);
+        $fecha_formateada = $fecha->day . ' de ' . $fecha->translatedFormat('F') . ' ' . $fecha->year;
+
+        $importe_letras = \App\Helpers\NumberHelper::convert($requirement->total);
+
+        // Logic for Signatures/Addresses based on specific Job Title (User Request)
+        // Always look for the employee with this specific title via catalog
+        $adminCoordinator = \App\Models\Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO%')->first();
+
+        // Fallback to the one selected in the requirement if no match found by title
+        $finalCoordinator = $adminCoordinator ?? $requirement->coordinator;
+
+        $data = [
+            'destinatario_nombre' => $finalCoordinator->nombre ?? 'N/A',
+            'destinatario_cargo' => $finalCoordinator->puesto ?? 'COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO',
+            'solicitante_departamento' => 'ORGANISMO OPERADOR JOSÉ MARÍA MORELOS',
+        ];
+
+        $pdf = Pdf::loadView('reports.requirement', [
+            'requirement' => $requirement,
+            'settings' => $settings,
+            'fecha_formateada' => $fecha_formateada,
+            'importe_letras' => $importe_letras,
+            'data' => $data
+        ])->setPaper('letter', 'portrait');
+
+        $filename = 'Requerimiento_' . str_replace('/', '-', $requirement->formatted_number) . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    public function downloadCfeRelation(Requirement $requirement)
+    {
+        $requirement->load(['cfeReceipts', 'elaborator', 'manager']);
+
+        // Fetch settings (same as downloadPdf)
+        $rawSettings = \App\Models\Setting::pluck('value', 'key')->toArray();
+        $settings = [];
+
+        // Process images for DomPDF (Must be Base64 or Absolute Path)
+        foreach ($rawSettings as $key => $value) {
+            if (in_array($key, ['logo_qroo', 'logo_unidos', 'footer_imagen']) && $value) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($value)) {
+                    $path = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $data = file_get_contents($path);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    $settings[$key] = $base64;
+                } else {
+                    $settings[$key] = $value;
+                }
+            } else {
+                $settings[$key] = $value;
+            }
+        }
+
+        // Pagination logic: 26 receipts per page
+        $receiptsPerPage = 26;
+        $allReceipts = $requirement->cfeReceipts;
+        $totalReceipts = $allReceipts->count();
+        $totalPages = max(1, ceil($totalReceipts / $receiptsPerPage));
+
+        // Calculate grand totals
+        $grandSubtotal = $allReceipts->sum('subtotal');
+        $grandIva = $allReceipts->sum('iva');
+        $grandTotal = $allReceipts->sum('total');
+
+        // Chunk receipts into pages
+        $pages = [];
+        $receiptChunks = $allReceipts->chunk($receiptsPerPage);
+        $pageNumber = 1;
+
+        foreach ($receiptChunks as $chunk) {
+            $pageSubtotal = $chunk->sum('subtotal');
+            $pageIva = $chunk->sum('iva');
+            $pageTotal = $chunk->sum('total');
+
+            $pages[] = [
+                'receipts' => $chunk,
+                'pageNumber' => $pageNumber,
+                'totalPages' => $totalPages,
+                'isLastPage' => ($pageNumber === $totalPages),
+                'pageSubtotal' => $pageSubtotal,
+                'pageIva' => $pageIva,
+                'pageTotal' => $pageTotal,
+            ];
+
+            $pageNumber++;
+        }
+
+        $pdf = Pdf::loadView('reports.cfe_relation', [
+            'requirement' => $requirement,
+            'settings' => $settings,
+            'pages' => $pages,
+            'grandSubtotal' => $grandSubtotal,
+            'grandIva' => $grandIva,
+            'grandTotal' => $grandTotal,
+        ]);
+
+        return $pdf->setPaper('letter', 'portrait')->download('Relacion_CFE_' . str_replace('/', '-', $requirement->formatted_number) . '.pdf');
+    }
+}

@@ -13,6 +13,7 @@ export default function Index({ initialSettings }) {
         footer_telefono: initialSettings.footer_telefono || '',
         footer_email: initialSettings.footer_email || '',
         footer_imagen: null,
+        footer_margin_bottom: initialSettings.footer_margin_bottom || 60,
     });
 
     const submit = (e) => {
@@ -166,6 +167,19 @@ export default function Index({ initialSettings }) {
                                             placeholder="capamorelos@capa.gob.mx"
                                         />
                                         {errors.footer_email && <div className="text-red-600 mt-1 text-xs">{errors.footer_email}</div>}
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Margen Inferior (px) - Altura de Pie de Página" className="mb-2" />
+                                        <input
+                                            type="number"
+                                            value={data.footer_margin_bottom || ''}
+                                            onChange={e => setData('footer_margin_bottom', e.target.value)}
+                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            placeholder="Ej: 60"
+                                            min="0"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Aumente este valor para subir la imagen del pie de página.</p>
+                                        {errors.footer_margin_bottom && <div className="text-red-600 mt-1 text-xs">{errors.footer_margin_bottom}</div>}
                                     </div>
                                 </div>
 

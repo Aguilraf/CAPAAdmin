@@ -31,6 +31,13 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Dashboard
                                 </NavLink>
 
+                                <NavLink
+                                    href={route('requirements.index')}
+                                    active={route().current('requirements.*')}
+                                >
+                                    Requerimientos
+                                </NavLink>
+
                                 <div className="relative flex items-center pt-1">
                                     <Dropdown>
                                         <Dropdown.Trigger>
@@ -317,6 +324,13 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('requirements.index')}
+                            active={route().current('requirements.*')}
+                        >
+                            Requerimientos
                         </ResponsiveNavLink>
 
                         {user.permissions && user.permissions.includes('generar reportes') && (

@@ -26,7 +26,8 @@ class SettingController extends Controller
             'footer_direccion',
             'footer_telefono',
             'footer_email',
-            'footer_imagen'
+            'footer_imagen',
+            'footer_margin_bottom'
         ];
         $settings = Setting::whereIn('key', $keys)->pluck('value', 'key');
 
@@ -46,6 +47,7 @@ class SettingController extends Controller
             'footer_telefono' => 'nullable|string|max:50',
             'footer_email' => 'nullable|string|email|max:255',
             'footer_imagen' => 'nullable|image|max:2048',
+            'footer_margin_bottom' => 'nullable|integer|min:0',
         ]);
 
         // Handle File Uploads
@@ -74,7 +76,7 @@ class SettingController extends Controller
         }
 
         // Handle Text Inputs
-        $textKeys = ['footer_organismo', 'footer_direccion', 'footer_telefono', 'footer_email'];
+        $textKeys = ['footer_organismo', 'footer_direccion', 'footer_telefono', 'footer_email', 'footer_margin_bottom'];
         foreach ($textKeys as $key) {
             if ($request->has($key)) {
                 Setting::updateOrCreate(
