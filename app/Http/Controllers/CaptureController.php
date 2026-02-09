@@ -101,7 +101,7 @@ class CaptureController extends Controller
         $request->validate([
             'capture_ids' => 'required|array',
             'capture_ids.*' => 'exists:captures,id',
-            'requirement_number' => 'required|string',
+            'requirement_number' => 'required',
             'year' => 'required|integer|min:2020|max:2030', // Validate year
         ]);
 

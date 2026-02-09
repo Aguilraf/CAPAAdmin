@@ -160,7 +160,7 @@
                     @else
                         <div style="font-size: 8pt; border: 1px dashed #ccc; padding: 10px;">LOGO CAMPAÑA</div>
                     @endif
-                    <div style="margin-top: 5px; font-size: 8pt; font-weight: bold;">
+                    <div style="margin-top: 5px; font-size: 10pt; font-weight: bold;">
                         FONDO BOMBEROS ({{ $year ?? date('Y') }}) : {{ $requirement_number ?? 'S/N' }}
                     </div>
                 </div>
@@ -168,6 +168,7 @@
             </div>
 
             <div class="info-line">
+                @php \Carbon\Carbon::setLocale('es'); @endphp
                 JOSE MARIA MORELOS, QUINTANA ROO; A {{ \Carbon\Carbon::parse($assignment_date)->translatedFormat('d') }} DE {{ strtoupper(\Carbon\Carbon::parse($assignment_date)->translatedFormat('F')) }} DEL {{ \Carbon\Carbon::parse($assignment_date)->translatedFormat('Y') }}
             </div>
         </div>

@@ -149,6 +149,8 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('firefighters.report');
 
+    Route::get('/report/firefighters/pdf', [\App\Http\Controllers\FirefighterReportPdfController::class, 'download'])->name('firefighters.report.pdf');
+
     // Settings - accesible con permiso
     Route::middleware(['permission:configurar bomberos'])->group(function () {
         Route::get('/firefighters/settings', [\App\Http\Controllers\FirefighterSettingController::class, 'index'])->name('firefighters.settings');
@@ -193,11 +195,13 @@ Route::middleware('auth')->group(function () {
         Route::post('captures/assign-requirement', [\App\Http\Controllers\CaptureController::class, 'assignRequirement'])->name('captures.assign-requirement');
         Route::get('captures/requirements', [\App\Http\Controllers\CaptureController::class, 'getRequirements'])->name('captures.requirements');
         Route::get('captures/next-requirement', [\App\Http\Controllers\CaptureController::class, 'getNextRequirementNumber'])->name('captures.next-requirement');
-        Route::post('captures/import', [\App\Http\Controllers\CaptureImportController::class, 'import'])->name('captures.import'); // New Import Route
+        Route::post('captures/import', [\App\Http\Controllers\CaptureImportController::class, 'import'])->name('captures.import');
+        Route::get('captures/import/template', [\App\Http\Controllers\CaptureImportController::class, 'downloadTemplate'])->name('captures.import.template');
         Route::resource('captures', \App\Http\Controllers\CaptureController::class);
 
         // Settings (API-like access for frontend)
         Route::get('/firefighter-settings-json', [\App\Http\Controllers\FirefighterSettingController::class, 'index']);
+        Route::post('/firefighter-settings-update', [\App\Http\Controllers\FirefighterSettingController::class, 'update']);
     });
 });
 
