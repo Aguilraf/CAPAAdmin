@@ -103,8 +103,28 @@
     </div>
     <br><br>
 
+    @php
+        $cfeDescription = '';
+        if ($requirement->type === 'cfe' && $requirement->start_date && $requirement->end_date) {
+            $startDate = $requirement->start_date;
+            $endDate = $requirement->end_date;
+            
+            // Check if both dates are in the same year
+            if ($startDate->format('Y') === $endDate->format('Y')) {
+                // Same year: show year only once at the end
+                $cfeDescription = 'PAGO POR EL SERVICIO DE ENERGIA ELECTRICA QUE COMPRENDE EL PERIODO DEL ' 
+                    . $startDate->format('d/m') . ' AL ' . $endDate->format('d/m/Y') 
+                    . ', DIFERENTES COMUNIDADES DEL MUNICIPIO DE JOSE MARIA MORELOS.';
+            } else {
+                // Different years: show year for both dates
+                $cfeDescription = 'PAGO POR EL SERVICIO DE ENERGIA ELECTRICA QUE COMPRENDE EL PERIODO DEL ' 
+                    . $startDate->format('d/m/y') . ' AL ' . $endDate->format('d/m/y') 
+                    . ', DIFERENTES COMUNIDADES DEL MUNICIPIO DE JOSE MARIA MORELOS.';
+            }
+        }
+    @endphp
     <div class="body-text">
-        POR MEDIO DEL PRESENTE ME PERMITO SOLICITAR A USTED, ME SEAN ENVIADOS LOS RECURSOS PARA CUBRIR GASTOS DEL ORGANISMO OPERADOR JOSÉ MARÍA MORELOS POR UN MONTO DE <strong>${{ number_format($requirement->total, 2) }}</strong> (SON: <span class="amount-text">{{ $importe_letras }}</span>) POR LOS SIGUIENTES CONCEPTOS: {{ $requirement->type === 'cfe' ? 'PAGO POR EL SERVICIO DE ENERGIA ELECTRICA QUE COMPRENDE EL PERIODO DEL ' . ($requirement->start_date ? $requirement->start_date->format('d/m/y') : '') . ' AL ' . ($requirement->end_date ? $requirement->end_date->format('d/m/y') : '') . ', DIFERENTES COMUNIDADES DEL MUNICIPIO DE JOSE MARIA MORELOS.' : $requirement->description }}
+        POR MEDIO DEL PRESENTE ME PERMITO SOLICITAR A USTED, ME SEAN ENVIADOS LOS RECURSOS PARA CUBRIR GASTOS DEL ORGANISMO OPERADOR JOSÉ MARÍA MORELOS POR UN MONTO DE <strong>${{ number_format($requirement->total, 2) }}</strong> (SON: <span class="amount-text">{{ $importe_letras }}</span>) POR LOS SIGUIENTES CONCEPTOS: {{ $requirement->type === 'cfe' ? $cfeDescription : $requirement->description }}
     </div>
     <br><br>
 

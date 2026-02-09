@@ -55,6 +55,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                                     <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
                                                     <div className="border-t border-gray-100"></div>
                                                     <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>
+                                                    <Dropdown.Link href={route('cfe.query')}>Consulta CFE</Dropdown.Link>
                                                 </>
                                             )}
                                         </Dropdown.Content>

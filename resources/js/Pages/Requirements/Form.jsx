@@ -282,21 +282,49 @@ export default function RequirementForm({
                 maxDue = dues[dues.length - 1];
             }
             const uniqueDues = [...new Set(dues)].sort();
+
+            // Group by month and year
             const groupedByMonth = {};
+            const years = new Set();
+
             uniqueDues.forEach(d => {
                 const dateObj = new Date(d + 'T12:00:00');
-                const monthYear = dateObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
+                const month = dateObj.toLocaleDateString('es-ES', { month: 'long' }).toUpperCase();
+                const year = dateObj.getFullYear();
+                const monthYear = `${month} DE ${year}`;
                 const day = dateObj.getDate();
+
+                years.add(year);
+
                 if (!groupedByMonth[monthYear]) groupedByMonth[monthYear] = [];
                 groupedByMonth[monthYear].push(day);
             });
+
+            // Check if all dates are in the same year
+            const sameYear = years.size === 1;
+            const commonYear = sameYear ? Array.from(years)[0] : null;
+
             let dueNarrativeParts = [];
             for (const [monthYear, days] of Object.entries(groupedByMonth)) {
                 const sortedDays = days.sort((a, b) => a - b);
                 const dayStr = sortedDays.length === 1 ? sortedDays[0] : sortedDays.join(', ').replace(/, ([^,]*)$/, ' Y $1');
-                dueNarrativeParts.push(`${dayStr} DE ${monthYear}`);
+
+                if (sameYear) {
+                    // Remove year from month name since we'll add it once at the end
+                    const monthOnly = monthYear.replace(` DE ${commonYear}`, '');
+                    dueNarrativeParts.push(`${dayStr} DE ${monthOnly}`);
+                } else {
+                    dueNarrativeParts.push(`${dayStr} DE ${monthYear}`);
+                }
             }
-            const finalDesc = dueNarrativeParts.length > 0 ? `VENCIMIENTO ${dueNarrativeParts.join('; ')}` : data.description;
+
+            // If same year, append year once at the end
+            let finalNarrative = dueNarrativeParts.join('; ');
+            if (sameYear && commonYear) {
+                finalNarrative += ` DE ${commonYear}`;
+            }
+
+            const finalDesc = dueNarrativeParts.length > 0 ? `VENCIMIENTO ${finalNarrative}` : data.description;
 
             // 2. Create Single Summary Item (Partida 31101)
             const sumSubtotal = allReceipts.reduce((acc, r) => acc + r.subtotal, 0);
