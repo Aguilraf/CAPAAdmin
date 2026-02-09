@@ -30,8 +30,8 @@ export default function Receive(props) {
 
     useEffect(() => {
         fetchCaptures();
-        axios.get('/api/communities').then(res => setCommunities(res.data));
-        axios.get('/api/firefighter-settings').then(res => { // Verify endpoint name!
+        axios.get('/communities').then(res => setCommunities(res.data));
+        axios.get('/firefighter-settings-json').then(res => {
             const amount = res.data.report_fondo_amount || 0;
             setFundAmount(parseFloat(amount));
         });
@@ -42,14 +42,14 @@ export default function Receive(props) {
     }, [assignYear]);
 
     const fetchNextReqNumber = () => {
-        axios.get(`/api/captures/next-requirement?year=${assignYear}`)
+        axios.get(`/captures/next-requirement?year=${assignYear}`)
             .then(res => setRequirementNumber(res.data.next_requirement_number))
             .catch(err => console.error(err));
     };
 
     const fetchCaptures = () => {
         const params = new URLSearchParams(filters).toString();
-        axios.get(`/api/captures?${params}`).then(res => setCaptures(res.data));
+        axios.get(`/captures?${params}`).then(res => setCaptures(res.data));
     };
 
     const handleFilterChange = (e) => {
@@ -66,7 +66,7 @@ export default function Receive(props) {
 
     const handleDelete = async (id) => {
         if (confirm('¿Está seguro de eliminar esta captura?')) {
-            await axios.delete(`/api/captures/${id}`);
+            await axios.delete(`/captures/${id}`);
             fetchCaptures();
         }
     };
@@ -91,7 +91,7 @@ export default function Receive(props) {
         const commission = (subtotal * 0.15) + roundingComm;
         const total = (subtotal - commission) + roundingTot;
 
-        await axios.put(`/api/captures/${editingCapture.id}`, {
+        await axios.put(`/captures/${editingCapture.id}`, {
             ...editingCapture,
             ...editFormData,
             commission: commission.toFixed(2),
@@ -157,7 +157,7 @@ export default function Receive(props) {
         if (result.isConfirmed) {
             try {
                 setIsAssigning(true);
-                await axios.post('/api/captures/assign-requirement', {
+                await axios.post('/captures/assign-requirement', {
                     capture_ids: captures.map(c => c.id),
                     requirement_number: requirementNumber,
                     year: assignYear,

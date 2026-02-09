@@ -175,7 +175,7 @@ export default function Capture({ auth, communities: initialCommunities, firefig
         }
 
         try {
-            const res = await axios.post('/api/captures', formData);
+            const res = await axios.post('/captures', formData);
             setMessage({ type: 'success', text: 'Captura guardada exitosamente' });
             setLastCapture(res.data);
 

@@ -20,7 +20,7 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
     const [viewMapLocation, setViewMapLocation] = useState(null);
 
     const fetchData = () => {
-        axios.get('/api/firefighters').then(res => setFirefighters(res.data));
+        axios.get('/firefighters').then(res => setFirefighters(res.data));
     };
 
     const handleOpenModal = (firefighter = null) => {
@@ -61,9 +61,9 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
         e.preventDefault();
         try {
             if (editingId) {
-                await axios.put(`/api/firefighters/${editingId}`, formData);
+                await axios.put(`/firefighters/${editingId}`, formData);
             } else {
-                await axios.post('/api/firefighters', formData);
+                await axios.post('/firefighters', formData);
             }
             fetchData();
             handleCloseModal();
@@ -75,7 +75,7 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
 
     const handleDelete = async (id) => {
         if (confirm('¿Estás seguro de eliminar este bombero?')) {
-            await axios.delete(`/api/firefighters/${id}`);
+            await axios.delete(`/firefighters/${id}`);
             fetchData();
         }
     };

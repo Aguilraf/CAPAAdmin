@@ -177,10 +177,28 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('firefighters.settings');
 
-    // Importar - accesible con permiso
-    Route::middleware(['permission:importar bomberos'])->get('/firefighters/import', function () {
-        return Inertia::render('Firefighters/ImportCaptures');
-    })->name('firefighters.import');
+    // Modulo de Bomberos (Refactorizado a Web Controllers)
+    Route::middleware(['auth'])->group(function () {
+        // Communities
+        Route::resource('communities', \App\Http\Controllers\CommunityController::class);
+        Route::post('communities/import', [\App\Http\Controllers\CommunityImportController::class, 'import'])->name('communities.import');
+        Route::get('communities/import/template', [\App\Http\Controllers\CommunityImportController::class, 'downloadTemplate'])->name('communities.import.template');
+
+        // Firefighters
+        Route::resource('firefighters', \App\Http\Controllers\FirefighterController::class);
+        Route::post('firefighters/import', [\App\Http\Controllers\FirefighterImportController::class, 'import'])->name('firefighters.import');
+        Route::get('firefighters/import/template', [\App\Http\Controllers\FirefighterImportController::class, 'downloadTemplate'])->name('firefighters.import.template');
+
+        // Captures
+        Route::post('captures/assign-requirement', [\App\Http\Controllers\CaptureController::class, 'assignRequirement'])->name('captures.assign-requirement');
+        Route::get('captures/requirements', [\App\Http\Controllers\CaptureController::class, 'getRequirements'])->name('captures.requirements');
+        Route::get('captures/next-requirement', [\App\Http\Controllers\CaptureController::class, 'getNextRequirementNumber'])->name('captures.next-requirement');
+        Route::post('captures/import', [\App\Http\Controllers\CaptureImportController::class, 'import'])->name('captures.import'); // New Import Route
+        Route::resource('captures', \App\Http\Controllers\CaptureController::class);
+
+        // Settings (API-like access for frontend)
+        Route::get('/firefighter-settings-json', [\App\Http\Controllers\FirefighterSettingController::class, 'index']);
+    });
 });
 
 require __DIR__ . '/auth.php';

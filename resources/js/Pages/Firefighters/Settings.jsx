@@ -42,7 +42,7 @@ export default function Settings(props) {
 
     const fetchSettings = async () => {
         try {
-            const response = await axios.get('/api/firefighter-settings');
+            const response = await axios.get('/firefighter-settings-json');
             const data = response.data;
             setSettings({
                 report_title: data.report_title || '',
@@ -102,7 +102,7 @@ export default function Settings(props) {
         if (logos.report_logo_footer) formData.append('report_logo_footer', logos.report_logo_footer);
 
         try {
-            const response = await axios.post('/api/firefighter-settings', formData, {
+            const response = await axios.post('/firefighter-settings-update', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setStatus({ type: 'success', message: response.data.message || 'Configuración guardada exitosamente' });

@@ -10,9 +10,14 @@ use Inertia\Inertia;
 
 class FirefighterSettingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $settings = FirefighterSetting::pluck('value', 'key');
+
+        if ($request->wantsJson()) {
+            return response()->json($settings);
+        }
+
         return Inertia::render('Firefighters/Settings', [
             'initialSettings' => $settings,
         ]);

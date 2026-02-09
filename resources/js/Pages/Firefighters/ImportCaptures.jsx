@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+// const XLSX = {};
 import { Upload, FileUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../../firefighters_helpers';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -55,7 +56,7 @@ export default function Import(props) {
 
         try {
             setProgress(50);
-            const response = await axios.post('/api/import/captures', formData, {
+            const response = await axios.post('/captures/import', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 },
@@ -123,7 +124,7 @@ export default function Import(props) {
                                         <li><b>SUBTOTAL:</b> Monto numérico.</li>
                                     </ul>
                                     <div className="mt-4 text-center">
-                                        <a href="/api/import/template-captures" className="text-blue-600 underline font-semibold text-sm hover:text-blue-800">Descargar Plantilla de Ejemplo</a>
+                                        <a href="/captures/import/template" className="text-blue-600 underline font-semibold text-sm hover:text-blue-800">Descargar Plantilla de Ejemplo</a>
                                     </div>
                                 </div>
 

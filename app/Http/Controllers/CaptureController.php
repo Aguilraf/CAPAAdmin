@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Capture;
-use App\Models\FirefighterSetting; // Renamed
+use App\Models\FirefighterSetting;
 use Illuminate\Http\Request;
 
 class CaptureController extends Controller

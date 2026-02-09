@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Capture;
 use App\Models\Community;
 use App\Models\Firefighter;
@@ -12,6 +11,44 @@ use Illuminate\Support\Facades\Log;
 
 class CaptureImportController extends Controller
 {
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="plantilla_capturas.xlsx"',
+        ];
+
+        // This requires a real Excel generation or just a simple CSV for now to match other controllers
+        // But the ImportCaptures.jsx seems to use XLSX reading on client side, so CSV is fine or I can just return a CSV.
+        // The previous implementation (if any) is not visible, but other controllers use CSV.
+        // Let's use CSV for simplicity and consistency with other import controllers.
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="plantilla_capturas.csv"',
+        ];
+
+        $columns = ['DATE', 'YEAR', 'COMMUNITY', 'FIREFIGHTER', 'SUBTOTAL', 'COMMISSION', 'TOTAL'];
+
+        $callback = function () use ($columns) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM
+            fputcsv($file, $columns);
+            fputcsv($file, [
+                date('Y-m-d'),
+                date('Y'),
+                'NOMBRE COMUNIDAD',
+                'NOMBRE BOMBERO',
+                '100.00',
+                '15.00',
+                '85.00'
+            ]);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public function import(Request $request)
     {
         $request->validate([

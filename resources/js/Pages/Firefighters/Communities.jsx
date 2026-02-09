@@ -18,7 +18,7 @@ export default function Communities({ auth, communities: initialCommunities }) {
     const fileInputRef = React.useRef(null);
 
     const fetchData = () => {
-        axios.get('/api/communities').then(res => setCommunities(res.data));
+        axios.get('/communities').then(res => setCommunities(res.data));
     };
 
     const handleOpenModal = (community = null) => {
@@ -51,9 +51,9 @@ export default function Communities({ auth, communities: initialCommunities }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (editingId) {
-            await axios.put(`/api/communities/${editingId}`, formData);
+            await axios.put(`/communities/${editingId}`, formData);
         } else {
-            await axios.post('/api/communities', formData);
+            await axios.post('/communities', formData);
         }
         fetchData();
         handleCloseModal();
@@ -61,13 +61,13 @@ export default function Communities({ auth, communities: initialCommunities }) {
 
     const handleDelete = async (id) => {
         if (confirm('¿Estás seguro de eliminar esta comunidad?')) {
-            await axios.delete(`/api/communities/${id}`);
+            await axios.delete(`/communities/${id}`);
             fetchData();
         }
     };
 
     const handleDownloadTemplate = () => {
-        window.location.href = '/api/communities/import/template';
+        window.location.href = '/communities/import/template';
     };
 
     const handleImportClick = () => {
@@ -82,7 +82,7 @@ export default function Communities({ auth, communities: initialCommunities }) {
         formData.append('file', file);
 
         try {
-            const response = await axios.post('/api/communities/import', formData, {
+            const response = await axios.post('/communities/import', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

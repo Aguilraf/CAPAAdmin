@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import { MagnifyingGlassIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Search, Download, X } from 'lucide-react';
 import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -199,11 +199,11 @@ export default function Index({ auth, receipts, filters, availableYears, totals 
                                 {/* Action Buttons */}
                                 <div className="mt-4 flex gap-2">
                                     <PrimaryButton onClick={handleSearch}>
-                                        <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
+                                        <Search className="h-5 w-5 mr-2" />
                                         Buscar
                                     </PrimaryButton>
                                     <SecondaryButton onClick={handleClearFilters}>
-                                        <XMarkIcon className="h-5 w-5 mr-2" />
+                                        <X className="h-5 w-5 mr-2" />
                                         Limpiar Filtros
                                     </SecondaryButton>
                                 </div>
@@ -212,11 +212,11 @@ export default function Index({ auth, receipts, filters, availableYears, totals 
                             {/* Export Buttons */}
                             <div className="mb-4 flex gap-2 justify-end">
                                 <SecondaryButton onClick={() => handleExport('excel')}>
-                                    <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                                    <Download className="h-5 w-5 mr-2" />
                                     Exportar Excel
                                 </SecondaryButton>
                                 <SecondaryButton onClick={() => handleExport('pdf')}>
-                                    <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                                    <Download className="h-5 w-5 mr-2" />
                                     Exportar PDF
                                 </SecondaryButton>
                             </div>
@@ -338,10 +338,10 @@ export default function Index({ auth, receipts, filters, availableYears, totals 
                                                 onClick={() => link.url && router.get(link.url)}
                                                 disabled={!link.url}
                                                 className={`px-3 py-1 rounded ${link.active
-                                                        ? 'bg-indigo-600 text-white'
-                                                        : link.url
-                                                            ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : link.url
+                                                        ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                     }`}
                                                 dangerouslySetInnerHTML={{ __html: link.label }}
                                             />
