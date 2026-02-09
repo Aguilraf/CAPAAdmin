@@ -19,7 +19,7 @@
     </style>
 </head>
 <body>
-    <h1>CONSULTA DE RECIBOS CFE</h1>
+    <h1>CONSULTA DE HISTORIAL POR SERVICIO CFE</h1>
 
     <!-- Filters Applied -->
     @if(!empty(array_filter($filters)))
@@ -61,7 +61,6 @@
                 <th>RPU</th>
                 <th>Poblado</th>
                 <th>Dirección</th>
-                <th>Periodo</th>
                 <th class="text-right">Subtotal</th>
                 <th class="text-right">IVA</th>
                 <th class="text-right">Total</th>
@@ -85,18 +84,10 @@
                 @endphp
                 <tr>
                     <td>{{ $receipt->requirement->year ?? '' }}</td>
-                    <td>{{ $receipt->requirement->number ?? '' }}</td>
+                    <td>{{ $receipt->requirement->requirement_number ?? '' }}</td>
                     <td>{{ $receipt->rpu }}</td>
                     <td>{{ $poblado }}</td>
                     <td>{{ $direccion }}</td>
-                    <td>
-                        @if($receipt->period_start && $receipt->period_end)
-                            {{ \Carbon\Carbon::parse($receipt->period_start)->format('d/m/Y') }} - 
-                            {{ \Carbon\Carbon::parse($receipt->period_end)->format('d/m/Y') }}
-                        @else
-                            -
-                        @endif
-                    </td>
                     <td class="text-right">${{ number_format($receipt->subtotal, 2) }}</td>
                     <td class="text-right">${{ number_format($receipt->iva, 2) }}</td>
                     <td class="text-right">${{ number_format($receipt->total, 2) }}</td>
@@ -105,7 +96,7 @@
             
             <!-- Totals Row -->
             <tr class="totals">
-                <td colspan="6" class="text-right">TOTALES ({{ $receipts->count() }} registros)</td>
+                <td colspan="5" class="text-right">TOTALES ({{ $receipts->count() }} registros)</td>
                 <td class="text-right">${{ number_format($totalSubtotal, 2) }}</td>
                 <td class="text-right">${{ number_format($totalIva, 2) }}</td>
                 <td class="text-right">${{ number_format($totalTotal, 2) }}</td>

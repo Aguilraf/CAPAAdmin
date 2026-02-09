@@ -16,7 +16,7 @@ class CfeQueryController extends Controller
     {
         $query = CfeReceipt::with([
             'requirement' => function ($q) {
-                $q->select('id', 'year', 'number', 'assignment_date', 'start_date', 'end_date', 'total');
+                $q->select('id', 'year', 'requirement_number', 'assignment_date', 'start_date', 'end_date', 'total');
             }
         ]);
 
@@ -29,12 +29,12 @@ class CfeQueryController extends Controller
 
         if ($request->filled('requirement_number')) {
             $query->whereHas('requirement', function ($q) use ($request) {
-                $q->where('number', $request->requirement_number);
+                $q->where('requirement_number', $request->requirement_number);
             });
         }
 
         if ($request->filled('rpu')) {
-            $query->where('rpu', 'like', '%' . $request->rpu . '%');
+            $query->where('rpu', $request->rpu);
         }
 
         if ($request->filled('search')) {
@@ -63,7 +63,7 @@ class CfeQueryController extends Controller
 
         if ($sortField === 'year' || $sortField === 'requirement_number') {
             $query->join('requirements', 'cfe_receipts.requirement_id', '=', 'requirements.id')
-                ->orderBy('requirements.' . ($sortField === 'year' ? 'year' : 'number'), $sortDirection)
+                ->orderBy('requirements.' . ($sortField === 'year' ? 'year' : 'requirement_number'), $sortDirection)
                 ->select('cfe_receipts.*');
         } else {
             $query->orderBy($sortField, $sortDirection);
@@ -78,10 +78,35 @@ class CfeQueryController extends Controller
             ->orderBy('year', 'desc')
             ->pluck('year');
 
+        // Get available requirement numbers (filtered by year if selected)
+        $availableRequirements = Requirement::where('type', 'cfe')
+            ->when($request->filled('year'), function ($q) use ($request) {
+                $q->where('year', $request->year);
+            })
+            ->distinct()
+            ->orderBy('requirement_number', 'asc')
+            ->pluck('requirement_number');
+
+        // Get available RPUs
+        $availableRpus = CfeReceipt::distinct()
+            ->orderBy('rpu', 'asc')
+            ->pluck('rpu');
+
+        // Get available Poblados (extracted from description)
+        $availablePoblados = CfeReceipt::get()
+            ->map(function ($receipt) {
+                $parts = explode(',', $receipt->description, 2);
+                return trim($parts[0] ?? '');
+            })
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
         // Calculate totals for filtered results
         $totals = CfeReceipt::with([
             'requirement' => function ($q) {
-                $q->select('id', 'year', 'number');
+                $q->select('id', 'year', 'requirement_number');
             }
         ]);
 
@@ -93,11 +118,11 @@ class CfeQueryController extends Controller
         }
         if ($request->filled('requirement_number')) {
             $totals->whereHas('requirement', function ($q) use ($request) {
-                $q->where('number', $request->requirement_number);
+                $q->where('requirement_number', $request->requirement_number);
             });
         }
         if ($request->filled('rpu')) {
-            $totals->where('rpu', 'like', '%' . $request->rpu . '%');
+            $totals->where('rpu', $request->rpu);
         }
         if ($request->filled('search')) {
             $totals->where('description', 'like', '%' . $request->search . '%');
@@ -126,6 +151,9 @@ class CfeQueryController extends Controller
             'receipts' => $receipts,
             'filters' => $request->only(['year', 'requirement_number', 'rpu', 'search', 'date_from', 'date_to', 'amount_min', 'amount_max', 'sort', 'direction']),
             'availableYears' => $availableYears,
+            'availableRequirements' => $availableRequirements,
+            'availableRpus' => $availableRpus,
+            'availablePoblados' => $availablePoblados,
             'totals' => $totalSums,
         ]);
     }
@@ -136,7 +164,7 @@ class CfeQueryController extends Controller
 
         $query = CfeReceipt::with([
             'requirement' => function ($q) {
-                $q->select('id', 'year', 'number', 'assignment_date', 'start_date', 'end_date', 'total');
+                $q->select('id', 'year', 'requirement_number', 'assignment_date', 'start_date', 'end_date', 'total');
             }
         ]);
 
@@ -148,11 +176,11 @@ class CfeQueryController extends Controller
         }
         if ($request->filled('requirement_number')) {
             $query->whereHas('requirement', function ($q) use ($request) {
-                $q->where('number', $request->requirement_number);
+                $q->where('requirement_number', $request->requirement_number);
             });
         }
         if ($request->filled('rpu')) {
-            $query->where('rpu', 'like', '%' . $request->rpu . '%');
+            $query->where('rpu', $request->rpu);
         }
         if ($request->filled('search')) {
             $query->where('description', 'like', '%' . $request->search . '%');

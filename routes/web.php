@@ -151,6 +151,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/report/firefighters/pdf', [\App\Http\Controllers\FirefighterReportPdfController::class, 'download'])->name('firefighters.report.pdf');
 
+    // Consulta de Historial por Comunidad - accesible con permiso de reportes
+    Route::middleware(['permission:reportes bomberos'])->group(function () {
+        Route::get('/firefighters/query', [\App\Http\Controllers\FirefighterQueryController::class, 'index'])->name('firefighters.query');
+        Route::get('/firefighters/export', [\App\Http\Controllers\FirefighterQueryController::class, 'export'])->name('firefighters.export');
+    });
+
     // Settings - accesible con permiso
     Route::middleware(['permission:configurar bomberos'])->group(function () {
         Route::get('/firefighters/settings', [\App\Http\Controllers\FirefighterSettingController::class, 'index'])->name('firefighters.settings');

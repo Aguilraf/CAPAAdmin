@@ -375,6 +375,29 @@ export default function RequirementForm({
         }));
     };
 
+    const updateReceipt = (index, value) => {
+        const newReceipts = [...data.cfe_receipts];
+        const subtotal = parseFloat(value) || 0;
+        const iva = newReceipts[index].iva;
+        const total = parseFloat((subtotal + iva).toFixed(2));
+
+        newReceipts[index].subtotal = subtotal;
+        newReceipts[index].total = total;
+
+        // Recalculate Summary Item based on new Subtotals
+        const sumSubtotal = newReceipts.reduce((acc, r) => acc + r.subtotal, 0);
+        const newItems = [...data.items];
+        if (newItems.length > 0) {
+            newItems[0].amount = parseFloat(sumSubtotal.toFixed(2));
+        }
+
+        setData(prev => ({
+            ...prev,
+            cfe_receipts: newReceipts,
+            items: newItems
+        }));
+    };
+
     return (
         <form onSubmit={submit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -545,19 +568,44 @@ export default function RequirementForm({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                {data.cfe_receipts.map((r, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-100">
-                                        <td className="px-2 py-2 font-mono">{r.rpu}</td>
-                                        <td className="px-2 py-2">{r.description}</td>
-                                        <td className="px-2 py-2 font-mono text-[10px] break-all">{r.uuid}</td>
-                                        <td className="px-2 py-2 text-right">${r.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                                        <td className="px-2 py-2 text-right">${r.iva.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                                        <td className="px-2 py-2 text-right font-bold">${r.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                                        <td className="px-2 py-2 text-center">
-                                            <button type="button" onClick={() => removeReceipt(idx)} className="text-red-500 font-bold">X</button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {data.cfe_receipts.map((r, idx) => {
+                                    const isClosed = r.total % 1 === 0;
+                                    return (
+                                        <tr key={idx} className="hover:bg-gray-100">
+                                            <td className="px-2 py-2 font-mono">{r.rpu}</td>
+                                            <td className="px-2 py-2">{r.description}</td>
+                                            <td className="px-2 py-2 font-mono text-[10px] break-all">{r.uuid}</td>
+                                            <td className="px-2 py-2 text-right">
+                                                <input
+                                                    type="number" step="0.01"
+                                                    value={r.subtotal}
+                                                    onChange={(e) => updateReceipt(idx, e.target.value)}
+                                                    className={`w-20 text-right text-xs p-1 border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 ${isClosed ? 'bg-gray-100 ring-0 border-transparent text-gray-500' : 'bg-white'}`}
+                                                    readOnly={isClosed}
+                                                />
+                                            </td>
+                                            <td className="px-2 py-2 text-right">
+                                                <input
+                                                    type="number" step="0.01"
+                                                    value={r.iva}
+                                                    className="w-20 text-right text-xs p-1 border-transparent bg-transparent text-gray-700"
+                                                    readOnly
+                                                />
+                                            </td>
+                                            <td className="px-2 py-2 text-right">
+                                                <input
+                                                    type="number" step="0.01"
+                                                    value={r.total}
+                                                    className="w-20 text-right text-xs p-1 border-transparent bg-transparent font-bold text-gray-900"
+                                                    readOnly
+                                                />
+                                            </td>
+                                            <td className="px-2 py-2 text-center">
+                                                <button type="button" onClick={() => removeReceipt(idx)} className="text-red-500 font-bold">X</button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                             <tfoot className="bg-gray-200 font-bold">
                                 <tr>

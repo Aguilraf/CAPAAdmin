@@ -55,7 +55,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                                     <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
                                                     <div className="border-t border-gray-100"></div>
                                                     <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>
-                                                    <Dropdown.Link href={route('cfe.query')}>Consulta CFE</Dropdown.Link>
+                                                    <Dropdown.Link href={route('cfe.query')}>Consulta Historial (Por Servicio)</Dropdown.Link>
                                                 </>
                                             )}
                                         </Dropdown.Content>
@@ -86,6 +86,11 @@ export default function AuthenticatedLayout({ header, children }) {
                                             {/* Reportes - visible solo con permiso */}
                                             {user.permissions && user.permissions.includes('reportes bomberos') && (
                                                 <Dropdown.Link href="/firefighters/report">Reportes</Dropdown.Link>
+                                            )}
+
+                                            {/* Consulta Historial - visible solo con permiso */}
+                                            {user.permissions && user.permissions.includes('reportes bomberos') && (
+                                                <Dropdown.Link href="/firefighters/query">Consulta Historial (Por Comunidad)</Dropdown.Link>
                                             )}
 
                                             {/* Separador si hay opciones administrativas */}
