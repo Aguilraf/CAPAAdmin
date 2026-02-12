@@ -14,6 +14,7 @@ class Requirement extends Model
         'revolvente' => 'Fondo Revolvente',
         'cfe' => 'CFE',
         'estandard' => 'Requerimiento Estándar',
+        'viaticos' => 'Viáticos',
     ];
 
     protected $fillable = [
@@ -82,5 +83,10 @@ class Requirement extends Model
     public function getFormattedNumberAttribute()
     {
         return str_pad($this->requirement_number, 3, '0', STR_PAD_LEFT) . '/' . $this->year;
+    }
+
+    public function travelAllowance()
+    {
+        return $this->hasOne(TravelAllowance::class);
     }
 }

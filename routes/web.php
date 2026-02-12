@@ -37,9 +37,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('materiales', \App\Http\Controllers\MaterialController::class);
         Route::resource('unidades-medida', \App\Http\Controllers\UnidadMedidaController::class);
 
-        // Rutas de Configuración
-        Route::get('/configuracion', [\App\Http\Controllers\SettingController::class, 'index'])->name('settings.index');
-        Route::post('/configuracion', [\App\Http\Controllers\SettingController::class, 'update'])->name('settings.update');
+
+        // Viaticos Catalogs
+        Route::resource('vehicles', \App\Http\Controllers\VehicleController::class);
+        Route::resource('travel-expense-rates', \App\Http\Controllers\TravelExpenseRateController::class);
 
         // Rutas de Importación
         Route::get('/importar', [\App\Http\Controllers\ImportController::class, 'index'])->name('import.index');
@@ -82,9 +83,18 @@ Route::middleware('auth')->group(function () {
         Route::get('requirements/{requirement}/pdf', [\App\Http\Controllers\RequirementController::class, 'downloadPdf'])->name('requirements.pdf');
         Route::get('requirements/{requirement}/cfe-relation', [\App\Http\Controllers\RequirementController::class, 'downloadCfeRelation'])->name('requirements.cfe-relation');
 
+        // Travel Allowance Rates Catalog
+        Route::resource('travel-allowance-rates', \App\Http\Controllers\TravelAllowanceRateController::class);
+
         // CFE Query Routes
         Route::get('/cfe/query', [\App\Http\Controllers\CfeQueryController::class, 'index'])->name('cfe.query');
         Route::get('/cfe/export', [\App\Http\Controllers\CfeQueryController::class, 'export'])->name('cfe.export');
+    });
+
+    // Rutas de Configuración (Unificada)
+    Route::middleware(['role:Administrador|permission:configurar bomberos'])->group(function () {
+        Route::get('/configuracion', [\App\Http\Controllers\SettingController::class, 'index'])->name('settings.index');
+        Route::post('/configuracion', [\App\Http\Controllers\SettingController::class, 'update'])->name('settings.update');
     });
 
 
@@ -102,7 +112,7 @@ Route::middleware('auth')->group(function () {
 
     // Rutas de Bomberos (Integración)
     // Capturar - accesible con permiso
-    Route::middleware(['permission:capturar bomberos'])->group(function () {
+    Route::middleware(['role:Administrador|permission:capturar bomberos'])->group(function () {
         Route::get('/firefighters/capture', function () {
             return Inertia::render('Firefighters/Capture', [
                 'communities' => \App\Models\Community::all(),
@@ -113,7 +123,7 @@ Route::middleware('auth')->group(function () {
 
 
     // Recibir - accesible con permiso
-    Route::middleware(['permission:recibir bomberos'])->get('/firefighters/receive', function () {
+    Route::middleware(['role:Administrador|permission:recibir bomberos'])->get('/firefighters/receive', function () {
         return Inertia::render('Firefighters/Receive', [
             'communities' => \App\Models\Community::all(),
             'settings' => \App\Models\FirefighterSetting::first(),
@@ -121,7 +131,7 @@ Route::middleware('auth')->group(function () {
     })->name('firefighters.receive');
 
     // Reportes - accesible con permiso
-    Route::middleware(['permission:reportes bomberos'])->get('/firefighters/report', function (\Illuminate\Http\Request $request) {
+    Route::middleware(['role:Administrador|permission:reportes bomberos'])->get('/firefighters/report', function (\Illuminate\Http\Request $request) {
         $requirements = \App\Models\Capture::select('year', 'requirement_number', 'requirement_type')
             ->whereNotNull('year')
             ->whereNotNull('requirement_number')
@@ -152,26 +162,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/report/firefighters/pdf', [\App\Http\Controllers\FirefighterReportPdfController::class, 'download'])->name('firefighters.report.pdf');
 
     // Consulta de Historial por Comunidad - accesible con permiso de reportes
-    Route::middleware(['permission:reportes bomberos'])->group(function () {
+    Route::middleware(['role:Administrador|permission:reportes bomberos'])->group(function () {
         Route::get('/firefighters/query', [\App\Http\Controllers\FirefighterQueryController::class, 'index'])->name('firefighters.query');
         Route::get('/firefighters/export', [\App\Http\Controllers\FirefighterQueryController::class, 'export'])->name('firefighters.export');
     });
 
     // Settings - accesible con permiso
-    Route::middleware(['permission:configurar bomberos'])->group(function () {
+    Route::middleware(['role:Administrador|permission:configurar bomberos'])->group(function () {
         Route::get('/firefighters/settings', [\App\Http\Controllers\FirefighterSettingController::class, 'index'])->name('firefighters.settings');
         Route::post('/firefighters/settings', [\App\Http\Controllers\FirefighterSettingController::class, 'update'])->name('firefighters.settings.update');
     });
 
     // Comunidades - accesible con permiso
-    Route::middleware(['permission:ver comunidades'])->get('/firefighters/communities', function () {
+    Route::middleware(['role:Administrador|permission:ver comunidades'])->get('/firefighters/communities', function () {
         return Inertia::render('Firefighters/Communities', [
             'communities' => \App\Models\Community::all(),
         ]);
     })->name('firefighters.communities');
 
     // Lista de Bomberos - accesible con permiso
-    Route::middleware(['permission:ver bomberos'])->get('/firefighters/list', function () {
+    Route::middleware(['role:Administrador|permission:ver bomberos'])->get('/firefighters/list', function () {
         return Inertia::render('Firefighters/Firefighters', [
             'firefighters' => \App\Models\Firefighter::with('community')->get(),
             'communities' => \App\Models\Community::all(),
@@ -179,7 +189,7 @@ Route::middleware('auth')->group(function () {
     })->name('firefighters.list');
 
     // Configuración - accesible con permiso
-    Route::middleware(['permission:configurar bomberos'])->get('/firefighters/settings', function () {
+    Route::middleware(['role:Administrador|permission:configurar bomberos'])->get('/firefighters/settings', function () {
         return Inertia::render('Firefighters/Settings', [
             'settings' => \App\Models\FirefighterSetting::first(),
         ]);

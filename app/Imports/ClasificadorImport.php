@@ -51,18 +51,29 @@ class ClasificadorImport implements OnEachRow, WithStartRow
 
         // 1. Manejo de Capítulo
         if ($capituloCodigo !== '') {
-            $this->currentCapitulo = Capitulo::firstOrCreate(
-                ['codigo' => $capituloCodigo],
-                [
+            // Buscar si existe (incluso eliminado)
+            $this->currentCapitulo = Capitulo::withTrashed()->where('codigo', $capituloCodigo)->first();
+
+            if ($this->currentCapitulo) {
+                // Si existe y está eliminado, restaurarlo
+                if ($this->currentCapitulo->trashed()) {
+                    $this->currentCapitulo->restore();
+                }
+                // Actualizar datos si es necesario (opcional, aquí solo aseguramos que tenga el nombre correcto si es definición pura)
+                if ($denominacion !== '' && $subcapitulo === '' && $especifica === '') {
+                    $this->currentCapitulo->update([
+                        'nombre' => $denominacion,
+                        'activo' => true
+                    ]);
+                }
+            } else {
+                // Crear nuevo si no existe
+                $this->currentCapitulo = Capitulo::create([
+                    'codigo' => $capituloCodigo,
                     'nombre' => $denominacion ?: 'Capítulo ' . $capituloCodigo,
                     'descripcion' => 'Importado desde Excel',
                     'activo' => true
-                ]
-            );
-
-            // Si es una fila de DEFINICIÓN de capítulo pura (sin partida ni subcapitulo), actualizamos nombre
-            if ($denominacion !== '' && $subcapitulo === '' && $especifica === '') {
-                $this->currentCapitulo->update(['nombre' => $denominacion]);
+                ]);
             }
 
             // Reset context when looking at a new chapter line
@@ -79,17 +90,35 @@ class ClasificadorImport implements OnEachRow, WithStartRow
         // 3. Manejo de Partida
         // Requiere un capítulo contexto (actual) y código de partida específica
         if ($this->currentCapitulo && $especifica !== '') {
-            Partida::updateOrCreate(
-                ['codigo' => $especifica],
-                [
+            // Buscar partida existente (incluso eliminada)
+            $partida = Partida::withTrashed()->where('codigo', $especifica)->first();
+
+            if ($partida) {
+                // Restaurar si está eliminada
+                if ($partida->trashed()) {
+                    $partida->restore();
+                }
+                // Actualizar
+                $partida->update([
+                    'capitulo_id' => $this->currentCapitulo->id,
+                    'subcapitulo' => $subcapitulo ?: $this->currentSubcapitulo,
+                    'partida_generica' => $generica,
+                    'nombre' => $denominacion ?: 'Sin nombre',
+                    'descripcion' => 'Importado Masivamente',
+                    'activo' => true
+                ]);
+            } else {
+                // Crear nueva
+                Partida::create([
+                    'codigo' => $especifica,
                     'capitulo_id' => $this->currentCapitulo->id,
                     'subcapitulo' => $subcapitulo ?: $this->currentSubcapitulo, // Use row value or fallback to context
                     'partida_generica' => $generica,
                     'nombre' => $denominacion ?: 'Sin nombre',
                     'descripcion' => 'Importado Masivamente',
                     'activo' => true
-                ]
-            );
+                ]);
+            }
         }
     }
 }

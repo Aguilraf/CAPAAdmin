@@ -74,47 +74,43 @@ export default function AuthenticatedLayout({ header, children }) {
                                         </Dropdown.Trigger>
                                         <Dropdown.Content>
                                             {/* Capturar - visible para todos los usuarios con el permiso */}
-                                            {user.permissions && user.permissions.includes('capturar bomberos') && (
+                                            {(user.permissions?.includes('capturar bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/capture">Capturar</Dropdown.Link>
                                             )}
 
                                             {/* Recibir - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('recibir bomberos') && (
+                                            {(user.permissions?.includes('recibir bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/receive">Recibir</Dropdown.Link>
                                             )}
 
                                             {/* Reportes - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('reportes bomberos') && (
+                                            {(user.permissions?.includes('reportes bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/report">Reportes</Dropdown.Link>
                                             )}
 
                                             {/* Consulta Historial - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('reportes bomberos') && (
+                                            {(user.permissions?.includes('reportes bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/query">Consulta Historial (Por Comunidad)</Dropdown.Link>
                                             )}
 
                                             {/* Separador si hay opciones administrativas */}
-                                            {user.permissions && (user.permissions.includes('ver comunidades') || user.permissions.includes('ver bomberos')) && (
+                                            {(user.permissions?.includes('ver comunidades') || user.permissions?.includes('ver bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <div className="border-t border-gray-100"></div>
                                             )}
 
                                             {/* Comunidades - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('ver comunidades') && (
+                                            {(user.permissions?.includes('ver comunidades') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/communities">Comunidades</Dropdown.Link>
                                             )}
 
                                             {/* Bomberos - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('ver bomberos') && (
+                                            {(user.permissions?.includes('ver bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/list">Bomberos</Dropdown.Link>
                                             )}
 
-                                            {/* Configuración - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('configurar bomberos') && (
-                                                <Dropdown.Link href="/firefighters/settings">Configuración</Dropdown.Link>
-                                            )}
 
                                             {/* Importar - visible solo con permiso */}
-                                            {user.permissions && user.permissions.includes('importar bomberos') && (
+                                            {(user.permissions?.includes('importar bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                                 <Dropdown.Link href="/firefighters/import">Importar</Dropdown.Link>
                                             )}
                                         </Dropdown.Content>
@@ -170,6 +166,13 @@ export default function AuthenticatedLayout({ header, children }) {
                                             </Dropdown>
                                         </div>
                                     </>
+                                )}
+
+                                {/* Admin OR Firefighter Configurator: Show Config Link */}
+                                {(!user.roles?.some(r => r.name === 'Administrador') && user.permissions?.includes('configurar bomberos')) && (
+                                    <NavLink href={route('settings.index')} active={route().current('settings.*')}>
+                                        Configuración
+                                    </NavLink>
                                 )}
                             </div>
                         </div>
@@ -362,43 +365,39 @@ export default function AuthenticatedLayout({ header, children }) {
                                 Bomberos
                             </div>
 
-                            {user.permissions && user.permissions.includes('capturar bomberos') && (
+                            {(user.permissions?.includes('capturar bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                 <ResponsiveNavLink href="/firefighters/capture">
                                     Capturar
                                 </ResponsiveNavLink>
                             )}
 
-                            {user.permissions && user.permissions.includes('recibir bomberos') && (
+                            {(user.permissions?.includes('recibir bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                 <ResponsiveNavLink href="/firefighters/receive">
                                     Recibir
                                 </ResponsiveNavLink>
                             )}
 
-                            {user.permissions && user.permissions.includes('reportes bomberos') && (
+                            {(user.permissions?.includes('reportes bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                 <ResponsiveNavLink href="/firefighters/report">
                                     Reportes
                                 </ResponsiveNavLink>
                             )}
 
-                            {user.permissions && user.permissions.includes('ver comunidades') && (
+                            {(user.permissions?.includes('ver comunidades') || user.roles?.some(r => r.name === 'Administrador')) && (
                                 <ResponsiveNavLink href="/firefighters/communities">
                                     Comunidades
                                 </ResponsiveNavLink>
                             )}
 
-                            {user.permissions && user.permissions.includes('ver bomberos') && (
+                            {(user.permissions?.includes('ver bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                 <ResponsiveNavLink href="/firefighters/list">
                                     Bomberos
                                 </ResponsiveNavLink>
                             )}
 
-                            {user.permissions && user.permissions.includes('configurar bomberos') && (
-                                <ResponsiveNavLink href="/firefighters/settings">
-                                    Configuración
-                                </ResponsiveNavLink>
-                            )}
 
-                            {user.permissions && user.permissions.includes('importar bomberos') && (
+
+                            {(user.permissions?.includes('importar bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                                 <ResponsiveNavLink href="/firefighters/import">
                                     Importar
                                 </ResponsiveNavLink>
@@ -457,8 +456,21 @@ export default function AuthenticatedLayout({ header, children }) {
                                     <ResponsiveNavLink href={route('unidades-medida.index')}>
                                         Unidades de Medida
                                     </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('roles.index')}>
+                                        Roles y Permisos
+                                    </ResponsiveNavLink>
                                 </div>
                             </>
+                        )}
+
+                        {/* Admin OR Firefighter Configurator: Show Config Link Mobile */}
+                        {(!user.roles?.some(r => r.name === 'Administrador') && user.permissions?.includes('configurar bomberos')) && (
+                            <ResponsiveNavLink
+                                href={route('settings.index')}
+                                active={route().current('settings.*')}
+                            >
+                                Configuración
+                            </ResponsiveNavLink>
                         )}
                     </div>
 

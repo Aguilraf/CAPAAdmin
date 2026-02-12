@@ -31,8 +31,28 @@ class SettingController extends Controller
         ];
         $settings = Setting::whereIn('key', $keys)->pluck('value', 'key');
 
+        // Fetch Firefighter settings
+        $firefighterSettings = \App\Models\FirefighterSetting::pluck('value', 'key');
+
+        // Automate Signatures Detection for UI Info
+        $subgerente = \App\Models\Empleado::where('activo', true)->where('puesto', 'like', '%Subgerente%')->first();
+        $gerente = \App\Models\Empleado::where('activo', true)->where('es_gerente', true)->first();
+
+        $detectedSigners = [
+            'signer1' => [
+                'name' => $subgerente ? $subgerente->nombre . ' ' . $subgerente->primer_apellido . ' ' . $subgerente->segundo_apellido : 'NO DETECTADO (Revise Cat. Empleados)',
+                'position' => $subgerente ? $subgerente->puesto : 'Debe tener puesto "Subgerente..."'
+            ],
+            'signer2' => [
+                'name' => $gerente ? $gerente->nombre . ' ' . $gerente->primer_apellido . ' ' . $gerente->segundo_apellido : 'NO ASIGNADO (Revise Cat. Empleados)',
+                'position' => $gerente ? $gerente->puesto : 'Debe marcarse como "Es Gerente"'
+            ]
+        ];
+
         return Inertia::render('Settings/Index', [
             'initialSettings' => $settings,
+            'firefighterSettings' => $firefighterSettings,
+            'detectedSigners' => $detectedSigners,
         ]);
     }
 

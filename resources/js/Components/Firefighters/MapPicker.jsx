@@ -1,73 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, CircleMarker, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in Leaflet with React/Webpack/Vite
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-function MapAutoCenter({ position }) {
+// Component to handle map center updates
+function MapController({ center }) {
     const map = useMap();
     useEffect(() => {
-        if (position) {
-            map.setView(position, map.getZoom());
+        if (center) {
+            map.flyTo(center, map.getZoom());
         }
-    }, [position, map]);
+    }, [center, map]);
     return null;
 }
 
-function LocationMarker({ position, setPosition, isReadOnly }) {
+// Component to handle map clicks
+function MapEvents({ onLocationSelect, isReadOnly }) {
     useMapEvents({
         click(e) {
             if (!isReadOnly) {
-                setPosition(e.latlng);
+                onLocationSelect(e.latlng);
             }
         },
     });
-
-    return position ? (
-        <Marker position={position} />
-    ) : null;
+    return null;
 }
 
 export default function MapPicker({ value, onChange, isReadOnly = false }) {
     const [position, setPosition] = useState(null);
 
-    // Initial value like "Lat, Lng"
     useEffect(() => {
         if (value && typeof value === 'string' && value.includes(',')) {
-            const [lat, lng] = value.split(',').map(coord => parseFloat(coord.trim()));
+            const parts = value.split(',');
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+
             if (!isNaN(lat) && !isNaN(lng)) {
                 setPosition({ lat, lng });
             }
-        } else if (!value) {
-            setPosition(null);
         }
     }, [value]);
 
-    const handleSetPosition = (pos) => {
-        setPosition(pos);
+    const handleLocationSelect = (latlng) => {
+        setPosition(latlng);
         if (onChange) {
-            onChange(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
+            onChange(`${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`);
         }
     };
 
-    const initialCenter = position || { lat: 19.4326, lng: -99.1332 }; // Default to Mexico City
+    const defaultCenter = { lat: 19.4326, lng: -99.1332 };
 
     return (
-        <div className="h-64 w-full rounded-md overflow-hidden border border-gray-300 shadow-inner mt-2">
+        <div className="h-64 w-full rounded-md overflow-hidden border border-gray-300 shadow-inner mt-2 relative z-0">
             <MapContainer
-                center={initialCenter}
+                center={defaultCenter}
                 zoom={13}
                 scrollWheelZoom={false}
                 style={{ height: '100%', width: '100%' }}
@@ -76,12 +61,17 @@ export default function MapPicker({ value, onChange, isReadOnly = false }) {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapAutoCenter position={position} />
-                <LocationMarker
-                    position={position}
-                    setPosition={handleSetPosition}
-                    isReadOnly={isReadOnly}
-                />
+
+                {/* Controller to move map when position changes externally or initially */}
+                {position && <MapController center={position} />}
+
+                {/* Event listener for clicks */}
+                <MapEvents onLocationSelect={handleLocationSelect} isReadOnly={isReadOnly} />
+
+                {/* The marker itself */}
+                {position && (
+                    <CircleMarker center={position} radius={8} pathOptions={{ color: 'red', fillColor: '#f87171', fillOpacity: 0.8 }} />
+                )}
             </MapContainer>
             {!isReadOnly && (
                 <p className="text-[10px] text-gray-500 mt-1 pl-1">Haz clic en el mapa para marcar la ubicación</p>

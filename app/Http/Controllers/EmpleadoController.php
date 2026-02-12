@@ -78,6 +78,7 @@ class EmpleadoController extends Controller
             'clave' => 'required|string|unique:empleados,clave',
             'nombre' => 'required|string|max:255',
             'puesto' => 'required|string|max:255',
+            'cargo' => 'nullable|string|max:255',
             'departamento' => 'required|string|max:255',
             'rfc' => 'nullable|string|max:13',
             'categoria' => 'required|in:BASE,CONFIANZA',
@@ -91,10 +92,14 @@ class EmpleadoController extends Controller
             'afiliacion' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:20',
-            'numero_empleado' => 'nullable|string|max:255',
             'activo' => 'boolean',
             'es_gerente' => 'boolean',
             'jefe_inmediato' => 'nullable|string|max:255',
+            'primer_nombre' => 'nullable|string|max:255',
+            'primer_apellido' => 'nullable|string|max:255',
+            'segundo_apellido' => 'nullable|string|max:255',
+            'banco' => 'nullable|string|max:255',
+            'clabe' => 'nullable|string|max:18',
         ]);
 
         // Regla de Negocio: BASE = Sindicalizado
@@ -134,9 +139,30 @@ class EmpleadoController extends Controller
             })
             ->values();
 
+        // Get all employee IDs ordered by nombre for navigation
+        $allEmployeeIds = Empleado::orderBy('nombre')->pluck('id')->toArray();
+        $currentIndex = array_search($empleado->id, $allEmployeeIds);
+
+        $previousEmployeeId = null;
+        $nextEmployeeId = null;
+
+        if ($currentIndex !== false) {
+            // Get previous employee ID
+            if ($currentIndex > 0) {
+                $previousEmployeeId = $allEmployeeIds[$currentIndex - 1];
+            }
+
+            // Get next employee ID
+            if ($currentIndex < count($allEmployeeIds) - 1) {
+                $nextEmployeeId = $allEmployeeIds[$currentIndex + 1];
+            }
+        }
+
         return Inertia::render('Empleados/Edit', [
             'empleado' => $empleado,
-            'posiblesJefes' => $posiblesJefes
+            'posiblesJefes' => $posiblesJefes,
+            'previousEmployeeId' => $previousEmployeeId,
+            'nextEmployeeId' => $nextEmployeeId,
         ]);
     }
 
@@ -149,6 +175,7 @@ class EmpleadoController extends Controller
             'clave' => 'required|string|unique:empleados,clave,' . $empleado->id,
             'nombre' => 'required|string|max:255',
             'puesto' => 'required|string|max:255',
+            'cargo' => 'nullable|string|max:255',
             'departamento' => 'required|string|max:255',
             'rfc' => 'nullable|string|max:13',
             'categoria' => 'required|in:BASE,CONFIANZA',
@@ -162,10 +189,13 @@ class EmpleadoController extends Controller
             'afiliacion' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:20',
-            'numero_empleado' => 'nullable|string|max:255',
-            'activo' => 'boolean',
             'es_gerente' => 'boolean',
             'jefe_inmediato' => 'nullable|string|max:255',
+            'primer_nombre' => 'nullable|string|max:255',
+            'primer_apellido' => 'nullable|string|max:255',
+            'segundo_apellido' => 'nullable|string|max:255',
+            'banco' => 'nullable|string|max:255',
+            'clabe' => 'nullable|string|max:18',
         ]);
 
         // Regla de Negocio: BASE = Sindicalizado

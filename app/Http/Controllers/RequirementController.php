@@ -7,6 +7,7 @@ use App\Models\RequirementItem;
 use App\Models\Empleado;
 use App\Models\Partida;
 use App\Models\Capitulo;
+use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -52,18 +53,30 @@ class RequirementController extends Controller
         $nextNumber = $latest ? $latest + 1 : 1;
 
         // Fetch Data Directly for Props (No API)
-        $employees = Empleado::activos()->select('id', 'nombre', 'puesto')->get();
+        $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe')->get();
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get(); // Fetch chapters
 
         // Optimización: Si partidas son muchas, podríamos mandar solo las más usadas o categorías, 
         // pero "No API" implica mandar todo o manejar filtrado por recarga de página.
         // Mandaremos todo seleccionado campos mínimos.
+        // Mandaremos todo seleccionado campos mínimos.
         $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
+        $vehicles = \App\Models\Vehicle::where('active', true)->get();
 
         // Default Signatories by Job Title
         $defaultCoordinador = Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO%')->first();
         // Use flexible matching for Director to handle potential typos ("RECUROS" vs "RECURSOS")
         $defaultDirector = Empleado::where('puesto', 'LIKE', '%DIRECTOR DE REC%MATERIALES%')->first();
+
+        // Fetch year legend for current year (Create)
+        $leyenda = \App\Models\Leyenda::where('anio', $year)->first();
+        $defaultLegend = $leyenda ? $leyenda->texto : '';
+
+        // Fetch active travel allowance rates for current year
+        $travelAllowanceRates = \App\Models\TravelAllowanceRate::with('partida')
+            ->active()
+            ->forYear($year)
+            ->get();
 
         return Inertia::render('Requirements/Create', [
             'nextNumber' => $nextNumber,
@@ -75,7 +88,10 @@ class RequirementController extends Controller
             'defaultSignatories' => [
                 'coordinator_id' => $defaultCoordinador ? $defaultCoordinador->id : '',
                 'director_id' => $defaultDirector ? $defaultDirector->id : '',
-            ]
+            ],
+            'defaultLegend' => $defaultLegend, // Pass legend
+            'vehicles' => $vehicles,
+            'travelAllowanceRates' => $travelAllowanceRates,
         ]);
     }
 
@@ -110,11 +126,47 @@ class RequirementController extends Controller
             'cfe_receipts.*.iva' => 'nullable|numeric',
             'cfe_receipts.*.rounding' => 'nullable|numeric',
             'cfe_receipts.*.total' => 'nullable|numeric',
+
+            // Viaticos Validation
+            'oficio_number' => 'nullable|string',
+            'commission_summary_legend' => 'nullable|string',
+            'exercise_year' => 'nullable|integer',
+            'quarter' => 'nullable|string|in:I,II,III,IV',
+            'commissioner_id' => 'nullable|exists:empleados,id',
+            'origin_country' => 'nullable|string',
+            'origin_state' => 'nullable|string',
+            'origin_city' => 'nullable|string',
+            'destination_country' => 'nullable|string',
+            'destination_state' => 'nullable|string',
+            'destination_city' => 'nullable|string',
+            'departure_date' => 'nullable|date',
+            'return_date' => 'nullable|date',
+            'days_duration' => 'nullable|integer',
+            'justification' => 'nullable|string',
+            'has_viaticos' => 'nullable|boolean',
+            'viaticos_partida_id' => 'nullable|exists:partidas,id',
+            'has_pasaje' => 'nullable|boolean',
+            'pasaje_partida_id' => 'nullable|exists:partidas,id',
+            'has_hospedaje' => 'nullable|boolean',
+            'hospedaje_partida_id' => 'nullable|exists:partidas,id',
+            'transport_type' => 'nullable|string|in:Oficial,Particular,Publico',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'invoice_folio' => 'nullable|string',
+            'invoice_date' => 'nullable|date',
+            'provider_rfc' => 'nullable|string',
+            'viaticos_amount' => 'nullable|numeric|min:0',
+            'pasaje_amount' => 'nullable|numeric|min:0',
+            'hospedaje_amount' => 'nullable|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($validated) {
             // Calculation Logic
-            if (!empty($validated['cfe_receipts'])) {
+            if ($validated['type'] === 'viaticos') {
+                // Viaticos Logic: Amounts are considered total or specific as entered
+                $subtotal = collect($validated['items'])->sum('amount');
+                $iva = 0; // We do not auto-calculate IVA for Viaticos
+                $total = $subtotal;
+            } elseif (!empty($validated['cfe_receipts'])) {
                 // CFE Logic: Sum from receipts table for exact precision
                 $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
                 $iva = collect($validated['cfe_receipts'])->sum('iva');
@@ -149,6 +201,49 @@ class RequirementController extends Controller
                     $requirement->cfeReceipts()->create($receipt);
                 }
             }
+
+            // Save Viaticos (Travel Allowance)
+            if ($validated['type'] === 'viaticos') {
+                $requirement->travelAllowance()->create([
+                    'oficio_number' => $validated['oficio_number'] ?? null,
+                    'commission_summary_legend' => $validated['commission_summary_legend'] ?? null,
+                    'exercise_year' => $validated['exercise_year'] ?? null,
+                    'quarter' => $validated['quarter'] ?? null,
+                    'commissioner_id' => $validated['commissioner_id'] ?? null,
+                    'origin_country' => $validated['origin_country'] ?? 'México',
+                    'origin_state' => $validated['origin_state'] ?? 'Quintana Roo',
+                    'origin_city' => $validated['origin_city'] ?? 'José María Morelos',
+                    'destination_country' => $validated['destination_country'] ?? null,
+                    'destination_state' => $validated['destination_state'] ?? null,
+                    'destination_city' => $validated['destination_city'] ?? null,
+                    'departure_date' => $validated['departure_date'] ?? null,
+                    'return_date' => $validated['return_date'] ?? null,
+                    'days_duration' => $validated['days_duration'] ?? null,
+                    'justification' => $validated['justification'] ?? null,
+                    'has_viaticos' => $validated['has_viaticos'] ?? false,
+                    'viaticos_partida_id' => $validated['viaticos_partida_id'] ?? null,
+                    'has_pasaje' => $validated['has_pasaje'] ?? false,
+                    'pasaje_partida_id' => $validated['pasaje_partida_id'] ?? null,
+                    'has_hospedaje' => $validated['has_hospedaje'] ?? false,
+                    'hospedaje_partida_id' => $validated['hospedaje_partida_id'] ?? null,
+                    'transport_type' => $validated['transport_type'] ?? 'Oficial',
+                    'vehicle_id' => $validated['vehicle_id'] ?? null,
+                    'invoice_folio' => $validated['invoice_folio'] ?? null,
+                    'invoice_date' => $validated['invoice_date'] ?? null,
+                    'provider_rfc' => $validated['provider_rfc'] ?? null,
+                    'total_viaticos' => $validated['viaticos_amount'] ?? 0,
+                    'total_pasaje' => $validated['pasaje_amount'] ?? 0,
+                    'total_hospedaje' => $validated['hospedaje_amount'] ?? 0,
+                    'subtotal' => $subtotal,
+                    'iva' => $iva,
+                    'total' => $total,
+                    // For now, Requirement total is calculated from Items (expenses breakdown), so we might redundancy check here or leave 0 if unused on this table directly vs Items.
+                    // Actually, the user asked for total breakdown in requirement items too? 
+                    // "necesito que se pregunte si se le pagaran viaticos... y cada uno tiene su partida presupuestal"
+                    // Usually these are stored as RequirementItems. 
+                    // Let's assume the amounts are passed as Items for budget impact, and we just store metadata here.
+                ]);
+            }
         });
 
         return redirect()->route('requirements.index')->with('success', 'Requerimiento creado exitosamente.');
@@ -156,18 +251,32 @@ class RequirementController extends Controller
 
     public function edit(Requirement $requirement)
     {
-        $requirement->load(['items', 'cfeReceipts']); // Load receipts
+        $requirement->load(['items', 'cfeReceipts', 'travelAllowance']); // Load receipts and travel allowance
 
-        $employees = Empleado::activos()->select('id', 'nombre', 'puesto')->get();
+        $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe')->get(); // Added fields for Viaticos auto-fill
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get();
         $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
+        $vehicles = \App\Models\Vehicle::where('active', true)->get();
+
+        // Fetch year legend for edit (based on requirement year)
+        $leyenda = \App\Models\Leyenda::where('anio', $requirement->year)->first();
+        $defaultLegend = $leyenda ? $leyenda->texto : '';
+
+        // Fetch active travel allowance rates for requirement year
+        $travelAllowanceRates = \App\Models\TravelAllowanceRate::with('partida')
+            ->active()
+            ->forYear($requirement->year)
+            ->get();
 
         return Inertia::render('Requirements/Edit', [
             'requirement' => $requirement,
             'employees' => $employees,
             'capitulos' => $capitulos,
             'partidas' => $partidas,
+            'vehicles' => $vehicles,
             'types' => Requirement::TYPES,
+            'defaultLegend' => $defaultLegend, // Pass legend
+            'travelAllowanceRates' => $travelAllowanceRates,
         ]);
     }
 
@@ -202,10 +311,45 @@ class RequirementController extends Controller
             'cfe_receipts.*.iva' => 'nullable|numeric',
             'cfe_receipts.*.rounding' => 'nullable|numeric',
             'cfe_receipts.*.total' => 'nullable|numeric',
+
+            // Viaticos Validation
+            'oficio_number' => 'nullable|string',
+            'commission_summary_legend' => 'nullable|string',
+            'exercise_year' => 'nullable|integer',
+            'quarter' => 'nullable|string|in:I,II,III,IV',
+            'commissioner_id' => 'nullable|exists:empleados,id',
+            'origin_country' => 'nullable|string',
+            'origin_state' => 'nullable|string',
+            'origin_city' => 'nullable|string',
+            'destination_country' => 'nullable|string',
+            'destination_state' => 'nullable|string',
+            'destination_city' => 'nullable|string',
+            'departure_date' => 'nullable|date',
+            'return_date' => 'nullable|date',
+            'days_duration' => 'nullable|integer',
+            'justification' => 'nullable|string',
+            'has_viaticos' => 'nullable|boolean',
+            'viaticos_partida_id' => 'nullable|exists:partidas,id',
+            'has_pasaje' => 'nullable|boolean',
+            'pasaje_partida_id' => 'nullable|exists:partidas,id',
+            'has_hospedaje' => 'nullable|boolean',
+            'hospedaje_partida_id' => 'nullable|exists:partidas,id',
+            'transport_type' => 'nullable|string|in:Oficial,Particular,Publico',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'invoice_folio' => 'nullable|string',
+            'invoice_date' => 'nullable|date',
+            'provider_rfc' => 'nullable|string',
+            'viaticos_amount' => 'nullable|numeric|min:0',
+            'pasaje_amount' => 'nullable|numeric|min:0',
+            'hospedaje_amount' => 'nullable|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($validated, $requirement) {
-            if (!empty($validated['cfe_receipts'])) {
+            if ($validated['type'] === 'viaticos') {
+                $subtotal = collect($validated['items'])->sum('amount');
+                $iva = 0;
+                $total = $subtotal;
+            } elseif (!empty($validated['cfe_receipts'])) {
                 $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
                 $iva = collect($validated['cfe_receipts'])->sum('iva');
                 $total = collect($validated['cfe_receipts'])->sum('total');
@@ -221,6 +365,47 @@ class RequirementController extends Controller
                 'iva' => $iva,
                 'total' => $total,
             ]);
+
+            // Sync Viaticos
+            if ($validated['type'] === 'viaticos') {
+                $requirement->travelAllowance()->updateOrCreate(
+                    ['requirement_id' => $requirement->id],
+                    [
+                        'oficio_number' => $validated['oficio_number'] ?? null,
+                        'commission_summary_legend' => $validated['commission_summary_legend'] ?? null,
+                        'exercise_year' => $validated['exercise_year'] ?? null,
+                        'quarter' => $validated['quarter'] ?? null,
+                        'commissioner_id' => $validated['commissioner_id'] ?? null,
+                        'origin_country' => $validated['origin_country'] ?? 'México',
+                        'origin_state' => $validated['origin_state'] ?? 'Quintana Roo',
+                        'origin_city' => $validated['origin_city'] ?? 'José María Morelos',
+                        'destination_country' => $validated['destination_country'] ?? null,
+                        'destination_state' => $validated['destination_state'] ?? null,
+                        'destination_city' => $validated['destination_city'] ?? null,
+                        'departure_date' => $validated['departure_date'] ?? null,
+                        'return_date' => $validated['return_date'] ?? null,
+                        'days_duration' => $validated['days_duration'] ?? null,
+                        'justification' => $validated['justification'] ?? null,
+                        'has_viaticos' => $validated['has_viaticos'] ?? false,
+                        'viaticos_partida_id' => $validated['viaticos_partida_id'] ?? null,
+                        'has_pasaje' => $validated['has_pasaje'] ?? false,
+                        'pasaje_partida_id' => $validated['pasaje_partida_id'] ?? null,
+                        'has_hospedaje' => $validated['has_hospedaje'] ?? false,
+                        'hospedaje_partida_id' => $validated['hospedaje_partida_id'] ?? null,
+                        'transport_type' => $validated['transport_type'] ?? 'Oficial',
+                        'vehicle_id' => $validated['vehicle_id'] ?? null,
+                        'invoice_folio' => $validated['invoice_folio'] ?? null,
+                        'invoice_date' => $validated['invoice_date'] ?? null,
+                        'provider_rfc' => $validated['provider_rfc'] ?? null,
+                        'total_viaticos' => $validated['viaticos_amount'] ?? 0,
+                        'total_pasaje' => $validated['pasaje_amount'] ?? 0,
+                        'total_hospedaje' => $validated['hospedaje_amount'] ?? 0,
+                        'subtotal' => $subtotal,
+                        'iva' => $iva,
+                        'total' => $total,
+                    ]
+                );
+            }
 
             // Sync Items
             $requirement->items()->delete();
@@ -340,7 +525,7 @@ class RequirementController extends Controller
 
         // Pagination logic: 26 receipts per page
         $receiptsPerPage = 26;
-        $allReceipts = $requirement->cfeReceipts;
+        $allReceipts = collect($requirement->cfeReceipts);
         $totalReceipts = $allReceipts->count();
         $totalPages = max(1, ceil($totalReceipts / $receiptsPerPage));
 

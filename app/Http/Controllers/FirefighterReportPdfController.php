@@ -27,7 +27,14 @@ class FirefighterReportPdfController extends Controller
         }
 
         $captures = $query->get();
-        $settings = FirefighterSetting::pluck('value', 'key'); // Renamed
+        $settings = FirefighterSetting::pluck('value', 'key')->toArray(); // Renamed
+
+        // UNIFY DATA: Override Firefighter settings with System settings for logos
+        $systemSettings = \App\Models\Setting::whereIn('key', ['logo_qroo', 'logo_unidos', 'footer_imagen'])->pluck('value', 'key');
+
+        $settings['report_logo_state'] = $systemSettings['logo_qroo'] ?? null;
+        $settings['report_logo_campaign'] = $systemSettings['logo_unidos'] ?? null;
+        $settings['report_logo_footer'] = $systemSettings['footer_imagen'] ?? null;
 
         // Get assignment date from the first record
         $assignmentDate = $captures->first()->assignment_date ?? now();

@@ -10,7 +10,9 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
         clave: empleado?.clave || '',
         nombre: empleado?.nombre || '',
         puesto: empleado?.puesto || '',
+        cargo: empleado?.cargo || '',
         departamento: empleado?.departamento || '',
+        area_adscripcion: empleado?.area_adscripcion || '',
         rfc: empleado?.rfc || '',
         categoria: empleado?.categoria || 'BASE',
         fecha_alta: (empleado?.fecha_alta || '').split('T')[0],
@@ -28,6 +30,11 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
         activo: empleado?.activo ?? true,
         es_gerente: empleado?.es_gerente ?? false,
         jefe_inmediato: empleado?.jefe_inmediato || '',
+        primer_nombre: empleado?.primer_nombre || '',
+        primer_apellido: empleado?.primer_apellido || '',
+        segundo_apellido: empleado?.segundo_apellido || '',
+        banco: empleado?.banco || '',
+        clabe: empleado?.clabe || '',
     });
 
     // Auto-fill Birth Date and Sex from CURP
@@ -98,7 +105,7 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                     <InputError message={errors.clave} className="mt-2" />
                 </div>
 
-                {/* Nombre */}
+                {/* Nombre Completo */}
                 <div>
                     <InputLabel htmlFor="nombre" value="Nombre Completo *" />
                     <TextInput
@@ -110,6 +117,45 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                         required
                     />
                     <InputError message={errors.nombre} className="mt-2" />
+                </div>
+
+                {/* Primer Nombre */}
+                <div>
+                    <InputLabel htmlFor="primer_nombre" value="Nombre(s)" />
+                    <TextInput
+                        id="primer_nombre"
+                        type="text"
+                        value={data.primer_nombre}
+                        onChange={(e) => setData('primer_nombre', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.primer_nombre} className="mt-2" />
+                </div>
+
+                {/* Primer Apellido */}
+                <div>
+                    <InputLabel htmlFor="primer_apellido" value="Primer Apellido" />
+                    <TextInput
+                        id="primer_apellido"
+                        type="text"
+                        value={data.primer_apellido}
+                        onChange={(e) => setData('primer_apellido', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.primer_apellido} className="mt-2" />
+                </div>
+
+                {/* Segundo Apellido */}
+                <div>
+                    <InputLabel htmlFor="segundo_apellido" value="Segundo Apellido" />
+                    <TextInput
+                        id="segundo_apellido"
+                        type="text"
+                        value={data.segundo_apellido}
+                        onChange={(e) => setData('segundo_apellido', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.segundo_apellido} className="mt-2" />
                 </div>
 
                 {/* Puesto */}
@@ -126,6 +172,19 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                     <InputError message={errors.puesto} className="mt-2" />
                 </div>
 
+                {/* Cargo */}
+                <div>
+                    <InputLabel htmlFor="cargo" value="Cargo" />
+                    <TextInput
+                        id="cargo"
+                        type="text"
+                        value={data.cargo}
+                        onChange={(e) => setData('cargo', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.cargo} className="mt-2" />
+                </div>
+
                 {/* Departamento */}
                 <div>
                     <InputLabel htmlFor="departamento" value="Departamento *" />
@@ -138,6 +197,19 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                         required
                     />
                     <InputError message={errors.departamento} className="mt-2" />
+                </div>
+
+                {/* Área de Adscripción */}
+                <div>
+                    <InputLabel htmlFor="area_adscripcion" value="Área de Adscripción" />
+                    <TextInput
+                        id="area_adscripcion"
+                        type="text"
+                        value={data.area_adscripcion}
+                        onChange={(e) => setData('area_adscripcion', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.area_adscripcion} className="mt-2" />
                 </div>
 
                 {/* RFC */}
@@ -154,6 +226,33 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                     <InputError message={errors.rfc} className="mt-2" />
                 </div>
 
+                {/* Banco */}
+                <div>
+                    <InputLabel htmlFor="banco" value="Banco" />
+                    <TextInput
+                        id="banco"
+                        type="text"
+                        value={data.banco}
+                        onChange={(e) => setData('banco', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                    <InputError message={errors.banco} className="mt-2" />
+                </div>
+
+                {/* CLABE */}
+                <div>
+                    <InputLabel htmlFor="clabe" value="CLABE" />
+                    <TextInput
+                        id="clabe"
+                        type="text"
+                        value={data.clabe}
+                        onChange={(e) => setData('clabe', e.target.value)}
+                        className="mt-1 block w-full"
+                        maxLength={18}
+                    />
+                    <InputError message={errors.clabe} className="mt-2" />
+                </div>
+
                 {/* CURP */}
                 <div>
                     <InputLabel htmlFor="curp" value="CURP" />
@@ -168,9 +267,9 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                     <InputError message={errors.curp} className="mt-2" />
                 </div>
 
-                {/* Categoría */}
+                {/* Tipo de Plaza (Categoría) */}
                 <div>
-                    <InputLabel htmlFor="categoria" value="Categoría *" />
+                    <InputLabel htmlFor="categoria" value="Tipo de Plaza *" />
                     <select
                         id="categoria"
                         value={data.categoria}

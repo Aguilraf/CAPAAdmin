@@ -5,6 +5,7 @@ import InputLabel from '@/Components/InputLabel';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import ViaticosForm from './Partials/ViaticosForm';
 
 export default function RequirementForm({
     initialData = {},
@@ -15,7 +16,9 @@ export default function RequirementForm({
     types,
     nextNumber,
     year,
-    defaultSignatories = {} // Receive defaults
+    vehicles = [], // Receive vehicles
+    defaultSignatories = {}, // Receive defaults
+    defaultLegend = '' // Receive legend
 }) {
     // Helper to find chapter from partida
     const getCapituloFromPartida = (partidaId) => {
@@ -54,6 +57,10 @@ export default function RequirementForm({
         description: initialData.description || '',
         items: initializeItems(initialData.items),
         cfe_receipts: initialData.cfe_receipts || [], // New State for CFE Receipts
+
+        // Setup Viaticos Default
+        commission_summary_legend: initialData.travel_allowance ? initialData.travel_allowance.commission_summary_legend : defaultLegend,
+
         ...initialData
     });
 
@@ -473,8 +480,20 @@ export default function RequirementForm({
                 </div>
             )}
 
-            {/* General Description Field - HIDE for CFE since it's above */}
-            {data.type !== 'cfe' && (
+            {/* Viaticos Specific Section */}
+            {data.type === 'viaticos' && (
+                <ViaticosForm
+                    data={data}
+                    setData={setData}
+                    employees={employees}
+                    partidas={partidas}
+                    vehicles={vehicles}
+                    travelAllowanceRates={travelAllowanceRates}
+                />
+            )}
+
+            {/* General Description Field - HIDE for CFE and Viaticos (since they have their own) */}
+            {data.type !== 'cfe' && data.type !== 'viaticos' && (
                 <div>
                     <InputLabel value="Concepto General (Descripción)" />
                     <textarea
@@ -493,7 +512,7 @@ export default function RequirementForm({
                     <h3 className="text-lg font-medium">
                         {data.type === 'cfe' ? 'Resumen de Partida (Contable)' : 'Partidas / Conceptos'}
                     </h3>
-                    {data.type !== 'cfe' && <SecondaryButton onClick={addItem} type="button">Agregar Partida</SecondaryButton>}
+                    {data.type !== 'cfe' && data.type !== 'viaticos' && <SecondaryButton onClick={addItem} type="button">Agregar Partida</SecondaryButton>}
                 </div>
 
                 {data.items.map((item, index) => (
@@ -504,7 +523,7 @@ export default function RequirementForm({
                                 value={item.capitulo_id}
                                 onChange={e => updateItem(index, 'capitulo_id', e.target.value)}
                                 className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
-                                disabled={data.type === 'cfe'} // Lock for CFE
+                                disabled={data.type === 'cfe' || data.type === 'viaticos'} // Lock for CFE and Viaticos
                             >
                                 <option value="">Seleccione...</option>
                                 {capitulos.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>)}
@@ -516,7 +535,7 @@ export default function RequirementForm({
                                 value={item.partida_id}
                                 onChange={e => updateItem(index, 'partida_id', e.target.value)}
                                 className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
-                                disabled={!item.capitulo_id || data.type === 'cfe'}
+                                disabled={!item.capitulo_id || data.type === 'cfe' || data.type === 'viaticos'}
                             >
                                 <option value="">Seleccione...</option>
                                 {partidas.filter(p => !item.capitulo_id || p.capitulo_id == item.capitulo_id).map(p => (
@@ -538,11 +557,11 @@ export default function RequirementForm({
                                 type="number" step="0.01" value={item.amount}
                                 onChange={e => updateItem(index, 'amount', e.target.value)}
                                 className="w-full text-sm"
-                                readOnly={data.type === 'cfe'} // Lock amount for CFE (calculated)
+                                readOnly={data.type === 'cfe' || data.type === 'viaticos'} // Lock amount for CFE and Viaticos (calculated)
                             />
                         </div>
                         <div className="col-span-1 md:col-span-1 flex items-center justify-center pt-6">
-                            {data.type !== 'cfe' && (
+                            {data.type !== 'cfe' && data.type !== 'viaticos' && (
                                 <button type="button" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 font-bold">X</button>
                             )}
                         </div>

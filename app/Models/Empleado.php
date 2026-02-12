@@ -15,6 +15,7 @@ class Empleado extends Model
         'clave',
         'nombre',
         'puesto',
+        'cargo',
         'departamento',
         'rfc',
         'categoria',
@@ -27,7 +28,6 @@ class Empleado extends Model
         'afiliacion',
         'email',
         'telefono',
-        'numero_empleado',
         'fotografia',
         'fecha_baja',
         'activo',
@@ -36,6 +36,13 @@ class Empleado extends Model
         'fecha_nacimiento',
         'sexo',
         'jefe_inmediato',
+        'clabe',
+        'banco',
+        'tipo_plaza',
+        'area_adscripcion',
+        'primer_nombre',
+        'primer_apellido',
+        'segundo_apellido',
     ];
 
     protected $casts = [
