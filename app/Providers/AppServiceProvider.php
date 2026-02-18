@@ -29,5 +29,9 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Database\Eloquent\Relations\Relation::morphMap([
             'SaldoVacaciones' => \App\Models\SaldoVacaciones::class,
         ]);
+
+        // Register Backup Observers
+        \App\Models\Firefighter::observe(\App\Observers\BackupObserver::class);
+        \App\Models\Community::observe(\App\Observers\BackupObserver::class);
     }
 }

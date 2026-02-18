@@ -19,7 +19,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
                         {/* Tarjeta de Solicitar Material */}
-                        {user.permissions && user.permissions.includes('generar reportes') && (
+                        {(user.permissions?.includes('generar reportes') || user.roles?.some(r => r.name === 'Administrador')) && (
                             <Link
                                 href={route('reportes.material-request.create')}
                                 className="block group"
@@ -45,7 +45,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Tarjeta de Capturar Bomberos */}
-                        {user.permissions && user.permissions.includes('capturar bomberos') && (
+                        {(user.permissions?.includes('capturar bomberos') || user.roles?.some(r => r.name === 'Administrador')) && (
                             <Link
                                 href="/firefighters/capture"
                                 className="block group"
@@ -72,7 +72,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Tarjeta de Mis Vacaciones */}
-                        {user.permissions && user.permissions.includes('ver vacaciones') && (
+                        {(user.permissions?.includes('ver vacaciones') || user.roles?.some(r => r.name === 'Administrador')) && (
                             <Link
                                 href={route('vacations.index')}
                                 className="block group"

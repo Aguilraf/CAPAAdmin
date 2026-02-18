@@ -35,12 +35,15 @@ Route::middleware('auth')->group(function () {
         Route::resource('partidas', \App\Http\Controllers\PartidaController::class);
         Route::resource('leyendas', \App\Http\Controllers\LeyendaController::class);
         Route::resource('materiales', \App\Http\Controllers\MaterialController::class);
+        Route::resource('materiales', \App\Http\Controllers\MaterialController::class);
         Route::resource('unidades-medida', \App\Http\Controllers\UnidadMedidaController::class);
+        Route::resource('puestos', \App\Http\Controllers\PuestoController::class);
+        Route::resource('organismos', \App\Http\Controllers\OrganismoController::class);
 
 
         // Viaticos Catalogs
         Route::resource('vehicles', \App\Http\Controllers\VehicleController::class);
-        Route::resource('travel-expense-rates', \App\Http\Controllers\TravelExpenseRateController::class);
+        Route::resource('travel-allowance-rates', \App\Http\Controllers\TravelAllowanceRateController::class);
 
         // Rutas de Importación
         Route::get('/importar', [\App\Http\Controllers\ImportController::class, 'index'])->name('import.index');
@@ -83,8 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::get('requirements/{requirement}/pdf', [\App\Http\Controllers\RequirementController::class, 'downloadPdf'])->name('requirements.pdf');
         Route::get('requirements/{requirement}/cfe-relation', [\App\Http\Controllers\RequirementController::class, 'downloadCfeRelation'])->name('requirements.cfe-relation');
 
-        // Travel Allowance Rates Catalog
-        Route::resource('travel-allowance-rates', \App\Http\Controllers\TravelAllowanceRateController::class);
+
 
         // CFE Query Routes
         Route::get('/cfe/query', [\App\Http\Controllers\CfeQueryController::class, 'index'])->name('cfe.query');

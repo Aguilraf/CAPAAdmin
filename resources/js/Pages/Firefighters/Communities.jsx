@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash, MapPin, X } from 'lucide-react';
-import MapPicker from '../../Components/Firefighters/MapPicker';
+import { Plus, Edit, Trash, MapPin, X, Image as ImageIcon } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 
@@ -11,10 +10,12 @@ export default function Communities({ auth, communities: initialCommunities }) {
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
-        geolocation: ''
+        geolocation: '', // Mantenemos por compatibilidad o eliminamos si no se usa
+        location_image: null
     });
+    const [previewImage, setPreviewImage] = useState(null);
     const [importMessage, setImportMessage] = useState(null);
-    const [viewMapLocation, setViewMapLocation] = useState(null);
+    const [viewImageLocation, setViewImageLocation] = useState(null);
     const fileInputRef = React.useRef(null);
 
     const fetchData = () => {
@@ -26,14 +27,21 @@ export default function Communities({ auth, communities: initialCommunities }) {
             setEditingId(community.id);
             setFormData({
                 name: community.name,
-                geolocation: community.geolocation || ''
+                geolocation: community.geolocation || '',
+                percentage: community.percentage || '',
+                location_image: null // Reset file input
             });
+            // Mostrar imagen existente si la hay (Plan Nuclear: usar /media/)
+            setPreviewImage(community.location_image_path ? `/media/${community.location_image_path}` : null);
         } else {
             setEditingId(null);
             setFormData({
                 name: '',
-                geolocation: ''
+                geolocation: '',
+                percentage: '',
+                location_image: null
             });
+            setPreviewImage(null);
         }
         setIsModalOpen(true);
     };
@@ -41,6 +49,7 @@ export default function Communities({ auth, communities: initialCommunities }) {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingId(null);
+        setPreviewImage(null);
     };
 
     const handleChange = (e) => {
@@ -48,15 +57,41 @@ export default function Communities({ auth, communities: initialCommunities }) {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setFormData(prev => ({ ...prev, location_image: file }));
+            setPreviewImage(URL.createObjectURL(file));
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (editingId) {
-            await axios.put(`/communities/${editingId}`, formData);
-        } else {
-            await axios.post('/communities', formData);
+
+        const data = new FormData();
+        data.append('name', formData.name);
+        if (formData.geolocation) data.append('geolocation', formData.geolocation);
+        if (formData.percentage) data.append('percentage', formData.percentage);
+        if (formData.location_image) data.append('location_image', formData.location_image);
+
+        try {
+            if (editingId) {
+                // Laravel requiere _method: PUT para FormData en updates
+                data.append('_method', 'PUT');
+                await axios.post(`/communities/${editingId}`, data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            } else {
+                await axios.post('/communities', data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            }
+            fetchData();
+            handleCloseModal();
+        } catch (error) {
+            console.error("Error saving community", error);
+            // Mostrar error al usuario
         }
-        fetchData();
-        handleCloseModal();
     };
 
     const handleDelete = async (id) => {
@@ -167,7 +202,8 @@ export default function Communities({ auth, communities: initialCommunities }) {
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geolocalización</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Porcentaje</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ubicación (Imagen)</th>
                                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                         </tr>
                                     </thead>
@@ -176,11 +212,21 @@ export default function Communities({ auth, communities: initialCommunities }) {
                                             <tr key={c.id}>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{c.id}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{c.name}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{c.geolocation}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-gray-900">{c.percentage ? `${c.percentage}%` : '0%'}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                                    {c.location_image_path ? (
+                                                        <button
+                                                            onClick={() => setViewImageLocation(`/media/${c.location_image_path}`)}
+                                                            className="flex items-center text-blue-600 hover:text-blue-900"
+                                                        >
+                                                            <ImageIcon className="w-5 h-5 mr-1" />
+                                                            Ver Croquis
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-gray-400 text-xs italic">Sin imagen</span>
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button onClick={() => setViewMapLocation(c.geolocation)} className="text-green-600 hover:text-green-900 mr-4" title="Ver ubicación">
-                                                        <MapPin className="w-5 h-5" />
-                                                    </button>
                                                     <button onClick={() => handleOpenModal(c)} className="text-indigo-600 hover:text-indigo-900 mr-4"><Edit className="w-5 h-5" /></button>
                                                     <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-900"><Trash className="w-5 h-5" /></button>
                                                 </td>
@@ -192,29 +238,64 @@ export default function Communities({ auth, communities: initialCommunities }) {
 
                             {isModalOpen && (
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                                    <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                                         <h3 className="text-lg font-bold mb-4">{editingId ? 'Editar Comunidad' : 'Nueva Comunidad'}</h3>
                                         <form onSubmit={handleSubmit} className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700">Nombre</label>
                                                 <input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2" required />
                                             </div>
+
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700">Ubicación de la Comunidad (Mapa)</label>
-                                                <MapPicker
-                                                    value={formData.geolocation}
-                                                    onChange={(val) => setFormData({ ...formData, geolocation: val })}
-                                                />
+                                                <label className="block text-sm font-medium text-gray-700">Porcentaje de Comisión (%)</label>
                                                 <input
-                                                    type="text"
-                                                    name="geolocation"
-                                                    value={formData.geolocation}
+                                                    type="number"
+                                                    name="percentage"
+                                                    value={formData.percentage || ''}
                                                     onChange={handleChange}
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-1 text-xs text-gray-400 bg-gray-50"
-                                                    placeholder="Lat, Lng"
-                                                    readOnly
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.01"
+                                                    placeholder="Ej. 15"
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2"
                                                 />
+                                                <p className="text-xs text-gray-500 mt-1">Si se deja vacío, se asumirá 0%.</p>
                                             </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Imagen de Ubicación (Croquis)</label>
+
+                                                {previewImage && (
+                                                    <div className="mb-3 relative rounded-lg overflow-hidden border border-gray-200">
+                                                        <img src={previewImage} alt="Vista previa" className="w-full h-48 object-cover" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData(prev => ({ ...prev, location_image: null }));
+                                                                setPreviewImage(null);
+                                                            }}
+                                                            className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full shadow-md hover:bg-red-700"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-blue-400 transition-colors cursor-pointer" onClick={() => document.getElementById('image-upload').click()}>
+                                                    <div className="space-y-1 text-center">
+                                                        <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                                        <div className="flex text-sm text-gray-600">
+                                                            <label htmlFor="image-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                                                                <span>Sube un archivo</span>
+                                                                <input id="image-upload" name="location_image" type="file" className="sr-only" accept="image/*" onChange={handleImageChange} />
+                                                            </label>
+                                                            <p className="pl-1">o arrástralo y suéltalo</p>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500">PNG, JPG, GIF hasta 5MB</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div className="flex justify-end space-x-3 mt-6">
                                                 <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancelar</button>
                                                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Guardar</button>
@@ -223,21 +304,17 @@ export default function Communities({ auth, communities: initialCommunities }) {
                                     </div>
                                 </div>
                             )}
-                            {/* View Map Modal */}
-                            {viewMapLocation && (
-                                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
-                                    <div className="bg-white rounded-lg p-6 w-full max-w-xl shadow-2xl animate-in fade-in zoom-in duration-200">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                                <MapPin className="text-red-500" /> Ubicación de la Comunidad
-                                            </h3>
-                                            <button onClick={() => setViewMapLocation(null)} className="text-gray-400 hover:text-gray-600">
-                                                <X className="w-6 h-6" />
-                                            </button>
-                                        </div>
-                                        <MapPicker value={viewMapLocation} isReadOnly={true} />
-                                        <div className="text-center mt-4 pt-4 border-t border-gray-100">
-                                            <span className="text-sm font-mono text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{viewMapLocation}</span>
+
+                            {/* View Image Modal */}
+                            {viewImageLocation && (
+                                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 p-4" onClick={() => setViewImageLocation(null)}>
+                                    <div className="bg-white rounded-lg p-2 w-full max-w-3xl shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => setViewImageLocation(null)} className="absolute -top-10 right-0 text-white hover:text-gray-200">
+                                            <X className="w-8 h-8" />
+                                        </button>
+                                        <img src={viewImageLocation} alt="Ubicación de la comunidad" className="w-full h-auto max-h-[80vh] object-contain rounded" />
+                                        <div className="text-center mt-2">
+                                            <a href={viewImageLocation} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline">Abrir original en nueva pestaña</a>
                                         </div>
                                     </div>
                                 </div>

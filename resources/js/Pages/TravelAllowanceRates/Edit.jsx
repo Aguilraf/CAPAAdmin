@@ -3,7 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import Form from './Form';
 
-export default function Edit({ auth, rate, partidas }) {
+export default function Edit({ auth, rate, partidas, niveles }) {
     const { data, setData, put, processing, errors } = useForm({
         partida_id: rate.partida_id || '',
         cargo: rate.cargo || '',
@@ -40,6 +40,7 @@ export default function Edit({ auth, rate, partidas }) {
                                 submitLabel="Actualizar Tarifa"
                                 onSubmit={handleSubmit}
                                 partidas={partidas}
+                                niveles={niveles}
                             />
                         </div>
                     </div>

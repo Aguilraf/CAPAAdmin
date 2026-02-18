@@ -62,7 +62,9 @@ class EmpleadoController extends Controller
             ->values();
 
         return Inertia::render('Empleados/Create', [
-            'posiblesJefes' => $posiblesJefes
+            'posiblesJefes' => $posiblesJefes,
+            'puestos' => \App\Models\Puesto::all(),
+            'organismos' => \App\Models\Organismo::all(),
         ]);
     }
 
@@ -77,7 +79,8 @@ class EmpleadoController extends Controller
         $validated = $request->validate([
             'clave' => 'required|string|unique:empleados,clave',
             'nombre' => 'required|string|max:255',
-            'puesto' => 'required|string|max:255',
+            'puesto' => 'nullable|string|max:255', // Now optional if puesto_id is present
+            'puesto_id' => 'nullable|exists:puestos,id',
             'cargo' => 'nullable|string|max:255',
             'departamento' => 'required|string|max:255',
             'rfc' => 'nullable|string|max:13',
@@ -100,7 +103,18 @@ class EmpleadoController extends Controller
             'segundo_apellido' => 'nullable|string|max:255',
             'banco' => 'nullable|string|max:255',
             'clabe' => 'nullable|string|max:18',
+            'organismo_id' => 'nullable|exists:organismos,id',
         ]);
+
+        // Sync puesto text if puesto_id is present
+        if (!empty($validated['puesto_id'])) {
+            $puestoModel = \App\Models\Puesto::find($validated['puesto_id']);
+            if ($puestoModel) {
+                $validated['puesto'] = $puestoModel->nombre;
+                // Optional: Sync level too?
+                $validated['nivel'] = $puestoModel->nivel;
+            }
+        }
 
         // Regla de Negocio: BASE = Sindicalizado
         $validated['es_sindicalizado'] = $validated['categoria'] === 'BASE';
@@ -161,6 +175,8 @@ class EmpleadoController extends Controller
         return Inertia::render('Empleados/Edit', [
             'empleado' => $empleado,
             'posiblesJefes' => $posiblesJefes,
+            'puestos' => \App\Models\Puesto::all(),
+            'organismos' => \App\Models\Organismo::all(),
             'previousEmployeeId' => $previousEmployeeId,
             'nextEmployeeId' => $nextEmployeeId,
         ]);
@@ -174,7 +190,8 @@ class EmpleadoController extends Controller
         $validated = $request->validate([
             'clave' => 'required|string|unique:empleados,clave,' . $empleado->id,
             'nombre' => 'required|string|max:255',
-            'puesto' => 'required|string|max:255',
+            'puesto' => 'nullable|string|max:255',
+            'puesto_id' => 'nullable|exists:puestos,id',
             'cargo' => 'nullable|string|max:255',
             'departamento' => 'required|string|max:255',
             'rfc' => 'nullable|string|max:13',
@@ -196,7 +213,17 @@ class EmpleadoController extends Controller
             'segundo_apellido' => 'nullable|string|max:255',
             'banco' => 'nullable|string|max:255',
             'clabe' => 'nullable|string|max:18',
+            'organismo_id' => 'nullable|exists:organismos,id',
         ]);
+
+        // Sync puesto text if puesto_id is present
+        if (!empty($validated['puesto_id'])) {
+            $puestoModel = \App\Models\Puesto::find($validated['puesto_id']);
+            if ($puestoModel) {
+                $validated['puesto'] = $puestoModel->nombre;
+                $validated['nivel'] = $puestoModel->nivel;
+            }
+        }
 
         // Regla de Negocio: BASE = Sindicalizado
         $validated['es_sindicalizado'] = $validated['categoria'] === 'BASE';

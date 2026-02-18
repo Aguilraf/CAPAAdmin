@@ -5,7 +5,7 @@ import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 
-export default function UserForm({ auth, user, roles, employees, currentRole }) {
+export default function UserForm({ auth, user, roles, employees, organismos, currentRole }) {
     const isEditing = !!user;
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -16,6 +16,7 @@ export default function UserForm({ auth, user, roles, employees, currentRole }) 
         password_confirmation: '',
         role: currentRole || (roles.length > 0 ? roles[0].name : ''),
         empleado_id: user ? user.empleado_id : '',
+        organismo_id: user ? (user.organismo_id || '') : '',
     });
 
     const submit = (e) => {
@@ -70,6 +71,24 @@ export default function UserForm({ auth, user, roles, employees, currentRole }) 
                                         InputError para name por si acaso llega del backend */}
                                     <InputError className="mt-2" message={errors.name} />
                                 </div>
+
+                                {auth.user.roles.some(r => r.name === 'Administrador') && organismos && (
+                                    <div className="mb-4">
+                                        <InputLabel htmlFor="organismo_id" value="Organismo Operador" />
+                                        <select
+                                            id="organismo_id"
+                                            className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                            value={data.organismo_id}
+                                            onChange={(e) => setData('organismo_id', e.target.value)}
+                                        >
+                                            <option value="">Seleccione un organismo...</option>
+                                            {organismos.map((org) => (
+                                                <option key={org.id} value={org.id}>{org.nombre}</option>
+                                            ))}
+                                        </select>
+                                        <InputError className="mt-2" message={errors.organismo_id} />
+                                    </div>
+                                )}
 
                                 <div className="mb-4">
                                     <InputLabel htmlFor="username" value="Nombre de usuario" />

@@ -50,10 +50,20 @@ class TravelAllowanceRateController extends Controller
      */
     public function create()
     {
-        $partidas = Partida::orderBy('codigo')->get();
+        $partidas = Partida::whereIn('codigo', ['37201', '37301', '37501', '37502'])
+            ->orderBy('codigo')
+            ->get();
+
+        // Fetch distinct levels from employees
+        $niveles = \App\Models\Empleado::whereNotNull('nivel')
+            ->where('nivel', '!=', '')
+            ->distinct()
+            ->orderBy('nivel')
+            ->pluck('nivel');
 
         return Inertia::render('TravelAllowanceRates/Create', [
             'partidas' => $partidas,
+            'niveles' => $niveles,
         ]);
     }
 
@@ -65,7 +75,8 @@ class TravelAllowanceRateController extends Controller
         $validated = $request->validate([
             'partida_id' => 'required|exists:partidas,id',
             'cargo' => 'required|string|max:255',
-            'nivel' => 'required|string|max:255',
+            'nivel' => 'required|array|min:1', // Validate as array
+            'nivel.*' => 'string|max:255',     // Validate each item
             'zona_1_amount' => 'required|numeric|min:0',
             'zona_2_amount' => 'required|numeric|min:0',
             'rate_type' => 'required|in:viaticos,pasajes,hospedaje',
@@ -73,10 +84,21 @@ class TravelAllowanceRateController extends Controller
             'active' => 'boolean',
         ]);
 
-        TravelAllowanceRate::create($validated);
+        foreach ($validated['nivel'] as $nivel) {
+            TravelAllowanceRate::create([
+                'partida_id' => $validated['partida_id'],
+                'cargo' => $validated['cargo'],
+                'nivel' => $nivel,
+                'zona_1_amount' => $validated['zona_1_amount'],
+                'zona_2_amount' => $validated['zona_2_amount'],
+                'rate_type' => $validated['rate_type'],
+                'year' => $validated['year'],
+                'active' => $validated['active'] ?? true,
+            ]);
+        }
 
         return redirect()->route('travel-allowance-rates.index')
-            ->with('success', 'Tarifa creada exitosamente.');
+            ->with('success', 'Tarifas creadas exitosamente.');
     }
 
     /**
@@ -84,11 +106,21 @@ class TravelAllowanceRateController extends Controller
      */
     public function edit(TravelAllowanceRate $travelAllowanceRate)
     {
-        $partidas = Partida::orderBy('codigo')->get();
+        $partidas = Partida::whereIn('codigo', ['37201', '37301', '37501', '37502'])
+            ->orderBy('codigo')
+            ->get();
+
+        // Fetch distinct levels from employees
+        $niveles = \App\Models\Empleado::whereNotNull('nivel')
+            ->where('nivel', '!=', '')
+            ->distinct()
+            ->orderBy('nivel')
+            ->pluck('nivel');
 
         return Inertia::render('TravelAllowanceRates/Edit', [
             'rate' => $travelAllowanceRate->load('partida'),
             'partidas' => $partidas,
+            'niveles' => $niveles,
         ]);
     }
 

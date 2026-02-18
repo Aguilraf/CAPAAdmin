@@ -69,8 +69,17 @@ export default function Capture({ auth, communities: initialCommunities, firefig
         const roundingComm = parseFloat(formData.rounding_commission) || 0;
         const roundingTot = parseFloat(formData.rounding_total) || 0;
 
-        // Final commission is 15% of subtotal plus any rounding adjustment
-        const rawCommission = subtotal * 0.15;
+        // Final commission is based on community percentage (or 0 if not set) plus any rounding adjustment
+        // We need to look up the selected community to get the percentage
+        let rate = 0;
+        if (formData.community_id && communities.length > 0) {
+            const comm = communities.find(c => c.id == formData.community_id);
+            if (comm && comm.percentage) {
+                rate = parseFloat(comm.percentage) / 100;
+            }
+        }
+
+        const rawCommission = subtotal * rate;
         const commission = rawCommission + roundingComm;
 
         // Total is Subtotal minus Commission plus Rounding Total adjustment
@@ -81,7 +90,7 @@ export default function Capture({ auth, communities: initialCommunities, firefig
             commission: commission.toFixed(2),
             total: total.toFixed(2)
         }));
-    }, [formData.subtotal, formData.rounding_commission, formData.rounding_total]);
+    }, [formData.subtotal, formData.rounding_commission, formData.rounding_total, formData.community_id, communities]);
 
     // Close dropdown when clicking outside
     useEffect(() => {

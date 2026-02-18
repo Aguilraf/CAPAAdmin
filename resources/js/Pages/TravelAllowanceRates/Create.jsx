@@ -3,11 +3,11 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import Form from './Form';
 
-export default function Create({ auth, partidas }) {
+export default function Create({ auth, partidas, niveles }) {
     const { data, setData, post, processing, errors } = useForm({
         partida_id: '',
         cargo: '',
-        nivel: '',
+        nivel: [],
         zona_1_amount: '',
         zona_2_amount: '',
         rate_type: '',
@@ -40,6 +40,7 @@ export default function Create({ auth, partidas }) {
                                 submitLabel="Crear Tarifa"
                                 onSubmit={handleSubmit}
                                 partidas={partidas}
+                                niveles={niveles}
                             />
                         </div>
                     </div>

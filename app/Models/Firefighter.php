@@ -14,7 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Firefighter extends Model
 {
-    protected $fillable = ['name', 'community_id', 'active', 'contact_number', 'credential_photo_path', 'geolocation', 'previous_firefighter', 'change_date', 'max_rounding_amount'];
+    use \App\Traits\HasOrganismo;
+    protected $fillable = ['name', 'community_id', 'active', 'contact_number', 'credential_photo_path', 'geolocation', 'previous_firefighter', 'change_date', 'max_rounding_amount', 'organismo_id'];
 
     public function community()
     {

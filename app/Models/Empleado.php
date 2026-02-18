@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Empleado extends Model
 {
-    use SoftDeletes, \Illuminate\Database\Eloquent\Factories\HasFactory;
+    use SoftDeletes, \Illuminate\Database\Eloquent\Factories\HasFactory, \App\Traits\HasOrganismo;
 
     protected $table = 'empleados';
 
@@ -43,6 +43,11 @@ class Empleado extends Model
         'primer_nombre',
         'primer_apellido',
         'segundo_apellido',
+        'primer_nombre',
+        'primer_apellido',
+        'segundo_apellido',
+        'puesto_id',
+        'organismo_id',
     ];
 
     protected $casts = [
@@ -118,5 +123,10 @@ class Empleado extends Model
     public function solicitudesVacaciones()
     {
         return $this->hasMany(SolicitudVacaciones::class);
+    }
+
+    public function puesto()
+    {
+        return $this->belongsTo(Puesto::class);
     }
 }

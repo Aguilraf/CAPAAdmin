@@ -32,7 +32,7 @@ class EmpleadoFactory extends Factory
             'afiliacion' => fake()->numerify('#####'),
             'email' => fake()->unique()->safeEmail(),
             'telefono' => fake()->phoneNumber(),
-            'numero_empleado' => fake()->unique()->randomNumber(5),
+
             'activo' => true,
             'es_gerente' => false,
         ];

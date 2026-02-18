@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash, MapPin, X } from 'lucide-react';
+import { Plus, Edit, Trash, MapPin, X, Image as ImageIcon, Download, Upload } from 'lucide-react';
 import { formatCurrency } from '../../firefighters_helpers';
-import MapPicker from '../../Components/Firefighters/MapPicker';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 
@@ -17,7 +16,9 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
         active: true,
         max_rounding_amount: '0'
     });
-    const [viewMapLocation, setViewMapLocation] = useState(null);
+    const [viewImageLocation, setViewImageLocation] = useState(null);
+    const [importMessage, setImportMessage] = useState(null);
+    const fileInputRef = useRef(null);
 
     const fetchData = () => {
         axios.get('/firefighters').then(res => setFirefighters(res.data));
@@ -80,6 +81,50 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
         }
     };
 
+    const handleDownloadTemplate = () => {
+        window.location.href = '/firefighters/import/template';
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await axios.post('/firefighters/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            if (response.data.errors && response.data.errors.length > 0) {
+                setImportMessage({
+                    type: 'warning',
+                    text: `${response.data.message}. Errores: ${response.data.errors.join(', ')}`
+                });
+            } else {
+                setImportMessage({
+                    type: 'success',
+                    text: response.data.message
+                });
+            }
+
+            fetchData();
+            e.target.value = '';
+        } catch (error) {
+            console.error(error);
+            setImportMessage({
+                type: 'error',
+                text: 'Error al importar el archivo. Verifique el formato.'
+            });
+            e.target.value = '';
+        }
+    };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -94,14 +139,51 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
 
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-2xl font-bold text-gray-800">Catálogo de Bomberos</h2>
-                                <button
-                                    onClick={() => handleOpenModal()}
-                                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                >
-                                    <Plus className="w-5 h-5 mr-2" />
-                                    Nuevo Bombero
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleDownloadTemplate}
+                                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                                        title="Descargar plantilla CSV para importar"
+                                    >
+                                        <Download className="w-5 h-5 mr-2" />
+                                        Bajar Layout
+                                    </button>
+                                    <button
+                                        onClick={handleImportClick}
+                                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                                        title="Subir archivo CSV con bomberos"
+                                    >
+                                        <Upload className="w-5 h-5 mr-2" />
+                                        Subir Bomberos
+                                    </button>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".csv,.xlsx"
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        onClick={() => handleOpenModal()}
+                                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                    >
+                                        <Plus className="w-5 h-5 mr-2" />
+                                        Nuevo Bombero
+                                    </button>
+                                </div>
                             </div>
+
+                            {importMessage && (
+                                <div className={`p-4 mb-4 rounded flex justify-between items-center ${importMessage.type === 'success' ? 'bg-green-100 text-green-700' :
+                                        importMessage.type === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-red-100 text-red-700'
+                                    }`}>
+                                    <span>{importMessage.text}</span>
+                                    <button onClick={() => setImportMessage(null)} className="ml-4 hover:opacity-75">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="bg-white shadow rounded-lg overflow-hidden">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -128,9 +210,13 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    {f.community?.geolocation && (
-                                                        <button onClick={() => setViewMapLocation(f.community.geolocation)} className="text-green-600 hover:text-green-900 mr-4" title="Ver ubicación comunidad">
-                                                            <MapPin className="w-5 h-5" />
+                                                    {f.community?.location_image_path && (
+                                                        <button
+                                                            onClick={() => setViewImageLocation(`/media/${f.community.location_image_path}`)}
+                                                            className="text-blue-600 hover:text-blue-900 mr-4"
+                                                            title="Ver ubicación comunidad"
+                                                        >
+                                                            <ImageIcon className="w-5 h-5" />
                                                         </button>
                                                     )}
                                                     <button onClick={() => handleOpenModal(f)} className="text-indigo-600 hover:text-indigo-900 mr-4"><Edit className="w-5 h-5" /></button>
@@ -176,21 +262,16 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
                                 </div>
                             )}
 
-                            {/* View Map Modal */}
-                            {viewMapLocation && (
-                                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
-                                    <div className="bg-white rounded-lg p-6 w-full max-w-xl shadow-2xl animate-in fade-in zoom-in duration-200">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                                <MapPin className="text-red-500" /> Ubicación de la Comunidad
-                                            </h3>
-                                            <button onClick={() => setViewMapLocation(null)} className="text-gray-400 hover:text-gray-600">
-                                                <X className="w-6 h-6" />
-                                            </button>
-                                        </div>
-                                        <MapPicker value={viewMapLocation} isReadOnly={true} />
-                                        <div className="text-center mt-4 pt-4 border-t border-gray-100">
-                                            <span className="text-sm font-mono text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{viewMapLocation}</span>
+                            {/* View Image Modal */}
+                            {viewImageLocation && (
+                                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 p-4" onClick={() => setViewImageLocation(null)}>
+                                    <div className="bg-white rounded-lg p-2 w-full max-w-3xl shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => setViewImageLocation(null)} className="absolute -top-10 right-0 text-white hover:text-gray-200">
+                                            <X className="w-8 h-8" />
+                                        </button>
+                                        <img src={viewImageLocation} alt="Ubicación de la comunidad" className="w-full h-auto max-h-[80vh] object-contain rounded" />
+                                        <div className="text-center mt-2">
+                                            <a href={viewImageLocation} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline">Abrir original en nueva pestaña</a>
                                         </div>
                                     </div>
                                 </div>

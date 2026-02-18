@@ -5,11 +5,13 @@ import TextInput from '@/Components/TextInput';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { useEffect } from 'react';
 
-export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post', posiblesJefes = [] }) {
+export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post', posiblesJefes = [], puestos = [], organismos = [] }) {
     const { data, setData, post, put, processing, errors } = useForm({
         clave: empleado?.clave || '',
         nombre: empleado?.nombre || '',
         puesto: empleado?.puesto || '',
+        puesto_id: empleado?.puesto_id ? String(empleado.puesto_id) : '',
+        organismo_id: empleado?.organismo_id ? String(empleado.organismo_id) : '',
         cargo: empleado?.cargo || '',
         departamento: empleado?.departamento || '',
         area_adscripcion: empleado?.area_adscripcion || '',
@@ -158,18 +160,54 @@ export default function EmpleadoForm({ empleado, submitUrl, submitMethod = 'post
                     <InputError message={errors.segundo_apellido} className="mt-2" />
                 </div>
 
-                {/* Puesto */}
+                {/* Organismo Selection */}
                 <div>
-                    <InputLabel htmlFor="puesto" value="Puesto *" />
-                    <TextInput
-                        id="puesto"
-                        type="text"
-                        value={data.puesto}
-                        onChange={(e) => setData('puesto', e.target.value)}
-                        className="mt-1 block w-full"
+                    <InputLabel htmlFor="organismo_id" value="Organismo *" />
+                    <select
+                        id="organismo_id"
+                        value={data.organismo_id || ''}
+                        onChange={(e) => setData('organismo_id', e.target.value)}
+                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                         required
-                    />
-                    <InputError message={errors.puesto} className="mt-2" />
+                    >
+                        <option value="">-- Seleccione un Organismo --</option>
+                        {organismos && organismos.map(org => (
+                            <option key={org.id} value={org.id}>
+                                {org.nombre} ({org.siglas})
+                            </option>
+                        ))}
+                    </select>
+                    <InputError message={errors.organismo_id} className="mt-2" />
+                </div>
+
+                {/* Puesto Selection */}
+                <div>
+                    <InputLabel htmlFor="puesto_id" value="Puesto (Catálogo) *" />
+                    <select
+                        id="puesto_id"
+                        value={data.puesto_id || ''}
+                        onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const selectedPuesto = puestos.find(p => String(p.id) === selectedId);
+
+                            // Update ID, puesto text, and nivel safely
+                            setData(prev => ({
+                                ...prev,
+                                puesto_id: selectedId,
+                                puesto: selectedPuesto ? selectedPuesto.nombre : prev.puesto,
+                                nivel: selectedPuesto ? selectedPuesto.nivel : prev.nivel
+                            }));
+                        }}
+                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                    >
+                        <option value="">-- Seleccione un Puesto --</option>
+                        {puestos && puestos.map(p => (
+                            <option key={p.id} value={p.id}>
+                                {p.nombre} {p.nivel ? `(${p.nivel})` : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError message={errors.puesto_id} className="mt-2" />
                 </div>
 
                 {/* Cargo */}

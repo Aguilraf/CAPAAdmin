@@ -4,8 +4,9 @@ import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { Link } from '@inertiajs/react';
+import Checkbox from '@/Components/Checkbox';
 
-export default function Form({ data, setData, errors, processing, submitLabel, onSubmit, partidas }) {
+export default function Form({ data, setData, errors, processing, submitLabel, onSubmit, partidas, niveles }) {
     return (
         <form onSubmit={onSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -64,14 +65,46 @@ export default function Form({ data, setData, errors, processing, submitLabel, o
                 {/* Nivel */}
                 <div>
                     <InputLabel htmlFor="nivel" value="Nivel *" />
-                    <TextInput
-                        id="nivel"
-                        type="text"
-                        value={data.nivel || ''}
-                        onChange={(e) => setData('nivel', e.target.value)}
-                        className="mt-1 block w-full"
-                        required
-                    />
+                    {/* Render different inputs based on mode (creation implies array, edit implies string) */}
+                    {Array.isArray(data.nivel) ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1 border border-gray-300 rounded-md p-2 max-h-60 overflow-y-auto">
+                            {niveles && niveles.map((nivel, index) => (
+                                <label key={index} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                    <Checkbox
+                                        checked={data.nivel.includes(nivel)}
+                                        onChange={(e) => {
+                                            const isChecked = e.target.checked;
+                                            const currentLevels = [...data.nivel];
+                                            if (isChecked) {
+                                                setData('nivel', [...currentLevels, nivel]);
+                                            } else {
+                                                setData('nivel', currentLevels.filter(n => n !== nivel));
+                                            }
+                                        }}
+                                    />
+                                    <span className="text-sm text-gray-700">{nivel}</span>
+                                </label>
+                            ))}
+                        </div>
+                    ) : (
+                        <select
+                            id="nivel"
+                            value={data.nivel || ''}
+                            onChange={(e) => setData('nivel', e.target.value)}
+                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                            required
+                        >
+                            <option value="">Seleccione nivel...</option>
+                            {niveles && niveles.map((nivel, index) => (
+                                <option key={index} value={nivel}>
+                                    {nivel}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    <span className="text-xs text-gray-500">
+                        {Array.isArray(data.nivel) ? 'Selecciona uno o más niveles.' : ''}
+                    </span>
                     <InputError message={errors.nivel} className="mt-2" />
                 </div>
 

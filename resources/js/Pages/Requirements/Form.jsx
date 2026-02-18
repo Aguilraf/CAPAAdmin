@@ -18,7 +18,8 @@ export default function RequirementForm({
     year,
     vehicles = [], // Receive vehicles
     defaultSignatories = {}, // Receive defaults
-    defaultLegend = '' // Receive legend
+    defaultLegend = '', // Receive legend
+    travelAllowanceRates = [] // Receive rates
 }) {
     // Helper to find chapter from partida
     const getCapituloFromPartida = (partidaId) => {

@@ -24,7 +24,19 @@ class User extends Authenticatable
         'email',
         'password',
         'empleado_id',
+        'organismo_id',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (\Illuminate\Support\Facades\Auth::check() && !$model->organismo_id) {
+                $model->organismo_id = \Illuminate\Support\Facades\Auth::user()->organismo_id;
+            }
+        });
+    }
 
     /**
      * The attributes that should be hidden for serialization.

@@ -137,6 +137,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                                     <Dropdown.Link href={route('leyendas.index')}>Leyendas</Dropdown.Link>
                                                     <Dropdown.Link href={route('materiales.index')}>Materiales</Dropdown.Link>
                                                     <Dropdown.Link href={route('unidades-medida.index')}>Unidades de Medida</Dropdown.Link>
+                                                    <Dropdown.Link href={route('puestos.index')}>Puestos</Dropdown.Link>
+                                                    <Dropdown.Link href={route('organismos.index')}>Organismos</Dropdown.Link>
+                                                    <div className="border-t border-gray-100"></div>
+                                                    <Dropdown.Link href={route('travel-allowance-rates.index')}>Viáticos, Hospedaje y Pasaje</Dropdown.Link>
+                                                    <div className="border-t border-gray-100"></div>
+                                                    <Dropdown.Link href={route('puestos.index')}>Puestos</Dropdown.Link>
                                                 </Dropdown.Content>
                                             </Dropdown>
                                         </div>
@@ -264,7 +270,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                         <Dropdown.Link
                                             href={route('profile.edit')}
                                         >
-                                            Profile
+                                            Cambiar Contraseña
                                         </Dropdown.Link>
                                         <Dropdown.Link
                                             href={route('logout')}
@@ -453,6 +459,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                     <ResponsiveNavLink href={route('materiales.index')}>
                                         Materiales
                                     </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('puestos.index')}>
+                                        Puestos
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('organismos.index')}>
+                                        Organismos
+                                    </ResponsiveNavLink>
                                     <ResponsiveNavLink href={route('unidades-medida.index')}>
                                         Unidades de Medida
                                     </ResponsiveNavLink>
@@ -486,7 +498,7 @@ export default function AuthenticatedLayout({ header, children }) {
 
                         <div className="mt-3 space-y-1">
                             <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
+                                Cambiar Contraseña
                             </ResponsiveNavLink>
                             <ResponsiveNavLink
                                 method="post"

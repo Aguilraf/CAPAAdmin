@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Community extends Model
 {
-    protected $fillable = ['name', 'geolocation'];
+    use \App\Traits\HasOrganismo;
+    protected $fillable = ['name', 'geolocation', 'location_image_path', 'percentage', 'organismo_id'];
 
     public function firefighters()
     {

@@ -13,7 +13,14 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with('roles')->get();
+        $query = User::with('roles');
+
+        $currentUser = auth()->user();
+        if (!$currentUser->hasRole('Administrador') && $currentUser->organismo_id) {
+            $query->where('organismo_id', $currentUser->organismo_id);
+        }
+
+        $users = $query->get();
         return Inertia::render('Users/Index', [
             'users' => $users
         ]);
@@ -23,9 +30,11 @@ class UserController extends Controller
     {
         $roles = Role::all();
         $employees = \App\Models\Empleado::activos()->get(['id', 'nombre']);
+        $organismos = \App\Models\Organismo::all();
         return Inertia::render('Users/Form', [
             'roles' => $roles,
-            'employees' => $employees
+            'employees' => $employees,
+            'organismos' => $organismos
         ]);
     }
 
@@ -36,7 +45,8 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|exists:roles,name',
-            'empleado_id' => 'required|exists:empleados,id'
+            'empleado_id' => 'required|exists:empleados,id',
+            'organismo_id' => 'nullable|exists:organismos,id'
         ]);
 
         $employee = \App\Models\Empleado::find($validated['empleado_id']);
@@ -47,6 +57,7 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'empleado_id' => $validated['empleado_id'],
+            'organismo_id' => $validated['organismo_id'] ?? null,
         ]);
 
         $user->assignRole($validated['role']);
@@ -59,11 +70,13 @@ class UserController extends Controller
         $user->load('roles');
         $roles = Role::all();
         $employees = \App\Models\Empleado::activos()->get(['id', 'nombre']);
+        $organismos = \App\Models\Organismo::all();
 
         return Inertia::render('Users/Form', [
             'user' => $user,
             'roles' => $roles,
             'employees' => $employees,
+            'organismos' => $organismos,
             'currentRole' => $user->roles->first()?->name
         ]);
     }
@@ -75,7 +88,8 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|exists:roles,name',
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'empleado_id' => 'required|exists:empleados,id'
+            'empleado_id' => 'required|exists:empleados,id',
+            'organismo_id' => 'nullable|exists:organismos,id'
         ]);
 
         $employee = \App\Models\Empleado::find($validated['empleado_id']);
@@ -84,6 +98,10 @@ class UserController extends Controller
         $user->username = $validated['username'];
         $user->email = $validated['email'];
         $user->empleado_id = $validated['empleado_id'];
+
+        if (array_key_exists('organismo_id', $validated)) {
+            $user->organismo_id = $validated['organismo_id'];
+        }
 
         if (!empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
