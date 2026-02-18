@@ -154,9 +154,16 @@ class RequirementController extends Controller
             'invoice_folio' => 'nullable|string',
             'invoice_date' => 'nullable|date',
             'provider_rfc' => 'nullable|string',
+            'provider_name' => 'nullable|string',
+            'uuid' => 'nullable|string',
             'viaticos_amount' => 'nullable|numeric|min:0',
             'pasaje_amount' => 'nullable|numeric|min:0',
             'hospedaje_amount' => 'nullable|numeric|min:0',
+            'invoice_subtotal' => 'nullable|numeric',
+            'invoice_iva' => 'nullable|numeric',
+            'invoice_isr' => 'nullable|numeric',
+            'invoice_retention_iva' => 'nullable|numeric',
+            'invoice_total' => 'nullable|numeric',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -231,12 +238,16 @@ class RequirementController extends Controller
                     'invoice_folio' => $validated['invoice_folio'] ?? null,
                     'invoice_date' => $validated['invoice_date'] ?? null,
                     'provider_rfc' => $validated['provider_rfc'] ?? null,
+                    'provider_name' => $validated['provider_name'] ?? null,
+                    'uuid' => $validated['uuid'] ?? null,
                     'total_viaticos' => $validated['viaticos_amount'] ?? 0,
                     'total_pasaje' => $validated['pasaje_amount'] ?? 0,
                     'total_hospedaje' => $validated['hospedaje_amount'] ?? 0,
-                    'subtotal' => $subtotal,
-                    'iva' => $iva,
-                    'total' => $total,
+                    'subtotal' => $validated['invoice_subtotal'] ?? 0,
+                    'iva' => $validated['invoice_iva'] ?? 0,
+                    'isr' => $validated['invoice_isr'] ?? 0,
+                    'retention_iva' => $validated['invoice_retention_iva'] ?? 0,
+                    'total' => $validated['invoice_total'] ?? 0,
                     // For now, Requirement total is calculated from Items (expenses breakdown), so we might redundancy check here or leave 0 if unused on this table directly vs Items.
                     // Actually, the user asked for total breakdown in requirement items too? 
                     // "necesito que se pregunte si se le pagaran viaticos... y cada uno tiene su partida presupuestal"
@@ -339,12 +350,22 @@ class RequirementController extends Controller
             'invoice_folio' => 'nullable|string',
             'invoice_date' => 'nullable|date',
             'provider_rfc' => 'nullable|string',
+            'provider_name' => 'nullable|string',
+            'uuid' => 'nullable|string',
             'viaticos_amount' => 'nullable|numeric|min:0',
             'pasaje_amount' => 'nullable|numeric|min:0',
             'hospedaje_amount' => 'nullable|numeric|min:0',
+            // We use these for invoice data but travel allowance usually sums up the expenses.
+            // If user wants to store invoice specific tax breakdown in travel_allowance table:
+            'invoice_subtotal' => 'nullable|numeric',
+            'invoice_iva' => 'nullable|numeric',
+            'invoice_isr' => 'nullable|numeric',
+            'invoice_retention_iva' => 'nullable|numeric',
+            'invoice_total' => 'nullable|numeric',
         ]);
 
         DB::transaction(function () use ($validated, $requirement) {
+            // ... (Calculation Logic remains same)
             if ($validated['type'] === 'viaticos') {
                 $subtotal = collect($validated['items'])->sum('amount');
                 $iva = 0;
@@ -397,12 +418,17 @@ class RequirementController extends Controller
                         'invoice_folio' => $validated['invoice_folio'] ?? null,
                         'invoice_date' => $validated['invoice_date'] ?? null,
                         'provider_rfc' => $validated['provider_rfc'] ?? null,
-                        'total_viaticos' => $validated['viaticos_amount'] ?? 0,
-                        'total_pasaje' => $validated['pasaje_amount'] ?? 0,
-                        'total_hospedaje' => $validated['hospedaje_amount'] ?? 0,
-                        'subtotal' => $subtotal,
-                        'iva' => $iva,
-                        'total' => $total,
+                        'provider_name' => $validated['provider_name'] ?? null,
+                        'uuid' => $validated['uuid'] ?? null,
+                        // Note: If saving invoice details separately from allowance totals?
+                        // For now we map them if provided, otherwise default to 0
+                        // Caution: The table defaults strictly, but we might overwrite with 0 if not passed.
+                        // Let's only update if passed?
+                        'subtotal' => $validated['invoice_subtotal'] ?? 0,
+                        'iva' => $validated['invoice_iva'] ?? 0,
+                        'isr' => $validated['invoice_isr'] ?? 0,
+                        'retention_iva' => $validated['invoice_retention_iva'] ?? 0,
+                        'total' => $validated['invoice_total'] ?? 0,
                     ]
                 );
             }

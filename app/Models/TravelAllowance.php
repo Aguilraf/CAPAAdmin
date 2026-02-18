@@ -39,9 +39,12 @@ class TravelAllowance extends Model
         'invoice_folio',
         'invoice_date',
         'provider_rfc',
+        'provider_name',
+        'uuid',
         'subtotal',
         'iva',
         'isr',
+        'retention_iva',
         'total',
     ];
 

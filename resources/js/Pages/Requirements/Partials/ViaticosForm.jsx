@@ -559,31 +559,25 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                     if (raw.invoice_date) newData.invoice_date = raw.invoice_date;
                                     if (raw.provider_rfc) newData.provider_rfc = raw.provider_rfc;
 
-                                    // Logic for Amounts? 
-                                    // User said: "subtotal, iva, retencion, total"
-                                    // Where to put them? 
-                                    // Maybe just auto-fill the VIATICOS amount if it matches? 
-                                    // OR create a new PARTIDA item?
-                                    // For now, let's just log or set a "suggested" amount. 
-                                    // User request: "que me traiga los datos... y el total"
-                                    // Let's assume we fill the description and maybe Viaticos Amount if it's empty?
-                                    // Actually, usually this matches a specific expense item. 
-                                    // Let's just fill the basic metadata fields requested.
+                                    // New Fields
+                                    if (raw.provider_name) newData.provider_name = raw.provider_name;
+                                    if (raw.uuid) newData.uuid = raw.uuid;
 
-                                    // Extra fields requested: Description, Subtotal, IVA, Retentions, Total.
-                                    // We don't have separate fields for these in the main form (only in Items/CFE).
-                                    // Use 'commission_summary_legend' for description? Or 'justification'?
-                                    // Let's use 'justification' or 'commission_summary_legend' for Description.
+                                    // Amounts
+                                    if (raw.subtotal) newData.invoice_subtotal = raw.subtotal;
+                                    if (raw.iva) newData.invoice_iva = raw.iva;
+                                    if (raw.retention_isr) newData.invoice_isr = raw.retention_isr;
+                                    if (raw.retention_iva) newData.invoice_retention_iva = raw.retention_iva;
+                                    if (raw.total) newData.invoice_total = raw.total;
+
+                                    // Description map
                                     if (raw.description && !newData.commission_summary_legend) {
                                         newData.commission_summary_legend = raw.description.substring(0, 255);
                                     }
 
                                     setData(newData);
-                                    alert('Datos extraídos del XML correctamente:\n' +
-                                        `Folio: ${raw.invoice_folio}\n` +
-                                        `Fecha: ${raw.invoice_date}\n` +
-                                        `Total: $${raw.total}\n` +
-                                        `Descripción: ${raw.description}`);
+                                    // Alert still useful for confirmation but fields will show data now
+                                    alert('Datos extraídos del XML correctamente.');
                                 })
                                     .catch(error => {
                                         console.error('Error parsing XML', error);
@@ -608,18 +602,52 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <InputLabel value="Folio Fiscal / Factura" />
-                        <TextInput value={data.invoice_folio || ''} onChange={e => setData('invoice_folio', e.target.value)} className="mt-1 block w-full" />
+                        <InputLabel value="UUID (Folio Fiscal)" />
+                        <TextInput value={data.uuid || ''} onChange={e => setData('uuid', e.target.value)} className="mt-1 block w-full text-xs" placeholder="UUID del XML" />
+                    </div>
+                    <div>
+                        <InputLabel value="Folio / Serie Interno" />
+                        <TextInput value={data.invoice_folio || ''} onChange={e => setData('invoice_folio', e.target.value)} className="mt-1 block w-full text-xs" />
                     </div>
                     <div>
                         <InputLabel value="Fecha Factura" />
-                        <TextInput type="date" value={data.invoice_date || ''} onChange={e => setData('invoice_date', e.target.value)} className="mt-1 block w-full" />
+                        <TextInput type="date" value={data.invoice_date || ''} onChange={e => setData('invoice_date', e.target.value)} className="mt-1 block w-full text-xs" />
                     </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <InputLabel value="RFC Proveedor" />
-                        <TextInput value={data.provider_rfc || ''} onChange={e => setData('provider_rfc', e.target.value)} className="mt-1 block w-full" />
+                        <TextInput value={data.provider_rfc || ''} onChange={e => setData('provider_rfc', e.target.value)} className="mt-1 block w-full text-xs" />
+                    </div>
+                    <div>
+                        <InputLabel value="Nombre / Razón Social" />
+                        <TextInput value={data.provider_name || ''} onChange={e => setData('provider_name', e.target.value)} className="mt-1 block w-full text-xs" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 bg-gray-50 p-3 rounded">
+                    <div>
+                        <InputLabel value="Subtotal" />
+                        <TextInput type="number" step="0.01" value={data.invoice_subtotal || ''} onChange={e => setData('invoice_subtotal', e.target.value)} className="mt-1 block w-full text-xs" />
+                    </div>
+                    <div>
+                        <InputLabel value="IVA" />
+                        <TextInput type="number" step="0.01" value={data.invoice_iva || ''} onChange={e => setData('invoice_iva', e.target.value)} className="mt-1 block w-full text-xs" />
+                    </div>
+                    <div>
+                        <InputLabel value="Ret. ISR" />
+                        <TextInput type="number" step="0.01" value={data.invoice_isr || ''} onChange={e => setData('invoice_isr', e.target.value)} className="mt-1 block w-full text-xs" />
+                    </div>
+                    <div>
+                        <InputLabel value="Ret. IVA" />
+                        <TextInput type="number" step="0.01" value={data.invoice_retention_iva || ''} onChange={e => setData('invoice_retention_iva', e.target.value)} className="mt-1 block w-full text-xs" />
+                    </div>
+                    <div>
+                        <InputLabel value="Total" />
+                        <TextInput type="number" step="0.01" value={data.invoice_total || ''} onChange={e => setData('invoice_total', e.target.value)} className="mt-1 block w-full text-xs font-bold" />
                     </div>
                 </div>
             </div>
