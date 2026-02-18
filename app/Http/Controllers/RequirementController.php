@@ -53,7 +53,7 @@ class RequirementController extends Controller
         $nextNumber = $latest ? $latest + 1 : 1;
 
         // Fetch Data Directly for Props (No API)
-        $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe')->get();
+        $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe', 'organismo_id')->get();
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get(); // Fetch chapters
 
         // Optimización: Si partidas son muchas, podríamos mandar solo las más usadas o categorías, 
@@ -61,7 +61,7 @@ class RequirementController extends Controller
         // Mandaremos todo seleccionado campos mínimos.
         // Mandaremos todo seleccionado campos mínimos.
         $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
-        $vehicles = \App\Models\Vehicle::where('active', true)->get();
+        $vehicles = \App\Models\Vehicle::where('active', true)->select('id', 'brand', 'model_year', 'plate_number', 'organismo_id')->get();
 
         // Default Signatories by Job Title
         $defaultCoordinador = Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO%')->first();
@@ -253,10 +253,10 @@ class RequirementController extends Controller
     {
         $requirement->load(['items', 'cfeReceipts', 'travelAllowance']); // Load receipts and travel allowance
 
-        $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe')->get(); // Added fields for Viaticos auto-fill
+        $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe', 'organismo_id')->get(); // Added fields for Viaticos auto-fill
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get();
         $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
-        $vehicles = \App\Models\Vehicle::where('active', true)->get();
+        $vehicles = \App\Models\Vehicle::where('active', true)->select('id', 'brand', 'model_year', 'plate_number', 'organismo_id')->get();
 
         // Fetch year legend for edit (based on requirement year)
         $leyenda = \App\Models\Leyenda::where('anio', $requirement->year)->first();
@@ -567,5 +567,105 @@ class RequirementController extends Controller
         ]);
 
         return $pdf->setPaper('letter', 'portrait')->download('Relacion_CFE_' . str_replace('/', '-', $requirement->formatted_number) . '.pdf');
+    }
+    public function parseXml(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xml',
+        ]);
+
+        try {
+            $xmlString = file_get_contents($request->file('file')->getRealPath());
+            $xml = simplexml_load_string($xmlString);
+            $ns = $xml->getNamespaces(true);
+            $xml->registerXPathNamespace('cfdi', $ns['cfdi']);
+            $xml->registerXPathNamespace('tfd', $ns['tfd'] ?? 'http://www.sat.gob.mx/TimbreFiscalDigital');
+
+            // Comprobante Data
+            $attributes = $xml->attributes();
+            $total = (float) $attributes['Total'];
+            $subtotal = isset($attributes['SubTotal']) ? (float) $attributes['SubTotal'] : (float) ($attributes['Subtotal'] ?? 0);
+            $fecha = (string) $attributes['Fecha'];
+            $folio = isset($attributes['Folio']) ? (string) $attributes['Folio'] : '';
+            $serie = isset($attributes['Serie']) ? (string) $attributes['Serie'] : '';
+
+            // Emisor Data
+            $emisor = $xml->xpath('//cfdi:Emisor');
+            if (empty($emisor)) {
+                throw new \Exception('No se encontró el nodo Emisor');
+            }
+            $emisorAttributes = $emisor[0]->attributes();
+            $rfcEmisor = (string) $emisorAttributes['Rfc'];
+            $nombreEmisor = (string) $emisorAttributes['Nombre'];
+
+            // Timbre Fiscal Data (UUID)
+            $tfd = $xml->xpath('//tfd:TimbreFiscalDigital');
+            // Manual namespace registration fallback if needed (rare but possible)
+            if (empty($tfd)) {
+                $xml->registerXPathNamespace('tfd', 'http://www.sat.gob.mx/TimbreFiscalDigital');
+                $tfd = $xml->xpath('//tfd:TimbreFiscalDigital');
+            }
+            $uuid = !empty($tfd) ? (string) $tfd[0]['UUID'] : '';
+
+            // Conceptos (Get first description)
+            $conceptos = $xml->xpath('//cfdi:Conceptos/cfdi:Concepto');
+            $descripcion = '';
+            if (!empty($conceptos)) {
+                $descripcion = (string) $conceptos[0]['Descripcion'];
+            }
+
+            // Impuestos (IVA, Retenciones)
+            $traslados = $xml->xpath('//cfdi:Impuestos/cfdi:Traslados/cfdi:Traslado');
+            $iva = 0;
+            foreach ($traslados as $traslado) {
+                if ((string) $traslado['Impuesto'] === '002') { // IVA
+                    $iva += (float) $traslado['Importe'];
+                }
+            }
+
+            $retenciones = $xml->xpath('//cfdi:Impuestos/cfdi:Retenciones/cfdi:Retencion');
+            $retencionIsr = 0;
+            $retencionIva = 0;
+            foreach ($retenciones as $retencion) {
+                if ((string) $retencion['Impuesto'] === '001') { // ISR
+                    $retencionIsr += (float) $retencion['Importe'];
+                }
+                if ((string) $retencion['Impuesto'] === '002') { // IVA
+                    $retencionIva += (float) $retencion['Importe'];
+                }
+            }
+
+            // Fallback for Folio if empty: First 2 groups of UUID
+            $invoiceNumber = $folio ? ($serie ? "$serie-$folio" : $folio) : '';
+            if (empty($invoiceNumber) && $uuid) {
+                $uuidParts = explode('-', $uuid);
+                if (count($uuidParts) >= 2) {
+                    $invoiceNumber = $uuidParts[0] . '-' . $uuidParts[1];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'invoice_folio' => $invoiceNumber,
+                    'invoice_date' => substr($fecha, 0, 10), // YYYY-MM-DD
+                    'provider_rfc' => $rfcEmisor,
+                    'provider_name' => $nombreEmisor, // Optional, might need to store in different field if exists
+                    'description' => $descripcion,
+                    'subtotal' => $subtotal,
+                    'iva' => $iva,
+                    'retention_isr' => $retencionIsr,
+                    'retention_iva' => $retencionIva,
+                    'total' => $total,
+                    'uuid' => $uuid,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar el XML: ' . $e->getMessage()
+            ], 400);
+        }
     }
 }

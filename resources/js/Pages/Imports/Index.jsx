@@ -7,14 +7,22 @@ import { useState } from 'react';
 export default function Index() {
     const { data, setData, post, processing, errors, reset } = useForm({
         file: null,
+        type: 'clasificador', // default
     });
 
     const [fileName, setFileName] = useState(null);
+    const [importType, setImportType] = useState('clasificador');
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         setData('file', file);
         setFileName(file ? file.name : null);
+    };
+
+    const handleTypeChange = (e) => {
+        const newType = e.target.value;
+        setImportType(newType);
+        setData('type', newType);
     };
 
     const submit = (e) => {
@@ -26,6 +34,22 @@ export default function Index() {
                 setFileName(null);
             },
         });
+    };
+
+    const getTemplateUrl = () => {
+        return route('import.template', { type: importType });
+    };
+
+    const getDescription = () => {
+        if (importType === 'vehicles') {
+            return "Sube el archivo Excel con el inventario de vehículos. Asegúrate de seguir la estructura de la plantilla.";
+        }
+        return "Sube el archivo Excel con los Capítulos y Partidas. El sistema detectará automáticamente la estructura y actualizará la base de datos.";
+    };
+
+    const getTitle = () => {
+        if (importType === 'vehicles') return "Cargar Parque Vehicular (Excel)";
+        return "Cargar Clasificador por Objeto del Gasto (Excel)";
     };
 
     return (
@@ -42,20 +66,37 @@ export default function Index() {
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
+
+                            {/* Type Selector */}
+                            <div className="mb-6 max-w-xl">
+                                <label htmlFor="import_type" className="block text-sm font-medium text-gray-700 mb-2">Seleccione el tipo de datos a importar:</label>
+                                <select
+                                    id="import_type"
+                                    value={importType}
+                                    onChange={handleTypeChange}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                >
+                                    <option value="clasificador">Clasificador por Objeto del Gasto</option>
+                                    <option value="vehicles">Parque Vehicular</option>
+                                </select>
+                            </div>
+
+                            <div className="border-t border-gray-200 my-6"></div>
+
                             <h3 className="text-lg font-medium text-gray-900 mb-4">
-                                Cargar Clasificador por Objeto del Gasto (Excel)
+                                {getTitle()}
                             </h3>
                             <p className="mb-6 text-sm text-gray-600">
-                                Sube el archivo Excel con los Capítulos y Partidas. El sistema detectará automáticamente la estructura y actualizará la base de datos.
+                                {getDescription()}
                             </p>
 
                             <div className="mb-6">
                                 <a
-                                    href={route('import.template')}
+                                    href={getTemplateUrl()}
                                     className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150"
                                 >
-                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                    Descargar Plantilla (Layout)
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                    Descargar Plantilla ({importType === 'vehicles' ? 'Vehículos' : 'Clasificador'})
                                 </a>
                             </div>
 

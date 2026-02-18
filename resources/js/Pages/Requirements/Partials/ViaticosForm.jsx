@@ -512,13 +512,18 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                             <select
                                 value={data.vehicle_id || ''}
                                 onChange={e => setData('vehicle_id', e.target.value)}
-                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full text-xs"
                             >
                                 <option value="">Seleccione...</option>
-                                {vehicles.map(v => (
-                                    <option key={v.id} value={v.id}>{v.brand} {v.model} - {v.plate}</option>
-                                ))}
+                                {vehicles
+                                    .filter(v => !selectedEmployee || !selectedEmployee.organismo_id || v.organismo_id == selectedEmployee.organismo_id)
+                                    .map(v => (
+                                        <option key={v.id} value={v.id}>{v.brand} {v.model_year} - {v.plate_number}</option>
+                                    ))}
                             </select>
+                            {selectedEmployee && selectedEmployee.organismo_id && (
+                                <p className="text-xs text-blue-600 mt-1">Filtrado por: {selectedEmployee.organismo_id}</p> // Debug info, maybe remove later or replace with name if available
+                            )}
                         </div>
                     )}
                 </div>
@@ -526,7 +531,83 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
 
             {/* Invoice Data (Fiscal) */}
             <div className="border-t border-blue-200 pt-4">
-                <h4 className="font-semibold text-blue-700 mb-2">Datos de Facturación (Opcional/Preliminar)</h4>
+                <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-blue-700">Datos de Facturación (Opcional/Preliminar)</h4>
+
+                    {/* XML Upload Button */}
+                    <div className="flex items-center">
+                        <input
+                            type="file"
+                            accept=".xml"
+                            id="xml-upload"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (!file) return;
+
+                                const formData = new FormData();
+                                formData.append('file', file);
+
+                                axios.post(route('requirements.parse-xml'), formData, {
+                                    headers: { 'Content-Type': 'multipart/form-data' }
+                                }).then(response => {
+                                    const raw = response.data.data;
+                                    const newData = { ...data };
+
+                                    // Auto-fill fields
+                                    if (raw.invoice_folio) newData.invoice_folio = raw.invoice_folio;
+                                    if (raw.invoice_date) newData.invoice_date = raw.invoice_date;
+                                    if (raw.provider_rfc) newData.provider_rfc = raw.provider_rfc;
+
+                                    // Logic for Amounts? 
+                                    // User said: "subtotal, iva, retencion, total"
+                                    // Where to put them? 
+                                    // Maybe just auto-fill the VIATICOS amount if it matches? 
+                                    // OR create a new PARTIDA item?
+                                    // For now, let's just log or set a "suggested" amount. 
+                                    // User request: "que me traiga los datos... y el total"
+                                    // Let's assume we fill the description and maybe Viaticos Amount if it's empty?
+                                    // Actually, usually this matches a specific expense item. 
+                                    // Let's just fill the basic metadata fields requested.
+
+                                    // Extra fields requested: Description, Subtotal, IVA, Retentions, Total.
+                                    // We don't have separate fields for these in the main form (only in Items/CFE).
+                                    // Use 'commission_summary_legend' for description? Or 'justification'?
+                                    // Let's use 'justification' or 'commission_summary_legend' for Description.
+                                    if (raw.description && !newData.commission_summary_legend) {
+                                        newData.commission_summary_legend = raw.description.substring(0, 255);
+                                    }
+
+                                    setData(newData);
+                                    alert('Datos extraídos del XML correctamente:\n' +
+                                        `Folio: ${raw.invoice_folio}\n` +
+                                        `Fecha: ${raw.invoice_date}\n` +
+                                        `Total: $${raw.total}\n` +
+                                        `Descripción: ${raw.description}`);
+                                })
+                                    .catch(error => {
+                                        console.error('Error parsing XML', error);
+                                        let msg = 'Error al leer el XML.';
+                                        if (error.response && error.response.data && error.response.data.message) {
+                                            msg += ' ' + error.response.data.message;
+                                        } else {
+                                            msg += ' Verifique que sea un CFDI válido.';
+                                        }
+                                        alert(msg);
+                                    });
+                                // Reset input
+                                e.target.value = '';
+                            }}
+                        />
+                        <label
+                            htmlFor="xml-upload"
+                            className="cursor-pointer inline-flex items-center px-3 py-1 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 focus:outline-none focus:border-green-700 focus:ring-green active:bg-green-700 disabled:opacity-25 transition"
+                        >
+                            📤 Subir Factura XML
+                        </label>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <InputLabel value="Folio Fiscal / Factura" />

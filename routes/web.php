@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function () {
 
     // Modulo de Requerimientos
     Route::middleware(['auth'])->group(function () {
+        Route::post('requirements/parse-xml', [\App\Http\Controllers\RequirementController::class, 'parseXml'])->name('requirements.parse-xml');
         Route::resource('requirements', \App\Http\Controllers\RequirementController::class);
         Route::get('requirements/{requirement}/pdf', [\App\Http\Controllers\RequirementController::class, 'downloadPdf'])->name('requirements.pdf');
         Route::get('requirements/{requirement}/cfe-relation', [\App\Http\Controllers\RequirementController::class, 'downloadCfeRelation'])->name('requirements.cfe-relation');

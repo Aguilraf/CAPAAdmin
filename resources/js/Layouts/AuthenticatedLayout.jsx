@@ -142,6 +142,8 @@ export default function AuthenticatedLayout({ header, children }) {
                                                     <div className="border-t border-gray-100"></div>
                                                     <Dropdown.Link href={route('travel-allowance-rates.index')}>Viáticos, Hospedaje y Pasaje</Dropdown.Link>
                                                     <div className="border-t border-gray-100"></div>
+                                                    <Dropdown.Link href={route('vehicles.index')}>Parque Vehicular</Dropdown.Link>
+                                                    <div className="border-t border-gray-100"></div>
                                                     <Dropdown.Link href={route('puestos.index')}>Puestos</Dropdown.Link>
                                                 </Dropdown.Content>
                                             </Dropdown>
@@ -467,6 +469,9 @@ export default function AuthenticatedLayout({ header, children }) {
                                     </ResponsiveNavLink>
                                     <ResponsiveNavLink href={route('unidades-medida.index')}>
                                         Unidades de Medida
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('vehicles.index')}>
+                                        Parque Vehicular
                                     </ResponsiveNavLink>
                                     <ResponsiveNavLink href={route('roles.index')}>
                                         Roles y Permisos

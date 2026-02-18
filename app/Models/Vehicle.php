@@ -11,19 +11,31 @@ class Vehicle extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'organismo_id',
         'inventory_number',
-        'unit_number',
+        'unit_type',
         'brand',
-        'type',
+        'vehicle_type',
         'color',
-        'model',
+        'model_year',
         'serial_number',
-        'motor_number',
-        'assignee_area',
-        'plate',
-        'resguardante',
+        'engine_number',
+        'invoice_number',
+        'supplier',
+        'policy_number',
+        'area',
+        'location',
+        'sub_location',
+        'custodian',
+        'plate_number',
+        'photo_path',
         'active',
     ];
+
+    public function organismo()
+    {
+        return $this->belongsTo(\App\Models\Organismo::class);
+    }
 
     protected $casts = [
         'active' => 'boolean',
