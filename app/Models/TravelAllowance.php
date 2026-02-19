@@ -41,6 +41,8 @@ class TravelAllowance extends Model
         'provider_rfc',
         'provider_name',
         'uuid',
+        'report_date',
+        'report_link',
         'subtotal',
         'iva',
         'isr',
@@ -60,6 +62,7 @@ class TravelAllowance extends Model
         'iva' => 'decimal:2',
         'isr' => 'decimal:2',
         'total' => 'decimal:2',
+        'report_date' => 'date',
     ];
 
     public function requirement()
@@ -75,6 +78,13 @@ class TravelAllowance extends Model
     public function vehicle()
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function commissioners()
+    {
+        return $this->belongsToMany(Empleado::class, 'travel_allowance_commissioners', 'travel_allowance_id', 'employee_id')
+            ->withPivot(['oficio_number', 'report_date', 'report_link'])
+            ->withTimestamps();
     }
 
     public function viaticosPartida()

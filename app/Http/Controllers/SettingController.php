@@ -21,6 +21,7 @@ class SettingController extends Controller
         $keys = [
             'logo_qroo',
             'logo_unidos',
+            'logo_capa_header',
             'logo_capa',
             'footer_organismo',
             'footer_direccion',
@@ -61,6 +62,7 @@ class SettingController extends Controller
         $request->validate([
             'logo_qroo' => 'nullable|image|max:2048', // 2MB Max
             'logo_unidos' => 'nullable|image|max:2048',
+            'logo_capa_header' => 'nullable|image|max:2048',
             'logo_capa' => 'nullable|image|max:2048',
             'footer_organismo' => 'nullable|string|max:255',
             'footer_direccion' => 'nullable|string|max:255',
@@ -71,7 +73,7 @@ class SettingController extends Controller
         ]);
 
         // Handle File Uploads
-        $fileKeys = ['logo_qroo', 'logo_unidos', 'logo_capa', 'footer_imagen'];
+        $fileKeys = ['logo_qroo', 'logo_unidos', 'logo_capa_header', 'logo_capa', 'footer_imagen'];
 
         foreach ($fileKeys as $key) {
             if ($request->hasFile($key)) {

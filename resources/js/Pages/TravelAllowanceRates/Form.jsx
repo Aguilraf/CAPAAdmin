@@ -156,6 +156,20 @@ export default function Form({ data, setData, errors, processing, submitLabel, o
                     <InputError message={errors.year} className="mt-2" />
                 </div>
 
+                {/* Clave Presupuestal */}
+                <div className="col-span-1 md:col-span-2">
+                    <InputLabel htmlFor="budget_code" value="Clave Presupuestal (Anexo 2)" />
+                    <TextInput
+                        id="budget_code"
+                        type="text"
+                        value={data.budget_code || ''}
+                        onChange={(e) => setData('budget_code', e.target.value)}
+                        className="mt-1 block w-full"
+                        placeholder="Ej: 2621125263262131211E027C012611000010600137501..."
+                    />
+                    <InputError message={errors.budget_code} className="mt-2" />
+                </div>
+
                 {/* Active */}
                 <div className="flex items-center mt-6">
                     <input

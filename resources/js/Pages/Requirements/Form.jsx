@@ -41,6 +41,19 @@ export default function RequirementForm({
     const defaultManager = employees.find(e => e.puesto && e.puesto.toLowerCase().includes('gerente'));
     const defaultElaborator = employees.find(e => e.puesto && e.puesto.toUpperCase() === 'SUBGERENTE ADMINISTRATIVO');
 
+
+    // Helper to format date for datetime-local input
+    const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+            return dateString.replace(' ', 'T').substring(0, 16);
+        }
+        if (typeof dateString === 'string' && dateString.includes('T')) {
+            return dateString.substring(0, 16);
+        }
+        return dateString;
+    };
+
     const { data, setData, post, put, processing, errors } = useForm({
         year: initialData.year || year,
         requirement_number: initialData.requirement_number || nextNumber,
@@ -60,7 +73,43 @@ export default function RequirementForm({
         cfe_receipts: initialData.cfe_receipts || [], // New State for CFE Receipts
 
         // Setup Viaticos Default
-        commission_summary_legend: initialData.travel_allowance ? initialData.travel_allowance.commission_summary_legend : defaultLegend,
+        commission_summary_legend: initialData.travel_allowance?.commission_summary_legend || defaultLegend,
+        exercise_year: initialData.travel_allowance?.exercise_year || new Date().getFullYear(),
+        quarter: initialData.travel_allowance?.quarter || '',
+
+        // Origin / Destination
+        origin_country: initialData.travel_allowance?.origin_country || 'México',
+        origin_state: initialData.travel_allowance?.origin_state || 'Quintana Roo',
+        origin_city: initialData.travel_allowance?.origin_city || 'José María Morelos',
+        destination_country: initialData.travel_allowance?.destination_country || 'México',
+        destination_state: initialData.travel_allowance?.destination_state || '',
+        destination_city: initialData.travel_allowance?.destination_city || '',
+
+        // Dates & Duration
+        departure_date: formatDateForInput(initialData.travel_allowance?.departure_date),
+        return_date: formatDateForInput(initialData.travel_allowance?.return_date),
+        days_duration: initialData.travel_allowance?.days_duration || 1,
+        half_day_payment: (initialData.travel_allowance?.half_day_payment == 1 || initialData.travel_allowance?.half_day_payment === true) ? true : false,
+        justification: initialData.travel_allowance?.justification || '',
+
+        // Transport
+        transport_type: initialData.travel_allowance?.transport_type || 'Oficial',
+        vehicle_id: initialData.travel_allowance?.vehicle_id || '',
+
+        // Booleans & Amounts (if needed for editing logic, though mostly calculated)
+        has_viaticos: initialData.travel_allowance?.has_viaticos ? Boolean(initialData.travel_allowance.has_viaticos) : false,
+        viaticos_partida_id: initialData.travel_allowance?.viaticos_partida_id || '',
+        has_pasaje: initialData.travel_allowance?.has_pasaje ? Boolean(initialData.travel_allowance.has_pasaje) : false,
+        pasaje_partida_id: initialData.travel_allowance?.pasaje_partida_id || '',
+        has_hospedaje: initialData.travel_allowance?.has_hospedaje ? Boolean(initialData.travel_allowance.has_hospedaje) : false,
+        hospedaje_partida_id: initialData.travel_allowance?.hospedaje_partida_id || '',
+
+        commissioners_details: initialData.travel_allowance && initialData.travel_allowance.commissioners
+            ? initialData.travel_allowance.commissioners.map(c => ({
+                id: c.id,
+                oficio_number: c.pivot?.oficio_number || ''
+            }))
+            : [],
 
         ...initialData
     });
@@ -83,6 +132,12 @@ export default function RequirementForm({
             finalSub = sumSub;
             finalIva = sumIva;
             finalTotal = sumTotal;
+        } else if (data.type === 'viaticos') {
+            // Viaticos Logic: Sum items directly (amount includes relevant taxes or is exempt)
+            const sub = data.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+            finalSub = sub;
+            finalIva = 0; // Or sum specific IVA if tracked, but for now 0 as per controller
+            finalTotal = finalSub;
         } else {
             // Standard Logic: Sum items + 16% IVA
             const sub = data.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
@@ -508,67 +563,64 @@ export default function RequirementForm({
 
             {/* Conditional Rendering: If CFE, we mainly show Summary Item + Receipts Table */}
 
-            <div className="border p-4 rounded-md">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">
-                        {data.type === 'cfe' ? 'Resumen de Partida (Contable)' : 'Partidas / Conceptos'}
-                    </h3>
-                    {data.type !== 'cfe' && data.type !== 'viaticos' && <SecondaryButton onClick={addItem} type="button">Agregar Partida</SecondaryButton>}
-                </div>
-
-                {data.items.map((item, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-4 items-start border-b pb-4">
-                        <div className="col-span-1 md:col-span-3">
-                            <InputLabel value="Capítulo" className="text-xs" />
-                            <select
-                                value={item.capitulo_id}
-                                onChange={e => updateItem(index, 'capitulo_id', e.target.value)}
-                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
-                                disabled={data.type === 'cfe' || data.type === 'viaticos'} // Lock for CFE and Viaticos
-                            >
-                                <option value="">Seleccione...</option>
-                                {capitulos.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>)}
-                            </select>
-                        </div>
-                        <div className="col-span-1 md:col-span-3">
-                            <InputLabel value="Partida" className="text-xs" />
-                            <select
-                                value={item.partida_id}
-                                onChange={e => updateItem(index, 'partida_id', e.target.value)}
-                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
-                                disabled={!item.capitulo_id || data.type === 'cfe' || data.type === 'viaticos'}
-                            >
-                                <option value="">Seleccione...</option>
-                                {partidas.filter(p => !item.capitulo_id || p.capitulo_id == item.capitulo_id).map(p => (
-                                    <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="col-span-1 md:col-span-3 space-y-1">
-                            <InputLabel value="Descripción" className="text-xs" />
-                            <TextInput
-                                value={item.description}
-                                onChange={e => updateItem(index, 'description', e.target.value)}
-                                className="w-full text-sm"
-                            />
-                        </div>
-                        <div className="col-span-1 md:col-span-2">
-                            <InputLabel value="Importe" className="text-xs" />
-                            <TextInput
-                                type="number" step="0.01" value={item.amount}
-                                onChange={e => updateItem(index, 'amount', e.target.value)}
-                                className="w-full text-sm"
-                                readOnly={data.type === 'cfe' || data.type === 'viaticos'} // Lock amount for CFE and Viaticos (calculated)
-                            />
-                        </div>
-                        <div className="col-span-1 md:col-span-1 flex items-center justify-center pt-6">
-                            {data.type !== 'cfe' && data.type !== 'viaticos' && (
-                                <button type="button" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 font-bold">X</button>
-                            )}
-                        </div>
+            {/* Standard Items List - HIDE for CFE and Viaticos (Viaticos has its own table) */}
+            {data.type !== 'cfe' && data.type !== 'viaticos' && (
+                <div className="border p-4 rounded-md">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-medium">Partidas / Conceptos</h3>
+                        <SecondaryButton onClick={addItem} type="button">Agregar Partida</SecondaryButton>
                     </div>
-                ))}
-            </div>
+
+                    {data.items.map((item, index) => (
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-4 items-start border-b pb-4">
+                            <div className="col-span-1 md:col-span-3">
+                                <InputLabel value="Capítulo" className="text-xs" />
+                                <select
+                                    value={item.capitulo_id}
+                                    onChange={e => updateItem(index, 'capitulo_id', e.target.value)}
+                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
+                                >
+                                    <option value="">Seleccione...</option>
+                                    {capitulos.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-span-1 md:col-span-3">
+                                <InputLabel value="Partida" className="text-xs" />
+                                <select
+                                    value={item.partida_id}
+                                    onChange={e => updateItem(index, 'partida_id', e.target.value)}
+                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
+                                    disabled={!item.capitulo_id}
+                                >
+                                    <option value="">Seleccione...</option>
+                                    {partidas.filter(p => !item.capitulo_id || p.capitulo_id == item.capitulo_id).map(p => (
+                                        <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="col-span-1 md:col-span-3 space-y-1">
+                                <InputLabel value="Descripción" className="text-xs" />
+                                <TextInput
+                                    value={item.description}
+                                    onChange={e => updateItem(index, 'description', e.target.value)}
+                                    className="w-full text-sm"
+                                />
+                            </div>
+                            <div className="col-span-1 md:col-span-2">
+                                <InputLabel value="Importe" className="text-xs" />
+                                <TextInput
+                                    type="number" step="0.01" value={item.amount}
+                                    onChange={e => updateItem(index, 'amount', e.target.value)}
+                                    className="w-full text-sm"
+                                />
+                            </div>
+                            <div className="col-span-1 md:col-span-1 flex items-center justify-center pt-6">
+                                <button type="button" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 font-bold">X</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* CFE Receipts Table */}
             {data.type === 'cfe' && data.cfe_receipts && data.cfe_receipts.length > 0 && (
@@ -663,7 +715,7 @@ export default function RequirementForm({
                         {employees.map(e => <option key={e.id} value={e.id}>{e.nombre} - {e.puesto}</option>)}
                     </select>
                 </div>
-                {data.type !== 'cfe' && (
+                {data.type !== 'cfe' && data.type !== 'viaticos' && (
                     <div>
                         <InputLabel value="Director Rec. Mat." />
                         <select

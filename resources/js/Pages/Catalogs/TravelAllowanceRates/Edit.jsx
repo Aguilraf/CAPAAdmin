@@ -127,6 +127,19 @@ export default function Edit({ auth, rate, partidas }) {
                                         <InputError message={errors.zona_2_amount} className="mt-2" />
                                     </div>
 
+                                    {/* Clave Presupuestal */}
+                                    <div className="col-span-2">
+                                        <InputLabel for="budget_code" value="Clave Presupuestal (Anexo 2)" />
+                                        <TextInput
+                                            id="budget_code"
+                                            className="mt-1 block w-full"
+                                            value={data.budget_code}
+                                            onChange={(e) => setData('budget_code', e.target.value)}
+                                            placeholder="Ej: 2621125263262131211E027C012611000010600137501..."
+                                        />
+                                        <InputError message={errors.budget_code} className="mt-2" />
+                                    </div>
+
                                     {/* Partida */}
                                     <div className="col-span-2">
                                         <InputLabel for="partida_id" value="Partida Presupuestal Asociada" />

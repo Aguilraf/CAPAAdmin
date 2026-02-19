@@ -79,6 +79,7 @@ function SystemSettingsForm({ initialSettings }) {
     const { data, setData, post, processing, errors } = useForm({
         logo_qroo: null,
         logo_unidos: null,
+        logo_capa_header: null,
         logo_capa: null,
         footer_organismo: initialSettings.footer_organismo || '',
         footer_direccion: initialSettings.footer_direccion || '',
@@ -107,7 +108,7 @@ function SystemSettingsForm({ initialSettings }) {
                 {/* Logo QROO */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-8">
                     <div>
-                        <InputLabel value="Logo Gobierno Quintana Roo (Cabecera Izquierda)" className="mb-2" />
+                        <InputLabel value="Logo Escudo del Estado (Anexo 2 - Izquierda)" className="mb-2" />
                         <input
                             type="file"
                             onChange={e => setData('logo_qroo', e.target.files[0])}
@@ -128,7 +129,7 @@ function SystemSettingsForm({ initialSettings }) {
                 {/* Logo Unidos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-8">
                     <div>
-                        <InputLabel value="Logo Unidos para Transformar (Cabecera Derecha)" className="mb-2" />
+                        <InputLabel value="Logo Unidos para Transformar (Anexo 2 - Junto al Escudo)" className="mb-2" />
                         <input
                             type="file"
                             onChange={e => setData('logo_unidos', e.target.files[0])}
@@ -146,10 +147,31 @@ function SystemSettingsForm({ initialSettings }) {
                     </div>
                 </div>
 
-                {/* Logo CAPA */}
+                {/* Logo CAPA Header */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-8">
+                    <div>
+                        <InputLabel value="Logo CAPA (Anexo 2 - Cabecera Derecha)" className="mb-2" />
+                        <input
+                            type="file"
+                            onChange={e => setData('logo_capa_header', e.target.files[0])}
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            accept="image/*"
+                        />
+                        {errors.logo_capa_header && <div className="text-red-600 mt-1 text-xs">{errors.logo_capa_header}</div>}
+                    </div>
+                    <div className="border p-4 rounded flex justify-center bg-gray-50 h-32 items-center">
+                        {initialSettings.logo_capa_header ? (
+                            <img src={getLogoUrl(initialSettings.logo_capa_header)} className="max-h-full object-contain" alt="Logo CAPA Header" />
+                        ) : (
+                            <span className="text-gray-400 text-sm">Sin imagen</span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Logo CAPA Footer */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                     <div>
-                        <InputLabel value="Logo CAPA (Pie de Página)" className="mb-2" />
+                        <InputLabel value="Logo CAPA (Reportes - Pie de Página)" className="mb-2" />
                         <input
                             type="file"
                             onChange={e => setData('logo_capa', e.target.files[0])}

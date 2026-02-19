@@ -69,7 +69,38 @@ export default function Index({ auth, requirements, filters, types }) {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <a href={route('requirements.pdf', req.id)} className="text-blue-600 hover:text-blue-900 mr-4" target="_blank">PDF</a>
+                                                <a href={route('requirements.pdf', req.id)} className="text-blue-600 hover:text-blue-900 mr-4" title="Requerimiento PDF" target="_blank">PDF</a>
+                                                {req.type === 'viaticos' && (
+                                                    <div className="flex flex-col gap-1 mt-1">
+
+                                                        {req.travel_allowance && req.travel_allowance.commissioners && req.travel_allowance.commissioners.length > 0 && (
+                                                            <div className="flex flex-col gap-2 mt-2 items-end">
+                                                                {req.travel_allowance.commissioners.map(comm => (
+                                                                    <div key={comm.id} className="flex items-center gap-2 text-[10px]">
+                                                                        <span className="font-bold text-gray-500 uppercase">{comm.primer_apellido}:</span>
+                                                                        <a
+                                                                            href={route('requirements.anexo-2', [req.id, comm.id])}
+                                                                            className="text-purple-600 hover:text-purple-800 font-semibold"
+                                                                            target="_blank"
+                                                                            title="Descargar Anexo 2"
+                                                                        >
+                                                                            ANEXO 2
+                                                                        </a>
+                                                                        <span className="text-gray-300">|</span>
+                                                                        <a
+                                                                            href={route('requirements.comprobacion-viaticos', [req.id, comm.id])}
+                                                                            className="text-orange-600 hover:text-orange-800 font-semibold"
+                                                                            target="_blank"
+                                                                            title="Descargar Comprobación"
+                                                                        >
+                                                                            COMPROBACIÓN
+                                                                        </a>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 {req.type === 'cfe' && (
                                                     <a href={route('requirements.cfe-relation', req.id)} className="text-green-600 hover:text-green-900 mr-4" target="_blank">Relación</a>
                                                 )}

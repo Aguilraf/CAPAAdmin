@@ -61,7 +61,21 @@ class Empleado extends Model
         'fecha_nacimiento' => 'date',
     ];
 
-    protected $appends = ['antiguedad'];
+    protected $appends = ['antiguedad', 'nombre_completo'];
+
+    public function getNombreCompletoAttribute()
+    {
+        // Check if nombre already contains the surnames to avoid duplication
+        // Basic check: does nombre end with the surnames?
+        $nombre = trim($this->nombre);
+        $apellidos = trim("{$this->primer_apellido} {$this->segundo_apellido}");
+
+        if (!empty($apellidos) && str_contains($nombre, $apellidos)) {
+            return $nombre;
+        }
+
+        return trim("{$nombre} {$apellidos}");
+    }
 
     /**
      * Calcula la antigüedad en años, meses y días.

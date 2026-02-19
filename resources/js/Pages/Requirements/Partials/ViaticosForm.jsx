@@ -6,229 +6,330 @@ import SecondaryButton from '@/Components/SecondaryButton';
 
 export default function ViaticosForm({ data, setData, employees, partidas, vehicles, travelAllowanceRates = [] }) {
 
-    // Initialize Pasajes List State (Default 37201 if empty)
-    const [pasajesList, setPasajesList] = useState(() => {
-        // Try to reconstruct from data items if editing, else default
-        // For simplicity in Create mode, start with one default.
-        // In Edit mode, we might need to parse existing items, but data.items is complex.
-        // Let's rely on data.pasaje_items if we decide to store it there, 
-        // or just default to 37201 for now as per user request.
-        // If data.pasaje_partida_id exists, use it.
-        const defaultPasaje = partidas.find(p => p.codigo === '37201');
-        return [{
-            id: Date.now(),
-            partida_id: data.pasaje_partida_id || (defaultPasaje ? defaultPasaje.id : ''),
-            amount: data.pasaje_amount || 0
-        }];
+    // Local state for the "Add Expense" form
+    const [expenseForm, setExpenseForm] = useState({
+        employee_id: '',
+        type: 'Viaticos', // Viaticos, Pasaje, Hospedaje
+        amount: '',
+        description: '',
+        uuid: '',
+        invoice_folio: '',
+        invoice_date: '',
+        provider_rfc: '',
+        provider_name: '',
+        invoice_subtotal: '',
+        invoice_iva: '',
+        invoice_retention_isr: '',
+        invoice_retention_iva: '',
+        invoice_total: '',
+        xml_file: null // Just for UI ref
     });
 
-    // Auto-fill Employee Data
-    const handleCommissionerChange = (e) => {
-        const empId = e.target.value;
-        setData(prev => ({ ...prev, commissioner_id: empId }));
+    // Helper to get employee object by ID
+    const getEmployee = (id) => employees.find(e => e.id == id);
+
+    // Helper: Get Authorized Daily Rate for Employee
+    const getAuthorizedLimit = (employeeId) => {
+        const emp = getEmployee(employeeId);
+        if (!emp) return 0;
+
+        // Find rate based on Nivel and Year
+        const rate = travelAllowanceRates.find(r =>
+            r.year == (data.year || new Date().getFullYear()) &&
+            r.nivel === emp.nivel &&
+            r.rate_type === 'Viaticos' // Ensure we pick Viaticos rate
+        );
+
+        // Default to Zona 1 for now (or implement zone logic if needed)
+        // If "half_day_payment" is checked, maybe reduce? User didn't specify, but usually it's full day unless specified.
+        // Actually, previous task mentioned "Half Day". Let's check matching logic.
+        // For now, simple daily rate.
+        return rate ? parseFloat(rate.zona_1_amount) : 0;
     };
 
-    const selectedEmployee = employees.find(e => e.id == data.commissioner_id);
-
-    // Auto-fill amounts from rates catalog
+    // Initialize Commissioner List State (for UI)
     useEffect(() => {
-        if (!selectedEmployee || !data.destination_state || travelAllowanceRates.length === 0) {
+        if (!data.commissioners_details) {
+            setData(prev => ({ ...prev, commissioners_details: [] }));
+        }
+        // Ensure items is initialized
+        if (!data.items) {
+            setData(prev => ({ ...prev, items: [] }));
+        }
+    }, []);
+
+    // Add Commissioner
+    const handleAddCommissioner = (e) => {
+        const empId = e.target.value;
+        if (!empId) return;
+
+        // Prevent duplicates
+        if (data.commissioners_details && data.commissioners_details.some(c => c.id == empId)) {
+            alert('El empleado ya ha sido seleccionado.');
             return;
         }
 
-        const cargo = selectedEmployee.cargo;
-        const nivel = selectedEmployee.nivel;
+        const newDetails = [...(data.commissioners_details || []), {
+            id: parseInt(empId),
+            oficio_number: '',
+            report_date: '',
+            report_link: ''
+        }];
+        setData(prev => ({ ...prev, commissioners_details: newDetails }));
+    };
 
-        // Determine zona based on selection or destination state
-        // Zona I: Quintana Roo (local)
-        // Zona II: Other states (national)
-        const currentZona = data.zona || (data.destination_state?.toLowerCase().includes('quintana roo') ? 'I' : 'II');
-        const zonaField = currentZona === 'I' ? 'zona_1_amount' : 'zona_2_amount';
+    // Remove Commissioner
+    const handleRemoveCommissioner = (index) => {
+        const idToRemove = data.commissioners_details[index].id;
+        const newDetails = [...data.commissioners_details];
+        newDetails.splice(index, 1);
 
-        // Normalize helper
-        const normalize = (str) => str ? str.toString().trim().toUpperCase() : '';
+        // Also remove items associated with this commissioner?
+        // Maybe ask confirmation? For now, we keep them or filter them?
+        // Better to remove them to avoid consistency issues.
+        const newItems = (data.items || []).filter(item => item.employee_id != idToRemove);
 
-        // Find rates for this employee's cargo and nivel
-        // Cascading lookup:
-        // 1. Try exact match (Cargo + Nivel)
-        // 2. Try match by Nivel only (if Cargo spelling differs)
+        setData(prev => ({ ...prev, commissioners_details: newDetails, items: newItems }));
+    };
 
-        console.log('ViaticosForm: Auto-filling for', { cargo, nivel, zone: currentZona });
+    // Handle XML Upload for Expense Form
+    const handleExpenseXmlUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        const findRate = (type) => {
-            // 1. Exact Match
-            let rate = travelAllowanceRates.find(
-                r => normalize(r.cargo) === normalize(cargo) && normalize(r.nivel) === normalize(nivel) && r.rate_type === type
-            );
+        const formData = new FormData();
+        formData.append('file', file);
 
-            // 2. Nivel Match (Fallback)
-            if (!rate) {
-                rate = travelAllowanceRates.find(
-                    r => normalize(r.nivel) === normalize(nivel) && r.rate_type === type
-                );
-                if (rate) console.log(`Found ${type} rate by Nivel match only:`, rate);
-            } else {
-                console.log(`Found ${type} rate by Exact match:`, rate);
-            }
-            return rate;
+        axios.post(route('requirements.parse-xml'), formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }).then(response => {
+            const raw = response.data.data;
+            setExpenseForm(prev => ({
+                ...prev,
+                uuid: raw.uuid,
+                invoice_folio: raw.invoice_folio,
+                invoice_date: raw.invoice_date,
+                provider_rfc: raw.provider_rfc,
+                provider_name: raw.provider_name,
+                amount: raw.total, // Auto-fill amount from XML total
+                invoice_subtotal: raw.subtotal,
+                invoice_iva: raw.iva,
+                invoice_retention_isr: raw.retention_isr,
+                invoice_retention_iva: raw.retention_iva,
+                invoice_total: raw.total,
+                description: prev.description || raw.description.substring(0, 255)
+            }));
+            alert('Datos fiscales extraídos. Verifique el monto y concepto.');
+        }).catch(error => {
+            console.error('Error parsing XML', error);
+            alert('Error al leer el XML.');
+        });
+    };
+
+    // Add Expense Item
+    const handleAddExpense = () => {
+        if (!expenseForm.employee_id) {
+            alert('Seleccione un comisionado.');
+            return;
+        }
+        if (!expenseForm.amount || parseFloat(expenseForm.amount) <= 0) {
+            alert('Ingrese un monto válido.');
+            return;
+        }
+
+        // Determine Partida ID based on Type
+        let partidaId = null;
+        let partidaCodigo = '';
+        if (expenseForm.type === 'Viaticos') {
+            const p = partidas.find(pt => pt.codigo === '37501');
+            if (p) { partidaId = p.id; partidaCodigo = '37501'; }
+        } else if (expenseForm.type === 'Hospedaje') {
+            const p = partidas.find(pt => pt.codigo === '37502');
+            if (p) { partidaId = p.id; partidaCodigo = '37502'; }
+        } else if (expenseForm.type === 'Pasaje') {
+            const p = partidas.find(pt => pt.codigo === '37201'); // Default terrestrial
+            if (p) { partidaId = p.id; partidaCodigo = '37201'; }
+        }
+
+        if (!partidaId) {
+            alert('No se encontró la partida presupuestal para este concepto.');
+            return;
+        }
+
+        const newItem = {
+            id: Date.now(), // Temp ID
+            employee_id: expenseForm.employee_id,
+            partida_id: partidaId,
+            partida_codigo: partidaCodigo, // For display/grouping
+            amount: parseFloat(expenseForm.amount),
+            description: expenseForm.description || `${expenseForm.type} - ${getEmployee(expenseForm.employee_id)?.nombre || ''}`,
+            uuid: expenseForm.uuid,
+            invoice_folio: expenseForm.invoice_folio,
+            invoice_date: expenseForm.invoice_date,
+            provider_rfc: expenseForm.provider_rfc,
+            provider_name: expenseForm.provider_name,
+            invoice_subtotal: expenseForm.invoice_subtotal,
+            invoice_iva: expenseForm.invoice_iva,
+            invoice_retention_isr: expenseForm.invoice_retention_isr,
+            invoice_retention_iva: expenseForm.invoice_retention_iva,
+            invoice_total: expenseForm.invoice_total,
+            type: expenseForm.type // Friendly type
         };
 
-        const viaticosRate = findRate('viaticos');
-        const pasajesRate = findRate('pasajes');
-        const hospedajeRate = findRate('hospedaje');
+        const newItems = [...(data.items || []), newItem];
+        setData(prev => ({ ...prev, items: newItems }));
 
-        // Auto-fill amounts if rates found and checkboxes are checked
+        // Reset form (keep employee maybe?)
+        setExpenseForm({
+            employee_id: '',
+            type: 'Viaticos',
+            amount: '',
+            description: '',
+            uuid: '',
+            invoice_folio: '',
+            invoice_date: '',
+            provider_rfc: '',
+            provider_name: '',
+            invoice_subtotal: '',
+            invoice_iva: '',
+            invoice_retention_isr: '',
+            invoice_retention_iva: '',
+            invoice_total: '',
+            xml_file: null
+        });
+    };
+
+    const handleRemoveItem = (index) => {
+        const newItems = [...(data.items || [])];
+        newItems.splice(index, 1);
+        setData(prev => ({ ...prev, items: newItems }));
+    };
+
+    // Calculate Totals when Items change
+    useEffect(() => {
+        if (!data.items) return;
+
+        let totalViaticos = 0;
+        let totalPasaje = 0;
+        let totalHospedaje = 0;
+
+        // IDs
+        const viaticosId = partidas.find(p => p.codigo === '37501')?.id;
+        const hospedajeId = partidas.find(p => p.codigo === '37502')?.id;
+        const pasajeId1 = partidas.find(p => p.codigo === '37201')?.id;
+        const pasajeId2 = partidas.find(p => p.codigo === '37301')?.id; // Aereo
+
+        data.items.forEach(item => {
+            const amt = parseFloat(item.amount) || 0;
+            if (item.partida_id == hospedajeId) totalHospedaje += amt; // Hospedaje not capped per plan (usually per invoice)
+            else if (item.partida_id == pasajeId1 || item.partida_id == pasajeId2) totalPasaje += amt;
+        });
+
+        // Calculate Viaticos Capped per Commissioner
+        // Calculate Viaticos Capped per Commissioner
+        let calculatedViaticos = 0;
+        (data.commissioners_details || []).forEach(comm => {
+            const empId = comm.id;
+            const limitPerDay = getAuthorizedLimit(empId);
+            const duration = parseInt(data.days_duration) || 1;
+            const maxAuthorized = limitPerDay * duration;
+
+            // Debugging
+            // console.log('Calc Debug:', { empId, viaticosId, items: data.items });
+
+            // Sum actual expenses for this employee
+            const actualSpent = data.items
+                .filter(item => {
+                    // Loose equality for IDs to handle string/number mismatch
+                    return item.employee_id == empId && item.partida_id == viaticosId;
+                })
+                .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+            // Cap it
+            calculatedViaticos += Math.min(actualSpent, maxAuthorized);
+        });
+
+        // Add uncategorized viaticos (no employee_id)? Or assume correct?
+        // Better: Add non-assigned items directly (fallback)
+        const unassignedViaticos = data.items
+            .filter(item => !item.employee_id && item.partida_id == viaticosId)
+            .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+        totalViaticos = calculatedViaticos + unassignedViaticos;
+
+        // Update headers if changed
         const updates = {};
+        if (data.viaticos_amount !== totalViaticos) updates.viaticos_amount = totalViaticos;
+        if (data.hospedaje_amount !== totalHospedaje) updates.hospedaje_amount = totalHospedaje;
+        if (data.pasaje_amount !== totalPasaje) updates.pasaje_amount = totalPasaje;
 
-        // Hardcode Partida IDs
-        const viaticosPartida = partidas.find(p => p.codigo === '37501');
-        const pasajePartida = partidas.find(p => p.codigo === '37201');
-        const hospedajePartida = partidas.find(p => p.codigo === '37502');
+        // Update Booleans
+        if (totalViaticos > 0 && !data.has_viaticos) updates.has_viaticos = true;
+        if (totalHospedaje > 0 && !data.has_hospedaje) updates.has_hospedaje = true;
+        if (totalPasaje > 0 && !data.has_pasaje) updates.has_pasaje = true;
 
-        if (data.has_viaticos) {
-            if (viaticosPartida) updates.viaticos_partida_id = viaticosPartida.id;
-            if (viaticosRate) {
-                let amount = parseFloat(viaticosRate[zonaField]);
-                if (data.half_day_payment) {
-                    amount = amount / 2;
-                }
-                // Multiply by duration (default to 1 if missing)
-                const duration = parseInt(data.days_duration) || 1;
-                updates.viaticos_amount = (amount * duration).toFixed(2);
-            }
-        }
-
-        // Pasaje Logic - Update first item in list if needed
-        // NOTE: User wants specific behavior for pasajes dropdown (37201, 37301). 
-        // Auto-fill might conflict with manual multiple rows. 
-        // We will only auto-fill the FIRST row if it matches default 37201 and amount is 0.
-        if (data.has_pasaje) {
-            setPasajesList(prev => {
-                const newList = [...prev];
-                if (newList.length > 0 && newList[0].amount == 0 && pasajesRate) {
-                    newList[0].amount = parseFloat(pasajesRate[zonaField]).toFixed(2);
-                }
-                // Also ensure ID is set if empty
-                if (newList.length > 0 && !newList[0].partida_id && pasajePartida) {
-                    newList[0].partida_id = pasajePartida.id;
-                }
-                return newList;
-            });
-        }
-
-        if (data.has_hospedaje) {
-            if (hospedajePartida) updates.hospedaje_partida_id = hospedajePartida.id;
-            if (hospedajeRate && !data.hospedaje_amount) {
-                updates.hospedaje_amount = parseFloat(hospedajeRate[zonaField]).toFixed(2);
-            }
-        }
+        // Set Partida IDs if missing
+        if (totalViaticos > 0 && !data.viaticos_partida_id) updates.viaticos_partida_id = viaticosId;
+        if (totalHospedaje > 0 && !data.hospedaje_partida_id) updates.hospedaje_partida_id = hospedajeId;
+        if (totalPasaje > 0 && !data.pasaje_partida_id) updates.pasaje_partida_id = pasajeId1;
 
         if (Object.keys(updates).length > 0) {
             setData(prev => ({ ...prev, ...updates }));
         }
-    }, [selectedEmployee, data.destination_state, data.has_viaticos, data.has_pasaje, data.has_hospedaje, travelAllowanceRates, partidas, data.half_day_payment, data.days_duration, data.zona]);
 
-    // Calculate Duration
+    }, [data.items, partidas]);
+
+    // Duration Calc (Keep separate)
     useEffect(() => {
         if (data.departure_date && data.return_date) {
             const start = new Date(data.departure_date);
             const end = new Date(data.return_date);
             const diffTime = Math.abs(end - start);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            setData(prev => ({ ...prev, days_duration: diffDays }));
+            setData(prev => ({ ...prev, days_duration: diffDays || 1 }));
         }
     }, [data.departure_date, data.return_date]);
 
-    // Handle Pasajes List Changes
-    const updatePasajeItem = (index, field, value) => {
-        const newList = [...pasajesList];
-        newList[index][field] = value;
-        setPasajesList(newList);
-    };
+    // Adjust Limit Handler
+    const handleAdjustLimit = (employeeId, maxAuthorized) => {
+        const viaticosId = partidas.find(p => p.codigo === '37501')?.id;
+        const employeeItems = data.items
+            .map((item, index) => ({ ...item, originalIndex: index }))
+            .filter(item => item.employee_id == employeeId && item.partida_id === viaticosId);
 
-    const addPasajeItem = () => {
-        // Default to 37301 for second item as requested, or 37201 fallback
-        const defaultNext = partidas.find(p => p.codigo === '37301') || partidas.find(p => p.codigo === '37201');
-        setPasajesList([...pasajesList, { id: Date.now(), partida_id: defaultNext ? defaultNext.id : '', amount: 0 }]);
-    };
+        let currentTotal = employeeItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        let excess = currentTotal - maxAuthorized;
 
-    const removePasajeItem = (index) => {
-        const newList = [...pasajesList];
-        newList.splice(index, 1);
-        setPasajesList(newList);
-    };
+        if (excess <= 0) return;
 
-    // Sync Expenses with Main Items
-    useEffect(() => {
-        const newItems = [];
+        const newItems = [...data.items];
+        // Reduce from the last item backwards
+        for (let i = employeeItems.length - 1; i >= 0; i--) {
+            if (excess <= 0) break;
 
-        const addExpenseItem = (partidaId, description, amount) => {
-            if (partidaId && amount > 0) {
-                const partida = partidas.find(p => p.id == partidaId);
-                if (partida) {
-                    newItems.push({
-                        partida_id: partida.id,
-                        capitulo_id: partida.capitulo_id,
-                        description: description,
-                        amount: parseFloat(amount)
-                    });
-                }
+            const item = employeeItems[i];
+            const originalIndex = item.originalIndex;
+            const currentAmount = parseFloat(item.amount) || 0;
+
+            if (currentAmount > excess) { // Changed >= to > to avoid 0.00 if exact match (though functionally same)
+                newItems[originalIndex].amount = (currentAmount - excess).toFixed(2);
+                excess = 0;
+            } else {
+                newItems[originalIndex].amount = 0;
+                excess -= currentAmount;
             }
-        };
-
-        if (data.has_viaticos) addExpenseItem(data.viaticos_partida_id, 'Viáticos', data.viaticos_amount || 0);
-
-        // Sync Pasajes List
-        let totalPasaje = 0;
-        let mainPasajeId = null;
-
-        if (data.has_pasaje) {
-            pasajesList.forEach((p, idx) => {
-                const amount = parseFloat(p.amount) || 0;
-                totalPasaje += amount;
-                if (idx === 0) mainPasajeId = p.partida_id; // Keep first as main for TravelAllowance table
-                addExpenseItem(p.partida_id, `Pasaje (${idx + 1})`, amount);
-            });
         }
-
-        if (data.has_hospedaje) addExpenseItem(data.hospedaje_partida_id, 'Hospedaje', data.hospedaje_amount || 0);
-
-        // Update Data Props for TravelAllowance (Aggregates)
-        // We need to avoid infinite loops, so check if values changed
-        const updates = {};
-        if (data.pasaje_amount !== totalPasaje) updates.pasaje_amount = totalPasaje;
-        if (data.pasaje_partida_id !== mainPasajeId) updates.pasaje_partida_id = mainPasajeId;
-
-        if (Object.keys(updates).length > 0) {
-            setData(prev => ({ ...prev, ...updates }));
-        }
-
-        // Sync to parent items
-        // NOTE: This comparison is simple (length check), meant to reduce re-renders. 
-        // Real app might need deep compare or just accept re-renders.
-        if (JSON.stringify(newItems) !== JSON.stringify(data.items)) {
-            setData(prev => ({ ...prev, items: newItems }));
-        }
-
-    }, [data.has_viaticos, data.viaticos_partida_id, data.viaticos_amount,
-    data.has_pasaje, pasajesList,
-    data.has_hospedaje, data.hospedaje_partida_id, data.hospedaje_amount]);
+        setData('items', newItems);
+    };
 
 
     return (
         <div className="bg-blue-50 p-6 rounded-lg space-y-6 border border-blue-200">
-            <h3 className="text-lg font-bold text-blue-800">Detalles de Comisión (Viáticos)</h3>
+            <h3 className="text-lg font-bold text-blue-800">Detalles de Comisión (Viáticos Multi-Empleado)</h3>
 
             {/* Header Data */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <InputLabel value="Número de Oficio" />
-                    <TextInput
-                        value={data.oficio_number || ''}
-                        onChange={e => setData('oficio_number', e.target.value)}
-                        className="mt-1 block w-full"
-                    />
-                </div>
+                {/* Oficio Number Removed from Header - Per Commissioner Logic */}
                 <div>
                     <InputLabel value="Ejercicio" />
                     <TextInput
@@ -262,18 +363,119 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                 </div>
             </div>
 
-            {/* Employee Selection & Info */}
+            {/* Fechas y Lugares */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-blue-200 pt-4">
+                <div>
+                    <InputLabel value="Lugar de Origen" />
+                    <div className="grid grid-cols-3 gap-1">
+                        <TextInput placeholder="País" value={data.origin_country || 'México'} onChange={e => setData('origin_country', e.target.value)} className="w-full text-xs" />
+                        <TextInput placeholder="Estado" value={data.origin_state || 'Quintana Roo'} onChange={e => setData('origin_state', e.target.value)} className="w-full text-xs" />
+                        <TextInput placeholder="Ciudad" value={data.origin_city || 'José María Morelos'} onChange={e => setData('origin_city', e.target.value)} className="w-full text-xs" />
+                    </div>
+                </div>
+                <div>
+                    <InputLabel value="Lugar de Destino" />
+                    <div className="grid grid-cols-3 gap-1">
+                        <TextInput placeholder="País" value={data.destination_country || 'México'} onChange={e => setData('destination_country', e.target.value)} className="w-full text-xs" />
+                        <TextInput placeholder="Estado" value={data.destination_state || ''} onChange={e => setData('destination_state', e.target.value)} className="w-full text-xs" />
+                        <TextInput placeholder="Ciudad" value={data.destination_city || ''} onChange={e => setData('destination_city', e.target.value)} className="w-full text-xs" />
+                    </div>
+                </div>
+                <div>
+                    <InputLabel value="Fechas (Salida - Regreso)" />
+                    <div className="grid grid-cols-2 gap-2">
+                        <TextInput type="datetime-local" value={data.departure_date || ''} onChange={e => setData('departure_date', e.target.value)} className="w-full text-xs" />
+                        <TextInput type="datetime-local" value={data.return_date || ''} onChange={e => setData('return_date', e.target.value)} className="w-full text-xs" />
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                        <div className="text-xs text-gray-500">Duración: {data.days_duration} días</div>
+                        <label className="flex items-center space-x-2 text-xs">
+                            <Checkbox
+                                checked={data.half_day_payment || false}
+                                onChange={(e) => setData('half_day_payment', e.target.checked)}
+                            />
+                            <span className="text-gray-700">Pago Medio Día</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            {/* Transporte */}
             <div className="border-t border-blue-200 pt-4">
-                <h4 className="font-semibold text-blue-700 mb-2">Datos del Comisionado</h4>
+                <h4 className="font-semibold text-blue-700 mb-2">Transporte</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <InputLabel value="Seleccionar Empleado" />
+                        <InputLabel value="Tipo de Transporte" />
                         <select
-                            value={data.commissioner_id || ''}
-                            onChange={handleCommissionerChange}
-                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                            value={data.transport_type || 'Oficial'}
+                            onChange={e => setData('transport_type', e.target.value)}
+                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full text-sm"
                         >
-                            <option value="">Seleccione...</option>
+                            <option value="Oficial">Vehículo Oficial</option>
+                            <option value="Particular">Vehículo Particular</option>
+                            <option value="Publico">Transporte Público</option>
+                        </select>
+                    </div>
+
+                    {data.transport_type === 'Oficial' && (
+                        <div className="md:col-span-2">
+                            <InputLabel value="Vehículo Asignado" />
+                            <select
+                                value={data.vehicle_id || ''}
+                                onChange={e => setData('vehicle_id', e.target.value)}
+                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full text-sm"
+                            >
+                                <option value="">Seleccione Vehículo...</option>
+                                {vehicles
+                                    .filter(v => {
+                                        // Show vehicles matching any selected commissioner's organism
+                                        if (!data.commissioners_details || data.commissioners_details.length === 0) return true;
+                                        // Find organisms of selected commissioners
+                                        const selectedOrganisms = data.commissioners_details
+                                            .map(c => getEmployee(c.id)?.organismo_id)
+                                            .filter(Boolean); // Remove nulls
+
+                                        // If no commissioners have organism (unlikely), show all?
+                                        if (selectedOrganisms.length === 0) return true;
+
+                                        return selectedOrganisms.includes(v.organismo_id);
+                                    })
+                                    .map(v => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.brand} {v.model_year} - {v.plate_number}
+                                        </option>
+                                    ))}
+                            </select>
+                            {/* Debug info if no vehicles found */}
+                            {vehicles.length === 0 && <span className="text-xs text-red-500">No hay vehículos registrados.</span>}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Justificacion */}
+            <div className="border-t border-blue-200 pt-4">
+                <InputLabel value="Justificación de la Comisión" />
+                <textarea
+                    value={data.justification || ''}
+                    onChange={e => setData('justification', e.target.value)}
+                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full h-20 text-sm"
+                />
+            </div>
+
+
+            {/* Employee Selection */}
+            <div className="border-t border-blue-200 pt-4">
+                <h4 className="font-semibold text-blue-700 mb-2">1. Seleccionar Comisionados</h4>
+                <div className="flex gap-4 items-end mb-4">
+                    <div className="w-1/2">
+                        <InputLabel value="Agregar Empleado a la Comisión" />
+                        <select
+                            onChange={handleAddCommissioner}
+                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                            value=""
+                        >
+                            <option value="">Seleccione para agregar...</option>
                             {employees.map(e => (
                                 <option key={e.id} value={e.id}>{e.clave} - {e.nombre}</option>
                             ))}
@@ -281,378 +483,285 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                     </div>
                 </div>
 
-                {selectedEmployee && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 bg-white p-3 rounded shadow-sm text-sm">
-                        <div><span className="font-bold">Nombre:</span> {selectedEmployee.primer_nombre || 'N/A'}</div>
-                        <div><span className="font-bold">Primer Apellido:</span> {selectedEmployee.primer_apellido || 'N/A'}</div>
-                        <div><span className="font-bold">Segundo Apellido:</span> {selectedEmployee.segundo_apellido || 'N/A'}</div>
-                        <div><span className="font-bold">Puesto:</span> {selectedEmployee.puesto}</div>
-                        <div><span className="font-bold">Cargo:</span> {selectedEmployee.cargo || 'N/A'}</div>
-                        <div><span className="font-bold">Nivel:</span> {selectedEmployee.nivel}</div>
-                        <div><span className="font-bold">RFC:</span> {selectedEmployee.rfc}</div>
-                        <div><span className="font-bold">Banco:</span> {selectedEmployee.banco || 'N/A'}</div>
-                        <div><span className="font-bold">CLABE:</span> {selectedEmployee.clabe || 'N/A'}</div>
-                        <div><span className="font-bold">Área Adscripción:</span> {selectedEmployee.departamento}</div> {/* Using departamento as area */}
-                        <div><span className="font-bold">Tipo Plaza:</span> {selectedEmployee.categoria || 'N/A'}</div>
-                        <div><span className="font-bold">Sindicalizado:</span> {selectedEmployee.es_sindicalizado ? 'SÍ' : 'NO'}</div>
-                        <div className="col-span-2"><span className="font-bold">Jefe Inmediato:</span> {selectedEmployee.jefe_inmediato || 'N/A'}</div>
+                {/* Selected Commissioners Table */}
+                {data.commissioners_details && data.commissioners_details.length > 0 && (
+                    <div className="overflow-x-auto bg-white rounded shadow-sm border border-blue-100">
+                        <table className="min-w-full text-xs text-left">
+                            <thead className="bg-blue-100 text-blue-800 uppercase font-bold">
+                                <tr>
+                                    <th className="px-3 py-2">Empleado</th>
+                                    <th className="px-3 py-2">N° Oficio</th>
+                                    <th className="px-3 py-2">Fecha Informe</th>
+                                    <th className="px-3 py-2">Link Informe</th>
+                                    <th className="px-3 py-2 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {data.commissioners_details.map((comm, idx) => {
+                                    const emp = getEmployee(comm.id);
+                                    return (
+                                        <tr key={comm.id}>
+                                            <td className="px-3 py-2 font-medium">
+                                                {emp ? `${emp.nombre} ${emp.primer_apellido}` : 'Desconocido'}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    value={comm.oficio_number || ''}
+                                                    onChange={e => {
+                                                        const newDetails = [...data.commissioners_details];
+                                                        newDetails[idx].oficio_number = e.target.value;
+                                                        setData('commissioners_details', newDetails);
+                                                    }}
+                                                    className="w-full text-xs p-1"
+                                                    placeholder="Oficio..."
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    type="date"
+                                                    value={comm.report_date || ''}
+                                                    onChange={e => {
+                                                        const newDetails = [...data.commissioners_details];
+                                                        newDetails[idx].report_date = e.target.value;
+                                                        setData('commissioners_details', newDetails);
+                                                    }}
+                                                    className="w-full text-xs p-1"
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    value={comm.report_link || ''}
+                                                    onChange={e => {
+                                                        const newDetails = [...data.commissioners_details];
+                                                        newDetails[idx].report_link = e.target.value;
+                                                        setData('commissioners_details', newDetails);
+                                                    }}
+                                                    className="w-full text-xs p-1"
+                                                    placeholder="https://..."
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveCommissioner(idx)}
+                                                    className="text-red-500 hover:text-red-700 font-bold"
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </div>
 
-            {/* Travel Details */}
-            <div className="border-t border-blue-200 pt-4">
-                <h4 className="font-semibold text-blue-700 mb-2">Itinerario</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    {/* Origin (Fixed mostly but editable) */}
-                    <div>
-                        <InputLabel value="Origen (País, Edo, Ciudad)" />
-                        <div className="flex space-x-1">
-                            <TextInput value={data.origin_country || 'México'} onChange={e => setData('origin_country', e.target.value)} className="w-1/3 text-xs" placeholder="País" />
-                            <TextInput value={data.origin_state || 'Quintana Roo'} onChange={e => setData('origin_state', e.target.value)} className="w-1/3 text-xs" placeholder="Estado" />
-                            <TextInput value={data.origin_city || 'José María Morelos'} onChange={e => setData('origin_city', e.target.value)} className="w-1/3 text-xs" placeholder="Ciudad" />
-                        </div>
-                    </div>
-                    {/* Destination */}
-                    <div className="col-span-2">
-                        <InputLabel value="Destino (País, Edo, Ciudad)" />
-                        <div className="flex space-x-1">
-                            <TextInput value={data.destination_country || 'México'} onChange={e => setData('destination_country', e.target.value)} className="w-1/3 text-xs" placeholder="País" />
-                            <TextInput value={data.destination_state || ''} onChange={e => setData('destination_state', e.target.value)} className="w-1/3 text-xs" placeholder="Estado" />
-                            <TextInput value={data.destination_city || ''} onChange={e => setData('destination_city', e.target.value)} className="w-1/3 text-xs" placeholder="Ciudad" />
-                        </div>
-                    </div>
-                </div>
+            {/* Expense Entry Section */}
+            <div className="border-t border-blue-200 pt-4 bg-white p-4 rounded shadow-sm">
+                <h4 className="font-semibold text-green-700 mb-2">2. Registrar Gastos Individuales</h4>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                        <InputLabel value="Salida (Fecha/Hora)" />
-                        <TextInput type="datetime-local" value={data.departure_date || ''} onChange={e => setData('departure_date', e.target.value)} className="block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Regreso (Fecha/Hora)" />
-                        <TextInput type="datetime-local" value={data.return_date || ''} onChange={e => setData('return_date', e.target.value)} className="block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Días" />
-                        <TextInput value={data.days_duration || ''} readOnly className="block w-full bg-gray-100" />
-                    </div>
-                    <div className="flex items-center space-x-2 mt-6">
-                        <Checkbox
-                            id="half_day_payment"
-                            checked={data.half_day_payment || false}
-                            onChange={(e) => setData('half_day_payment', e.target.checked)}
-                        />
-                        <label htmlFor="half_day_payment" className="text-sm font-medium text-gray-700">
-                            Medio día
-                        </label>
-                    </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <InputLabel value="Zona" />
+                    {/* Commissioner Dropdown */}
+                    <div className="md:col-span-1">
+                        <InputLabel value="Comisionado" />
                         <select
-                            value={data.zona || (data.destination_state?.toLowerCase().includes('quintana roo') ? 'I' : 'II')}
-                            onChange={e => setData('zona', e.target.value)}
-                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                            value={expenseForm.employee_id}
+                            onChange={e => setExpenseForm(prev => ({ ...prev, employee_id: e.target.value }))}
+                            className="border-gray-300 rounded-md shadow-sm w-full text-sm"
                         >
-                            <option value="I">Zona I (Local / Quintana Roo)</option>
-                            <option value="II">Zona II (Nacional / Otros Estados)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel value="Justificación de la Comisión" />
-                    <textarea
-                        value={data.justification || ''}
-                        onChange={e => setData('justification', e.target.value)}
-                        className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
-                        rows="2"
-                    ></textarea>
-                </div>
-            </div>
-
-            {/* Expenses & Budget Items */}
-            <div className="border-t border-blue-200 pt-4">
-                <h4 className="font-semibold text-blue-700 mb-2">Desglose de Gastos y Partidas</h4>
-                <div className="space-y-3">
-                    {/* Viaticos */}
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center h-5">
-                            <Checkbox
-                                id="has_viaticos"
-                                checked={data.has_viaticos || false}
-                                onChange={(e) => setData('has_viaticos', e.target.checked)}
-                            />
-                        </div>
-                        <div className="text-sm font-medium text-gray-700 w-24">Viáticos</div>
-                        <div className="flex-1">
-                            <div className="text-sm text-gray-600 bg-gray-50 border border-gray-300 rounded-md p-2">
-                                37501 - Viáticos en el país
-                            </div>
-                        </div>
-                        <div className="w-32">
-                            <TextInput
-                                type="number"
-                                placeholder="Importe"
-                                step="0.01"
-                                value={data.viaticos_amount || ''}
-                                onChange={e => setData('viaticos_amount', e.target.value)}
-                                className="mt-1 block w-full text-xs"
-                                disabled={!data.has_viaticos}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Pasajes List */}
-                    <div className="space-y-2 border-l-4 border-indigo-200 pl-4 py-2 my-2">
-                        <div className="flex items-center space-x-4 mb-2">
-                            <div className="flex items-center h-5">
-                                <Checkbox
-                                    id="has_pasaje"
-                                    checked={data.has_pasaje || false}
-                                    onChange={(e) => setData('has_pasaje', e.target.checked)}
-                                />
-                            </div>
-                            <div className="text-sm font-medium text-gray-700">Pasaje</div>
-                        </div>
-
-                        {data.has_pasaje && pasajesList.map((pasaje, index) => (
-                            <div key={pasaje.id} className="flex items-center space-x-4">
-                                <div className="w-8 text-xs text-gray-500 text-right">{index + 1}.</div>
-                                <div className="flex-1">
-                                    <select
-                                        value={pasaje.partida_id || ''}
-                                        onChange={e => updatePasajeItem(index, 'partida_id', e.target.value)}
-                                        className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-xs"
-                                    >
-                                        <option value="">Seleccione Partida...</option>
-                                        {partidas.filter(p => p.codigo === '37201' || p.codigo === '37301').map(p => (
-                                            <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="w-32">
-                                    <TextInput
-                                        type="number"
-                                        placeholder="Importe"
-                                        step="0.01"
-                                        value={pasaje.amount || ''}
-                                        onChange={e => updatePasajeItem(index, 'amount', e.target.value)}
-                                        className="mt-1 block w-full text-xs"
-                                    />
-                                </div>
-                                <div>
-                                    {index > 0 && <button type="button" onClick={() => removePasajeItem(index)} className="text-red-500 font-bold">X</button>}
-                                </div>
-                            </div>
-                        ))}
-
-                        {data.has_pasaje && (
-                            <div className="flex justify-start pl-12 mt-2">
-                                <SecondaryButton onClick={addPasajeItem} type="button" size="sm">
-                                    + Agregar Pasaje (37301)
-                                </SecondaryButton>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Hospedaje */}
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center h-5">
-                            <Checkbox
-                                id="has_hospedaje"
-                                checked={data.has_hospedaje || false}
-                                onChange={(e) => setData('has_hospedaje', e.target.checked)}
-                            />
-                        </div>
-                        <div className="text-sm font-medium text-gray-700 w-24">Hospedaje</div>
-                        <div className="flex-1">
-                            <div className="text-sm text-gray-600 bg-gray-50 border border-gray-300 rounded-md p-2">
-                                37502 - Hospedaje
-                            </div>
-                        </div>
-                        <div className="w-32">
-                            <TextInput
-                                type="number"
-                                placeholder="Importe"
-                                step="0.01"
-                                value={data.hospedaje_amount || ''}
-                                onChange={e => setData('hospedaje_amount', e.target.value)}
-                                className="mt-1 block w-full text-xs"
-                                disabled={!data.has_hospedaje}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Transport */}
-            <div className="border-t border-blue-200 pt-4">
-                <h4 className="font-semibold text-blue-700 mb-2">Transporte</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <InputLabel value="Tipo de Transporte" />
-                        <select
-                            value={data.transport_type || 'Oficial'}
-                            onChange={e => setData('transport_type', e.target.value)}
-                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
-                        >
-                            <option value="Oficial">Oficial</option>
-                            <option value="Particular">Particular</option>
-                            <option value="Publico">Público</option>
+                            <option value="">Seleccione...</option>
+                            {data.commissioners_details && data.commissioners_details.map(comm => {
+                                const emp = getEmployee(comm.id);
+                                return <option key={comm.id} value={comm.id}>{emp?.nombre} {emp?.primer_apellido}</option>
+                            })}
                         </select>
                     </div>
 
-                    {data.transport_type === 'Oficial' && (
-                        <div>
-                            <InputLabel value="Seleccionar Vehículo Oficial" />
-                            <select
-                                value={data.vehicle_id || ''}
-                                onChange={e => setData('vehicle_id', e.target.value)}
-                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full text-xs"
-                            >
-                                <option value="">Seleccione...</option>
-                                {vehicles
-                                    .filter(v => !selectedEmployee || !selectedEmployee.organismo_id || v.organismo_id == selectedEmployee.organismo_id)
-                                    .map(v => (
-                                        <option key={v.id} value={v.id}>{v.brand} {v.model_year} - {v.plate_number}</option>
-                                    ))}
-                            </select>
-                            {selectedEmployee && selectedEmployee.organismo_id && (
-                                <p className="text-xs text-blue-600 mt-1">Filtrado por: {selectedEmployee.organismo_id}</p> // Debug info, maybe remove later or replace with name if available
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Invoice Data (Fiscal) */}
-            <div className="border-t border-blue-200 pt-4">
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold text-blue-700">Datos de Facturación (Opcional/Preliminar)</h4>
-
-                    {/* XML Upload Button */}
-                    <div className="flex items-center">
-                        <input
-                            type="file"
-                            accept=".xml"
-                            id="xml-upload"
-                            className="hidden"
-                            onChange={(e) => {
-                                const file = e.target.files[0];
-                                if (!file) return;
-
-                                const formData = new FormData();
-                                formData.append('file', file);
-
-                                axios.post(route('requirements.parse-xml'), formData, {
-                                    headers: { 'Content-Type': 'multipart/form-data' }
-                                }).then(response => {
-                                    const raw = response.data.data;
-                                    const newData = { ...data };
-
-                                    // Auto-fill fields
-                                    if (raw.invoice_folio) newData.invoice_folio = raw.invoice_folio;
-                                    if (raw.invoice_date) newData.invoice_date = raw.invoice_date;
-                                    if (raw.provider_rfc) newData.provider_rfc = raw.provider_rfc;
-
-                                    // New Fields
-                                    if (raw.provider_name) newData.provider_name = raw.provider_name;
-                                    if (raw.uuid) newData.uuid = raw.uuid;
-
-                                    // Amounts
-                                    if (raw.subtotal) newData.invoice_subtotal = raw.subtotal;
-                                    if (raw.iva) newData.invoice_iva = raw.iva;
-                                    if (raw.retention_isr) newData.invoice_isr = raw.retention_isr;
-                                    if (raw.retention_iva) newData.invoice_retention_iva = raw.retention_iva;
-                                    if (raw.total) newData.invoice_total = raw.total;
-
-                                    // Description map
-                                    if (raw.description && !newData.commission_summary_legend) {
-                                        newData.commission_summary_legend = raw.description.substring(0, 255);
-                                    }
-
-                                    setData(newData);
-                                    // Alert still useful for confirmation but fields will show data now
-                                    alert('Datos extraídos del XML correctamente.');
-                                })
-                                    .catch(error => {
-                                        console.error('Error parsing XML', error);
-                                        let msg = 'Error al leer el XML.';
-                                        if (error.response && error.response.data && error.response.data.message) {
-                                            msg += ' ' + error.response.data.message;
-                                        } else {
-                                            msg += ' Verifique que sea un CFDI válido.';
-                                        }
-                                        alert(msg);
-                                    });
-                                // Reset input
-                                e.target.value = '';
-                            }}
-                        />
-                        <label
-                            htmlFor="xml-upload"
-                            className="cursor-pointer inline-flex items-center px-3 py-1 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 focus:outline-none focus:border-green-700 focus:ring-green active:bg-green-700 disabled:opacity-25 transition"
+                    {/* Type Dropdown */}
+                    <div className="md:col-span-1">
+                        <InputLabel value="Concepto" />
+                        <select
+                            value={expenseForm.type}
+                            onChange={e => setExpenseForm(prev => ({ ...prev, type: e.target.value }))}
+                            className="border-gray-300 rounded-md shadow-sm w-full text-sm"
                         >
-                            📤 Subir Factura XML
+                            <option value="Viaticos">Viáticos</option>
+                            <option value="Hospedaje">Hospedaje</option>
+                            <option value="Pasaje">Pasaje</option>
+                        </select>
+                    </div>
+
+                    {/* XML Upload (Small) */}
+                    <div className="md:col-span-1">
+                        <InputLabel value="Factura (Opcional)" />
+                        <label className="cursor-pointer inline-block w-full text-center px-2 py-2 bg-gray-200 text-xs rounded hover:bg-gray-300">
+                            📂 Cargar XML
+                            <input type="file" accept=".xml" className="hidden" onChange={handleExpenseXmlUpload} />
                         </label>
+                        {expenseForm.uuid && <div className="text-[10px] text-green-600 mt-1 truncate">UUID: {expenseForm.uuid}</div>}
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <InputLabel value="UUID (Folio Fiscal)" />
-                        <TextInput value={data.uuid || ''} onChange={e => setData('uuid', e.target.value)} className="mt-1 block w-full text-xs" placeholder="UUID del XML" />
+                    {/* Amount */}
+                    <div className="md:col-span-1">
+                        <InputLabel value="Monto" />
+                        <TextInput
+                            type="number"
+                            step="0.01"
+                            value={expenseForm.amount}
+                            onChange={e => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))}
+                            className="w-full"
+                        />
                     </div>
-                    <div>
-                        <InputLabel value="Folio / Serie Interno" />
-                        <TextInput value={data.invoice_folio || ''} onChange={e => setData('invoice_folio', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Fecha Factura" />
-                        <TextInput type="date" value={data.invoice_date || ''} onChange={e => setData('invoice_date', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <InputLabel value="RFC Proveedor" />
-                        <TextInput value={data.provider_rfc || ''} onChange={e => setData('provider_rfc', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Nombre / Razón Social" />
-                        <TextInput value={data.provider_name || ''} onChange={e => setData('provider_name', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 bg-gray-50 p-3 rounded">
-                    <div>
-                        <InputLabel value="Subtotal" />
-                        <TextInput type="number" step="0.01" value={data.invoice_subtotal || ''} onChange={e => setData('invoice_subtotal', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="IVA" />
-                        <TextInput type="number" step="0.01" value={data.invoice_iva || ''} onChange={e => setData('invoice_iva', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Ret. ISR" />
-                        <TextInput type="number" step="0.01" value={data.invoice_isr || ''} onChange={e => setData('invoice_isr', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Ret. IVA" />
-                        <TextInput type="number" step="0.01" value={data.invoice_retention_iva || ''} onChange={e => setData('invoice_retention_iva', e.target.value)} className="mt-1 block w-full text-xs" />
-                    </div>
-                    <div>
-                        <InputLabel value="Total" />
-                        <TextInput type="number" step="0.01" value={data.invoice_total || ''} onChange={e => setData('invoice_total', e.target.value)} className="mt-1 block w-full text-xs font-bold" />
+                    {/* Add Button */}
+                    <div className="md:col-span-1">
+                        <SecondaryButton onClick={handleAddExpense} className="w-full justify-center bg-green-100 hover:bg-green-200 text-green-800 border-green-300">
+                            + Agregar Gasto
+                        </SecondaryButton>
                     </div>
                 </div>
             </div>
 
-        </div>
+            {/* Expenses Table */}
+            <div className="border-t border-blue-200 pt-4">
+                <h4 className="font-semibold text-gray-700 mb-2">Desglose de Gastos (Partidas)</h4>
+                {data.items && data.items.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-xs text-left bg-white rounded shadow-sm">
+                            <thead className="bg-gray-100 uppercase font-bold text-gray-600">
+                                <tr>
+                                    <th className="px-3 py-2">Comisionado</th>
+                                    <th className="px-3 py-2">Concepto</th>
+                                    <th className="px-3 py-2">Factura</th>
+                                    <th className="px-3 py-2 text-right">Subtotal</th>
+                                    <th className="px-3 py-2 text-right">IVA</th>
+                                    <th className="px-3 py-2 text-right">Total</th>
+                                    <th className="px-3 py-2 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {data.items.map((item, idx) => {
+                                    const emp = getEmployee(item.employee_id);
+                                    return (
+                                        <tr key={idx}>
+                                            <td className="px-3 py-2 font-medium text-gray-800">{emp ? `${emp.nombre} ${emp.primer_apellido}` : 'General'}</td>
+                                            <td className="px-3 py-2">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] ${item.partida_codigo === '37501' ? 'bg-blue-100 text-blue-800' : item.partida_codigo === '37502' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'}`}>
+                                                    {item.description || item.partida_codigo}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-500 text-[10px]">
+                                                {item.uuid && <div><span className="font-bold">UUID:</span> {item.uuid.substring(0, 8)}...</div>}
+                                                {item.invoice_folio && <div><span className="font-bold">Folio:</span> {item.invoice_folio}</div>}
+                                                {item.provider_name && <div><span className="font-bold">Prov:</span> {item.provider_name.substring(0, 10)}...</div>}
+                                                {item.invoice_date && <div><span className="font-bold">Fecha:</span> {item.invoice_date}</div>}
+                                            </td>
+                                            <td className="px-3 py-2 text-right text-gray-600">${item.invoice_subtotal ? parseFloat(item.invoice_subtotal).toFixed(2) : '-'}</td>
+                                            <td className="px-3 py-2 text-right text-gray-600">${item.invoice_iva ? parseFloat(item.invoice_iva).toFixed(2) : '-'}</td>
+                                            <td className="px-3 py-2 text-right font-bold">${parseFloat(item.amount).toFixed(2)}</td>
+                                            <td className="px-3 py-2 text-center">
+                                                <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700 font-bold">×</button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {/* Totals Row */}
+                                <tr className="bg-gray-50 font-bold">
+                                    <td colSpan="5" className="px-3 py-2 text-right uppercase">Total Viáticos (37501):</td>
+                                    <td className="px-3 py-2 text-right">${(data.viaticos_amount || 0)}</td>
+                                    <td></td>
+                                </tr>
+                                <tr className="bg-gray-50 font-bold">
+                                    <td colSpan="3" className="px-3 py-2 text-right uppercase">Total Hospedaje (37502):</td>
+                                    <td className="px-3 py-2 text-right">${(data.hospedaje_amount || 0)}</td>
+                                    <td></td>
+                                </tr>
+                                <tr className="bg-gray-50 font-bold">
+                                    <td colSpan="3" className="px-3 py-2 text-right uppercase">Total Pasajes (37201):</td>
+                                    <td className="px-3 py-2 text-right">${(data.pasaje_amount || 0)}</td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded border border-dashed border-gray-300 text-center">
+                        No se han registrado gastos. Utilice el formulario de arriba para agregar.
+                    </p>
+                )}
+            </div>
+
+            {/* Summary Table: Authorized vs Spent */}
+            {
+                data.commissioner_ids && data.commissioner_ids.length > 0 && (
+                    <div className="border-t border-blue-200 pt-4">
+                        <h4 className="font-semibold text-blue-700 mb-2">Resumen de Viáticos por Comisionado</h4>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-xs text-left bg-blue-50 rounded">
+                                <thead className="bg-blue-100 font-bold text-blue-800">
+                                    <tr>
+                                        <th className="px-3 py-2">Comisionado</th>
+                                        <th className="px-3 py-2">Nivel</th>
+                                        <th className="px-3 py-2 text-right">Cuota Diaria</th>
+                                        <th className="px-3 py-2 text-right">Días</th>
+                                        <th className="px-3 py-2 text-right">Máximo Autorizado</th>
+                                        <th className="px-3 py-2 text-right">Gastado Real (37501)</th>
+                                        <th className="px-3 py-2 text-right">A Comprobar/Pagar</th>
+                                        <th className="px-3 py-2 text-center">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-200">
+                                    {data.commissioner_ids.map(id => {
+                                        const emp = getEmployee(id);
+                                        if (!emp) return null;
+
+                                        const limitPerDay = getAuthorizedLimit(id);
+                                        const duration = parseInt(data.days_duration) || 1;
+                                        const maxAuthorized = limitPerDay * duration;
+
+                                        const viaticosId = partidas.find(p => p.codigo === '37501')?.id;
+                                        const actualSpent = data.items
+                                            .filter(item => item.employee_id == id && item.partida_id === viaticosId)
+                                            .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+                                        const payable = Math.min(actualSpent, maxAuthorized);
+                                        const isOverLimit = actualSpent > maxAuthorized;
+
+                                        return (
+                                            <tr key={id}>
+                                                <td className="px-3 py-2">{emp.nombre} {emp.primer_apellido}</td>
+                                                <td className="px-3 py-2">{emp.nivel}</td>
+                                                <td className="px-3 py-2 text-right">${limitPerDay.toFixed(2)}</td>
+                                                <td className="px-3 py-2 text-right">{duration}</td>
+                                                <td className="px-3 py-2 text-right font-medium">${maxAuthorized.toFixed(2)}</td>
+                                                <td className="px-3 py-2 text-right text-gray-700">${actualSpent.toFixed(2)}</td>
+                                                <td className="px-3 py-2 text-right font-bold text-green-700">${payable.toFixed(2)}</td>
+                                                <td className="px-3 py-2 text-center">
+                                                    {isOverLimit ?
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAdjustLimit(id, maxAuthorized)}
+                                                            className="text-red-600 font-bold text-[10px] hover:text-red-800 underline"
+                                                            title={`Ajustar a límite (Reducir $${(actualSpent - maxAuthorized).toFixed(2)})`}
+                                                        >
+                                                            EXCEDE LÍMITE (AJUSTAR)
+                                                        </button> :
+                                                        <span className="text-green-600 font-bold text-[10px]">OK</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )
+            }
+
+        </div >
     );
 }
 

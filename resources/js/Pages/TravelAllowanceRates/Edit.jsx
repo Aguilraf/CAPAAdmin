@@ -11,6 +11,7 @@ export default function Edit({ auth, rate, partidas, niveles }) {
         zona_1_amount: rate.zona_1_amount || '',
         zona_2_amount: rate.zona_2_amount || '',
         rate_type: rate.rate_type || '',
+        budget_code: rate.budget_code || '',
         year: rate.year || new Date().getFullYear(),
         active: rate.active ?? true,
     });

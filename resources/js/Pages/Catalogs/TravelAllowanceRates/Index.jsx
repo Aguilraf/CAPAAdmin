@@ -110,6 +110,7 @@ export default function Index({ auth, rates, filters }) {
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cargo / Nivel</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partida</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clave Presupuestal</th>
                                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Zona I</th>
                                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Zona II</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -126,6 +127,9 @@ export default function Index({ auth, rates, filters }) {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {rate.partida ? `${rate.partida.codigo} - ${rate.partida.nombre}` : 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {rate.budget_code || '---'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">${rate.zona_1_amount}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">${rate.zona_2_amount}</td>

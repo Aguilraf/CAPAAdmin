@@ -129,6 +129,9 @@ export default function Index({ auth, rates, filters }) {
                                                 Zona II
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Clave Presupuestal
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Estado
                                             </th>
                                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -168,6 +171,9 @@ export default function Index({ auth, rates, filters }) {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                         ${parseFloat(rate.zona_2_amount).toFixed(2)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={rate.budget_code}>
+                                                        {rate.budget_code || '-'}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                         {rate.active ? (
@@ -209,8 +215,8 @@ export default function Index({ auth, rates, filters }) {
                                             key={index}
                                             href={link.url || '#'}
                                             className={`px-3 py-1 rounded ${link.active
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                                 } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             dangerouslySetInnerHTML={{ __html: link.label }}
                                         />

@@ -11,6 +11,7 @@ export default function Create({ auth, partidas, niveles }) {
         zona_1_amount: '',
         zona_2_amount: '',
         rate_type: '',
+        budget_code: '',
         year: new Date().getFullYear(),
         active: true,
     });

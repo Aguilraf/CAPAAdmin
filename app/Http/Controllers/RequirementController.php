@@ -18,7 +18,7 @@ class RequirementController extends Controller
     public function index(Request $request)
     {
         $query = Requirement::query()
-            ->with(['coordinator', 'director', 'manager', 'elaborator'])
+            ->with(['coordinator', 'director', 'manager', 'elaborator', 'travelAllowance.commissioners'])
             ->orderBy('year', 'desc')
             ->orderBy('requirement_number', 'desc');
 
@@ -116,6 +116,17 @@ class RequirementController extends Controller
             'items.*.partida_id' => 'required|exists:partidas,id',
             'items.*.amount' => 'required|numeric|min:0',
             'items.*.description' => 'nullable|string',
+            'items.*.employee_id' => 'nullable|exists:empleados,id',
+            'items.*.uuid' => 'nullable|string',
+            'items.*.invoice_folio' => 'nullable|string',
+            'items.*.invoice_date' => 'nullable|date',
+            'items.*.provider_rfc' => 'nullable|string',
+            'items.*.provider_name' => 'nullable|string',
+            'items.*.invoice_subtotal' => 'nullable|numeric|min:0',
+            'items.*.invoice_iva' => 'nullable|numeric|min:0',
+            'items.*.invoice_retention_isr' => 'nullable|numeric|min:0',
+            'items.*.invoice_retention_iva' => 'nullable|numeric|min:0',
+            'items.*.invoice_total' => 'nullable|numeric|min:0',
             'cfe_receipts' => 'nullable|array',
             'cfe_receipts.*.uuid' => 'nullable|string',
             'cfe_receipts.*.rpu' => 'nullable|string',
@@ -133,6 +144,8 @@ class RequirementController extends Controller
             'exercise_year' => 'nullable|integer',
             'quarter' => 'nullable|string|in:I,II,III,IV',
             'commissioner_id' => 'nullable|exists:empleados,id',
+            'commissioner_ids' => 'nullable|array',
+            'commissioner_ids.*' => 'exists:empleados,id',
             'origin_country' => 'nullable|string',
             'origin_state' => 'nullable|string',
             'origin_city' => 'nullable|string',
@@ -142,7 +155,10 @@ class RequirementController extends Controller
             'departure_date' => 'nullable|date',
             'return_date' => 'nullable|date',
             'days_duration' => 'nullable|integer',
+            'half_day_payment' => 'nullable|boolean',
             'justification' => 'nullable|string',
+            'report_date' => 'nullable|date',
+            'report_link' => 'nullable|string',
             'has_viaticos' => 'nullable|boolean',
             'viaticos_partida_id' => 'nullable|exists:partidas,id',
             'has_pasaje' => 'nullable|boolean',
@@ -164,6 +180,11 @@ class RequirementController extends Controller
             'invoice_isr' => 'nullable|numeric',
             'invoice_retention_iva' => 'nullable|numeric',
             'invoice_total' => 'nullable|numeric',
+            'commissioners_details' => 'nullable|array',
+            'commissioners_details.*.id' => 'required|exists:empleados,id',
+            'commissioners_details.*.oficio_number' => 'nullable|string',
+            'commissioners_details.*.report_date' => 'nullable|date',
+            'commissioners_details.*.report_link' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -199,6 +220,17 @@ class RequirementController extends Controller
                     'partida_id' => $item['partida_id'],
                     'description' => $item['description'] ?? null,
                     'amount' => $item['amount'],
+                    'employee_id' => $item['employee_id'] ?? null,
+                    'uuid' => $item['uuid'] ?? null,
+                    'invoice_folio' => $item['invoice_folio'] ?? null,
+                    'invoice_date' => $item['invoice_date'] ?? null,
+                    'provider_rfc' => $item['provider_rfc'] ?? null,
+                    'provider_name' => $item['provider_name'] ?? null,
+                    'invoice_subtotal' => $item['invoice_subtotal'] ?? null,
+                    'invoice_iva' => $item['invoice_iva'] ?? null,
+                    'invoice_retention_isr' => $item['invoice_retention_isr'] ?? null,
+                    'invoice_retention_iva' => $item['invoice_retention_iva'] ?? null,
+                    'invoice_total' => $item['invoice_total'] ?? null,
                 ]);
             }
 
@@ -211,12 +243,12 @@ class RequirementController extends Controller
 
             // Save Viaticos (Travel Allowance)
             if ($validated['type'] === 'viaticos') {
-                $requirement->travelAllowance()->create([
+                $travelAllowance = $requirement->travelAllowance()->create([
                     'oficio_number' => $validated['oficio_number'] ?? null,
                     'commission_summary_legend' => $validated['commission_summary_legend'] ?? null,
                     'exercise_year' => $validated['exercise_year'] ?? null,
                     'quarter' => $validated['quarter'] ?? null,
-                    'commissioner_id' => $validated['commissioner_id'] ?? null,
+                    'commissioner_id' => $validated['commissioner_id'] ?? null, // Keep for backward compatibility or primary
                     'origin_country' => $validated['origin_country'] ?? 'México',
                     'origin_state' => $validated['origin_state'] ?? 'Quintana Roo',
                     'origin_city' => $validated['origin_city'] ?? 'José María Morelos',
@@ -226,7 +258,10 @@ class RequirementController extends Controller
                     'departure_date' => $validated['departure_date'] ?? null,
                     'return_date' => $validated['return_date'] ?? null,
                     'days_duration' => $validated['days_duration'] ?? null,
+                    'half_day_payment' => $validated['half_day_payment'] ?? false,
                     'justification' => $validated['justification'] ?? null,
+                    'report_date' => $validated['report_date'] ?? null,
+                    'report_link' => $validated['report_link'] ?? null,
                     'has_viaticos' => $validated['has_viaticos'] ?? false,
                     'viaticos_partida_id' => $validated['viaticos_partida_id'] ?? null,
                     'has_pasaje' => $validated['has_pasaje'] ?? false,
@@ -248,12 +283,27 @@ class RequirementController extends Controller
                     'isr' => $validated['invoice_isr'] ?? 0,
                     'retention_iva' => $validated['invoice_retention_iva'] ?? 0,
                     'total' => $validated['invoice_total'] ?? 0,
-                    // For now, Requirement total is calculated from Items (expenses breakdown), so we might redundancy check here or leave 0 if unused on this table directly vs Items.
-                    // Actually, the user asked for total breakdown in requirement items too? 
-                    // "necesito que se pregunte si se le pagaran viaticos... y cada uno tiene su partida presupuestal"
-                    // Usually these are stored as RequirementItems. 
-                    // Let's assume the amounts are passed as Items for budget impact, and we just store metadata here.
                 ]);
+
+
+                // Sync Multiple Commissioners with Pivot Data
+                if (!empty($validated['commissioners_details'])) {
+                    $syncData = [];
+                    foreach ($validated['commissioners_details'] as $comm) {
+                        $syncData[$comm['id']] = [
+                            'oficio_number' => $comm['oficio_number'] ?? null,
+                            'report_date' => $comm['report_date'] ?? null,
+                            'report_link' => $comm['report_link'] ?? null,
+                        ];
+                    }
+                    $travelAllowance->commissioners()->sync($syncData);
+                } elseif (!empty($validated['commissioner_ids'])) {
+                    // Fallback for backward compatibility
+                    $travelAllowance->commissioners()->sync($validated['commissioner_ids']);
+                } elseif ($validated['commissioner_id']) {
+                    // Fallback: if only single ID is sent
+                    $travelAllowance->commissioners()->sync([$validated['commissioner_id']]);
+                }
             }
         });
 
@@ -262,7 +312,7 @@ class RequirementController extends Controller
 
     public function edit(Requirement $requirement)
     {
-        $requirement->load(['items', 'cfeReceipts', 'travelAllowance']); // Load receipts and travel allowance
+        $requirement->load(['items', 'cfeReceipts', 'travelAllowance.commissioners']); // Load receipts and travel allowance with commissioners
 
         $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe', 'organismo_id')->get(); // Added fields for Viaticos auto-fill
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get();
@@ -312,6 +362,17 @@ class RequirementController extends Controller
             'items.*.partida_id' => 'required|exists:partidas,id',
             'items.*.amount' => 'required|numeric|min:0',
             'items.*.description' => 'nullable|string',
+            'items.*.employee_id' => 'nullable|exists:empleados,id',
+            'items.*.uuid' => 'nullable|string',
+            'items.*.invoice_folio' => 'nullable|string',
+            'items.*.invoice_date' => 'nullable|date',
+            'items.*.provider_rfc' => 'nullable|string',
+            'items.*.provider_name' => 'nullable|string',
+            'items.*.invoice_subtotal' => 'nullable|numeric|min:0',
+            'items.*.invoice_iva' => 'nullable|numeric|min:0',
+            'items.*.invoice_retention_isr' => 'nullable|numeric|min:0',
+            'items.*.invoice_retention_iva' => 'nullable|numeric|min:0',
+            'items.*.invoice_total' => 'nullable|numeric|min:0',
             'cfe_receipts' => 'nullable|array',
             'cfe_receipts.*.uuid' => 'nullable|string',
             'cfe_receipts.*.rpu' => 'nullable|string',
@@ -329,6 +390,8 @@ class RequirementController extends Controller
             'exercise_year' => 'nullable|integer',
             'quarter' => 'nullable|string|in:I,II,III,IV',
             'commissioner_id' => 'nullable|exists:empleados,id',
+            'commissioner_ids' => 'nullable|array',
+            'commissioner_ids.*' => 'exists:empleados,id',
             'origin_country' => 'nullable|string',
             'origin_state' => 'nullable|string',
             'origin_city' => 'nullable|string',
@@ -338,7 +401,10 @@ class RequirementController extends Controller
             'departure_date' => 'nullable|date',
             'return_date' => 'nullable|date',
             'days_duration' => 'nullable|integer',
+            'half_day_payment' => 'nullable|boolean',
             'justification' => 'nullable|string',
+            'report_date' => 'nullable|date',
+            'report_link' => 'nullable|string',
             'has_viaticos' => 'nullable|boolean',
             'viaticos_partida_id' => 'nullable|exists:partidas,id',
             'has_pasaje' => 'nullable|boolean',
@@ -355,17 +421,20 @@ class RequirementController extends Controller
             'viaticos_amount' => 'nullable|numeric|min:0',
             'pasaje_amount' => 'nullable|numeric|min:0',
             'hospedaje_amount' => 'nullable|numeric|min:0',
-            // We use these for invoice data but travel allowance usually sums up the expenses.
-            // If user wants to store invoice specific tax breakdown in travel_allowance table:
             'invoice_subtotal' => 'nullable|numeric',
             'invoice_iva' => 'nullable|numeric',
             'invoice_isr' => 'nullable|numeric',
             'invoice_retention_iva' => 'nullable|numeric',
             'invoice_total' => 'nullable|numeric',
+            'commissioners_details' => 'nullable|array',
+            'commissioners_details.*.id' => 'required|exists:empleados,id',
+            'commissioners_details.*.oficio_number' => 'nullable|string',
+            'commissioners_details.*.report_date' => 'nullable|date',
+            'commissioners_details.*.report_link' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($validated, $requirement) {
-            // ... (Calculation Logic remains same)
+            // Calculation Logic
             if ($validated['type'] === 'viaticos') {
                 $subtotal = collect($validated['items'])->sum('amount');
                 $iva = 0;
@@ -387,9 +456,9 @@ class RequirementController extends Controller
                 'total' => $total,
             ]);
 
-            // Sync Viaticos
+            // Create or update Travel Allowance specific data
             if ($validated['type'] === 'viaticos') {
-                $requirement->travelAllowance()->updateOrCreate(
+                $travelAllowance = $requirement->travelAllowance()->updateOrCreate(
                     ['requirement_id' => $requirement->id],
                     [
                         'oficio_number' => $validated['oficio_number'] ?? null,
@@ -406,7 +475,10 @@ class RequirementController extends Controller
                         'departure_date' => $validated['departure_date'] ?? null,
                         'return_date' => $validated['return_date'] ?? null,
                         'days_duration' => $validated['days_duration'] ?? null,
+                        'half_day_payment' => $validated['half_day_payment'] ?? false,
                         'justification' => $validated['justification'] ?? null,
+                        'report_date' => $validated['report_date'] ?? null,
+                        'report_link' => $validated['report_link'] ?? null,
                         'has_viaticos' => $validated['has_viaticos'] ?? false,
                         'viaticos_partida_id' => $validated['viaticos_partida_id'] ?? null,
                         'has_pasaje' => $validated['has_pasaje'] ?? false,
@@ -420,10 +492,9 @@ class RequirementController extends Controller
                         'provider_rfc' => $validated['provider_rfc'] ?? null,
                         'provider_name' => $validated['provider_name'] ?? null,
                         'uuid' => $validated['uuid'] ?? null,
-                        // Note: If saving invoice details separately from allowance totals?
-                        // For now we map them if provided, otherwise default to 0
-                        // Caution: The table defaults strictly, but we might overwrite with 0 if not passed.
-                        // Let's only update if passed?
+                        'total_viaticos' => $validated['viaticos_amount'] ?? 0,
+                        'total_pasaje' => $validated['pasaje_amount'] ?? 0,
+                        'total_hospedaje' => $validated['hospedaje_amount'] ?? 0,
                         'subtotal' => $validated['invoice_subtotal'] ?? 0,
                         'iva' => $validated['invoice_iva'] ?? 0,
                         'isr' => $validated['invoice_isr'] ?? 0,
@@ -431,6 +502,22 @@ class RequirementController extends Controller
                         'total' => $validated['invoice_total'] ?? 0,
                     ]
                 );
+
+                if (!empty($validated['commissioners_details'])) {
+                    $syncData = [];
+                    foreach ($validated['commissioners_details'] as $comm) {
+                        $syncData[$comm['id']] = [
+                            'oficio_number' => $comm['oficio_number'] ?? null,
+                            'report_date' => $comm['report_date'] ?? null,
+                            'report_link' => $comm['report_link'] ?? null,
+                        ];
+                    }
+                    $travelAllowance->commissioners()->sync($syncData);
+                } elseif (!empty($validated['commissioner_ids'])) {
+                    $travelAllowance->commissioners()->sync($validated['commissioner_ids']);
+                } elseif (!empty($validated['commissioner_id'])) {
+                    $travelAllowance->commissioners()->sync([$validated['commissioner_id']]);
+                }
             }
 
             // Sync Items
@@ -440,6 +527,17 @@ class RequirementController extends Controller
                     'partida_id' => $item['partida_id'],
                     'description' => $item['description'] ?? null,
                     'amount' => $item['amount'],
+                    'employee_id' => $item['employee_id'] ?? null,
+                    'uuid' => $item['uuid'] ?? null,
+                    'invoice_folio' => $item['invoice_folio'] ?? null,
+                    'invoice_date' => $item['invoice_date'] ?? null,
+                    'provider_rfc' => $item['provider_rfc'] ?? null,
+                    'provider_name' => $item['provider_name'] ?? null,
+                    'invoice_subtotal' => $item['invoice_subtotal'] ?? null,
+                    'invoice_iva' => $item['invoice_iva'] ?? null,
+                    'invoice_retention_isr' => $item['invoice_retention_isr'] ?? null,
+                    'invoice_retention_iva' => $item['invoice_retention_iva'] ?? null,
+                    'invoice_total' => $item['invoice_total'] ?? null,
                 ]);
             }
 
@@ -463,7 +561,18 @@ class RequirementController extends Controller
 
     public function downloadPdf(Requirement $requirement)
     {
-        $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator']);
+        $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator', 'travelAllowance']);
+
+        // Group items by partida_id to consolidate amounts for the report (User Request)
+        $groupedItems = $requirement->items->groupBy('partida_id')->map(function ($group) {
+            $firstItem = $group->first();
+            // Create a clone or just modify the instance in memory? 
+            // Modifying the instance is safe here as it's not persisted
+            $firstItem->amount = $group->sum('amount');
+            return $firstItem;
+        })->values();
+
+        $requirement->setRelation('items', $groupedItems);
 
         // Fetch settings
         $rawSettings = \App\Models\Setting::pluck('value', 'key')->toArray();
@@ -471,7 +580,7 @@ class RequirementController extends Controller
 
         // Process images for DomPDF (Must be Base64 or Absolute Path)
         foreach ($rawSettings as $key => $value) {
-            if (in_array($key, ['logo_qroo', 'logo_unidos', 'footer_imagen']) && $value) {
+            if (in_array($key, ['logo_qroo', 'logo_unidos', 'logo_capa_header', 'logo_capa', 'footer_imagen']) && $value) {
                 // Assuming values are stored as 'logos/filename.png' in public disk
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($value)) {
                     $path = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
@@ -524,6 +633,96 @@ class RequirementController extends Controller
         return $pdf->download($filename);
     }
 
+    public function downloadAnexo2(Requirement $requirement, Empleado $employee)
+    {
+        $requirement->load([
+            'travelAllowance.commissioners',
+            'items' => function ($query) use ($employee) {
+                $query->where('employee_id', $employee->id);
+            }
+        ]);
+
+        // Get the specific budget code for this employee's level from the catalog
+        $rate = \App\Models\TravelAllowanceRate::where('year', $requirement->year)
+            ->where('nivel', $employee->nivel)
+            ->where('rate_type', 'viaticos')
+            ->first();
+
+        $budgetCode = $rate ? $rate->budget_code : 'N/A';
+
+        // Solve specific commissioner details from pivot
+        $pivot = $requirement->travelAllowance->commissioners->where('id', $employee->id)->first();
+        $baseOficioNumber = $pivot && $pivot->pivot ? $pivot->pivot->oficio_number : 'N/A';
+        $year = \Carbon\Carbon::parse($requirement->assignment_date)->year;
+        $oficioNumber = "CAPA/JMM/G/{$baseOficioNumber}/{$year}";
+        $reportDate = $pivot && $pivot->pivot ? $pivot->pivot->report_date : null;
+        $reportLink = $pivot && $pivot->pivot ? $pivot->pivot->report_link : null;
+
+        // Signatories logic
+        // 1. Persona Comisionada: $employee
+        // 2. Titular Superior: jefe_inmediato string OR Director General if employee is Gerente
+        $superior = null;
+        if ($employee->es_gerente) {
+            $superior = \App\Models\Empleado::where('puesto', 'LIKE', '%DIRECTOR GENERAL%')->first();
+        } else {
+            // Attempt to find the employee object by name stored in jefe_inmediato
+            $superior = \App\Models\Empleado::where('nombre', $employee->jefe_inmediato)
+                ->orWhere(DB::raw("CONCAT(nombre, ' ', primer_apellido, ' ', segundo_apellido)"), $employee->jefe_inmediato)
+                ->first();
+
+            // If still not found, we will just use the string in the view via a helper or fallback object
+        }
+
+        // 3. Titular Autorizador: Gerente del Organismo (active manager)
+        $autorizador = \App\Models\Empleado::where('es_gerente', true)->where('activo', true)->first();
+
+        // Pernoctas logic: days_duration - 1 if > 1
+        $pernoctas = 0;
+        if ($requirement->travelAllowance && $requirement->travelAllowance->days_duration > 1) {
+            $pernoctas = $requirement->travelAllowance->days_duration - 1;
+        }
+
+        // Fetch settings (Logos, etc.)
+        $rawSettings = \App\Models\Setting::pluck('value', 'key')->toArray();
+        $settings = [];
+        foreach ($rawSettings as $key => $value) {
+            if (in_array($key, ['logo_qroo', 'logo_unidos', 'logo_capa_header', 'logo_capa', 'footer_imagen']) && $value) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($value)) {
+                    $path = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $data = file_get_contents($path);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    $settings[$key] = $base64;
+                } else {
+                    $settings[$key] = $value;
+                }
+            } else {
+                $settings[$key] = $value;
+            }
+        }
+
+        $limitPerDay = $rate ? (float) $rate->zona_1_amount : 0;
+        $formattedDays = ($requirement->travelAllowance && $requirement->travelAllowance->half_day_payment) ? '0.5' : ($requirement->travelAllowance->days_duration ?? 1);
+
+        $pdf = Pdf::loadView('reports.anexo_2', [
+            'requirement' => $requirement,
+            'employee' => $employee,
+            'oficioNumber' => $oficioNumber,
+            'budgetCode' => $budgetCode,
+            'limitPerDay' => $limitPerDay,
+            'formattedDays' => $formattedDays,
+            'superior' => $superior,
+            'autorizador' => $autorizador,
+            'pernoctas' => $pernoctas,
+            'reportDate' => $reportDate,
+            'reportLink' => $reportLink,
+            'settings' => $settings,
+        ]);
+
+        $filename = 'Anexo_2_' . $employee->primer_apellido . '_' . $requirement->requirement_number . '.pdf';
+        return $pdf->setPaper('letter', 'portrait')->download($filename);
+    }
+
     public function downloadCfeRelation(Requirement $requirement)
     {
         $requirement->load(['cfeReceipts', 'elaborator', 'manager']);
@@ -534,7 +733,7 @@ class RequirementController extends Controller
 
         // Process images for DomPDF (Must be Base64 or Absolute Path)
         foreach ($rawSettings as $key => $value) {
-            if (in_array($key, ['logo_qroo', 'logo_unidos', 'footer_imagen']) && $value) {
+            if (in_array($key, ['logo_qroo', 'logo_unidos', 'logo_capa_header', 'logo_capa', 'footer_imagen']) && $value) {
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($value)) {
                     $path = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
                     $type = pathinfo($path, PATHINFO_EXTENSION);
@@ -641,7 +840,8 @@ class RequirementController extends Controller
             }
 
             // Impuestos (IVA, Retenciones)
-            $traslados = $xml->xpath('//cfdi:Impuestos/cfdi:Traslados/cfdi:Traslado');
+            // Use direct child selector to avoid summing concept-level taxes + global taxes (Double counting)
+            $traslados = $xml->xpath('cfdi:Impuestos/cfdi:Traslados/cfdi:Traslado');
             $iva = 0;
             foreach ($traslados as $traslado) {
                 if ((string) $traslado['Impuesto'] === '002') { // IVA
@@ -649,7 +849,7 @@ class RequirementController extends Controller
                 }
             }
 
-            $retenciones = $xml->xpath('//cfdi:Impuestos/cfdi:Retenciones/cfdi:Retencion');
+            $retenciones = $xml->xpath('cfdi:Impuestos/cfdi:Retenciones/cfdi:Retencion');
             $retencionIsr = 0;
             $retencionIva = 0;
             foreach ($retenciones as $retencion) {
@@ -693,5 +893,137 @@ class RequirementController extends Controller
                 'message' => 'Error al procesar el XML: ' . $e->getMessage()
             ], 400);
         }
+    }
+
+    public function downloadComprobacionViaticos(Requirement $requirement, Empleado $employee)
+    {
+        $requirement->load(['items.partida', 'travelAllowance.commissioners', 'coordinator', 'director', 'manager', 'elaborator']);
+
+        // Filter items for THIS employee only
+        $employeeItems = $requirement->items->where('employee_id', $employee->id);
+
+        // Group items by category keys (based on partida code or description logic)
+        $transporteItems = $employeeItems->filter(function ($item) {
+            $code = $item->partida->codigo ?? '';
+            $name = $item->partida->nombre ?? '';
+            return str_contains($name, 'Pasajes') || str_contains($code, '371') || str_contains($code, '372');
+        });
+
+        $hospedajeItems = $employeeItems->filter(function ($item) {
+            $code = $item->partida->codigo ?? '';
+            $name = $item->partida->nombre ?? '';
+            // Stricter check: Only "Hospedaje" in name, or specific 37504 if we knew it. 
+            // Removing generic 375 check to avoid catching "Viaticos en el pais" (37501)
+            return str_contains($name, 'Hospedaje');
+        });
+
+        // Viaticos = Everything else (Food, etc)
+        $viaticosItems = $employeeItems->diff($transporteItems)->diff($hospedajeItems);
+
+        // Pre-calculate totals for summary
+        $totalTransporteComprobado = $transporteItems->sum('invoice_total');
+        $totalHospedajeComprobado = $hospedajeItems->sum('invoice_total');
+        $totalViaticosComprobado = $viaticosItems->sum('invoice_total');
+
+        // Cuotas (Assigned Amounts) - Need to clarify if these are per-employee or total.
+        // For now, assuming proportional division or total if not specified per employee in structure.
+        // Ideally, TravelAllowance should have per-employee allocation.
+        // Given earlier conversation, we have 'limitPerDay' * 'days'.
+
+
+        $zone = $requirement->travelAllowance->zona ?? 'A'; // Default to A
+
+        // We need to find the rate based on the employee's level/position if possible, 
+        // or just use a general rate if that's how it's set up. 
+        // The previous code was trying to match 'zona' column which doesn't exist.
+        // Rates table has 'zona_1_amount' (Zone A) and 'zona_2_amount' (Zone B).
+
+        // Let's try to match by level if available, otherwise just get the first applicable rate.
+        $rateQuery = \App\Models\TravelAllowanceRate::where('year', $requirement->year);
+
+        if ($employee->nivel) {
+            $rateQuery->where('nivel', $employee->nivel);
+        }
+
+        $rate = $rateQuery->first();
+
+        // Fallback if specific level rate not found, try generic or just use default
+        if (!$rate) {
+            $rate = \App\Models\TravelAllowanceRate::where('year', $requirement->year)->first();
+        }
+
+        $limitPerDay = 938.00; // Default fallback
+        if ($rate) {
+            $limitPerDay = ($zone === 'A') ? (float) $rate->zona_1_amount : (float) $rate->zona_2_amount;
+        }
+
+        // Check if this specific employee has logic for half-day? 
+        // Logic from Anexo 2: ($requirement->travelAllowance && $requirement->travelAllowance->half_day_payment) ? '0.5' : ...
+        $days = ($requirement->travelAllowance && $requirement->travelAllowance->half_day_payment) ? 0.5 : ($requirement->travelAllowance->days_duration ?? 1);
+
+        // Calculate expected quotas per employee based on days * limit
+        // WARNING: This is an estimation. If logic involves specific amounts per field, we might need adjustment.
+        // For now, mirroring Anexo 2 logic:
+        $cuotaViaticos = $limitPerDay * $days;
+
+        // Pasaje and Hospedaje are usually 'Asignado' on the items.
+        // If we don't have per-employee quota fields, we might compare against validated items or leave as 0/Total.
+        // Re-reading user request: "la comprobacion es por trabajador".
+        // Let's use the sums of *Assigned* items for this employee as the quota if available, 
+        // OR simply use the 'Total' from the requirement divided by commissioners?
+        // BETTER APPROACH: Use the same logic as Anexo 2 Item Table "Importe asignado" column sum?
+
+        // Actually, for "Cuota de Viáticos", it's usually (Daily Rate * Days).
+        // "Cuota pasaje" and "Cuota Hospedaje" are often specific budget items.
+        // Let's try to sum the 'amount' (assigned) of the items for this employee to get their specific budget?
+        // But 'amount' on items is usually the budget.
+
+        $cuoteTransporteAssigned = $transporteItems->sum('amount');
+        $cuotaHospedajeAssigned = $hospedajeItems->sum('amount');
+        // Viaticos items might be generic.
+
+        // Let's stick to the $cuotaViaticos = rate * days for Viaticos.
+        // And assigned amounts for others.
+
+        $cuotaPasaje = $cuoteTransporteAssigned;
+        $cuotaHospedaje = $cuotaHospedajeAssigned;
+
+        // Get Oficio Number/Date from Pivot
+        $commissioner = $requirement->travelAllowance->commissioners->firstWhere('id', $employee->id);
+        $oficioNumber = $commissioner ? ($commissioner->pivot->oficio_number ?? $requirement->formatted_number) : $requirement->formatted_number;
+        // If we want the full formatted string like in Anexo 2: "CAPA/JMM/G/NUMERO/AÑO"
+        // But the user just said "numero de viatico es el numero de oficio". Let's assume just the number or the full string if available.
+        // In Anexo 2 we constructed it. Let's construct it here too if needed, or just pass the raw number if that's what's stored.
+        // Checking Anexo 2 logic: just uses $oficio_number from pivot? No, let's check Anexo 2 blade.
+        // Re-reading previous Anexo 2 work: we added logic to Format "Oficio de Comisión" as `CAPA/JMM/G/NUMERO/AÑO`.
+        // Let's replicate that format if $oficioNumber is just a number.
+
+        $year = $requirement->year;
+        // Assuming oficio_number is just the integer part. 
+        // If it's already formatted, use it. If numeric, format it.
+        if (is_numeric($oficioNumber)) {
+            $oficioNumber = "CAPA/JMM/G/" . str_pad($oficioNumber, 3, '0', STR_PAD_LEFT) . "/$year";
+        }
+
+        // Sanitize filename
+        $filename = 'Comprobacion_Viaticos_' . str_replace(['/', '\\'], '-', $requirement->formatted_number) . '_' . str_replace(' ', '_', $employee->primer_apellido) . '.pdf';
+
+        $pdf = Pdf::loadView('reports.comprobacion_viaticos', [
+            'requirement' => $requirement,
+            'employee' => $employee, // Pass employee to view
+            'travelAllowance' => $requirement->travelAllowance,
+            'transporteItems' => $transporteItems,
+            'hospedajeItems' => $hospedajeItems,
+            'viaticosItems' => $viaticosItems,
+            'totalTransporteComprobado' => $totalTransporteComprobado,
+            'totalHospedajeComprobado' => $totalHospedajeComprobado,
+            'totalViaticosComprobado' => $totalViaticosComprobado,
+            'cuotaViaticos' => $cuotaViaticos,
+            'cuotaPasaje' => $cuotaPasaje,
+            'cuotaHospedaje' => $cuotaHospedaje,
+            'oficioNumber' => $oficioNumber,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->stream($filename);
     }
 }

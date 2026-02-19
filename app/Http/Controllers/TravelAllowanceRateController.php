@@ -80,6 +80,7 @@ class TravelAllowanceRateController extends Controller
             'zona_1_amount' => 'required|numeric|min:0',
             'zona_2_amount' => 'required|numeric|min:0',
             'rate_type' => 'required|in:viaticos,pasajes,hospedaje',
+            'budget_code' => 'nullable|string|max:255',
             'year' => 'required|integer|min:2020|max:2100',
             'active' => 'boolean',
         ]);
@@ -92,6 +93,7 @@ class TravelAllowanceRateController extends Controller
                 'zona_1_amount' => $validated['zona_1_amount'],
                 'zona_2_amount' => $validated['zona_2_amount'],
                 'rate_type' => $validated['rate_type'],
+                'budget_code' => $validated['budget_code'] ?? null,
                 'year' => $validated['year'],
                 'active' => $validated['active'] ?? true,
             ]);
@@ -136,6 +138,7 @@ class TravelAllowanceRateController extends Controller
             'zona_1_amount' => 'required|numeric|min:0',
             'zona_2_amount' => 'required|numeric|min:0',
             'rate_type' => 'required|in:viaticos,pasajes,hospedaje',
+            'budget_code' => 'nullable|string|max:255',
             'year' => 'required|integer|min:2020|max:2100',
             'active' => 'boolean',
         ]);

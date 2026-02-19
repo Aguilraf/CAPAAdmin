@@ -18,6 +18,7 @@ class TravelAllowanceRate extends Model
         'zona_1_amount',
         'zona_2_amount',
         'rate_type',
+        'budget_code',
         'year',
         'active',
     ];

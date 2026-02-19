@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Imports\EmpleadosImport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Auth;
+use App\Scopes\OrganismoScope;
 
 class EmpleadoController extends Controller
 {
@@ -48,11 +50,25 @@ class EmpleadoController extends Controller
      */
     public function create()
     {
-        $posiblesJefes = Empleado::where('activo', true)
+        $posiblesJefes = Empleado::withoutGlobalScope(OrganismoScope::class)
+            ->where('activo', true)
             ->where(function ($query) {
-                $query->where('puesto', 'LIKE', '%JEFE%')
-                    ->orWhere('puesto', 'LIKE', '%GERENTE%')
-                    ->orWhere('puesto', 'LIKE', '%SUBGERENTE%');
+                // High Level Roles (Global Visibility)
+                $query->where(function ($q) {
+                    $q->where('puesto', 'LIKE', '%DIRECTOR%') // Covers Director & Director General
+                        ->orWhere('puesto', 'LIKE', '%COORDINADOR%');
+                })
+                    // Local Bosses (Same Organism or Admin)
+                    ->orWhere(function ($q) {
+                    if (!Auth::user()->hasRole('Administrador')) {
+                        $q->where('organismo_id', Auth::user()->organismo_id);
+                    }
+                    $q->where(function ($subQ) {
+                        $subQ->where('puesto', 'LIKE', '%JEFE%')
+                            ->orWhere('puesto', 'LIKE', '%GERENTE%')
+                            ->orWhere('puesto', 'LIKE', '%SUBGERENTE%');
+                    });
+                });
             })
             ->orderBy('nombre')
             ->get()
@@ -140,11 +156,25 @@ class EmpleadoController extends Controller
      */
     public function edit(Empleado $empleado)
     {
-        $posiblesJefes = Empleado::where('activo', true)
+        $posiblesJefes = Empleado::withoutGlobalScope(OrganismoScope::class)
+            ->where('activo', true)
             ->where(function ($query) {
-                $query->where('puesto', 'LIKE', '%JEFE%')
-                    ->orWhere('puesto', 'LIKE', '%GERENTE%')
-                    ->orWhere('puesto', 'LIKE', '%SUBGERENTE%');
+                // High Level Roles (Global Visibility)
+                $query->where(function ($q) {
+                    $q->where('puesto', 'LIKE', '%DIRECTOR%') // Covers Director & Director General
+                        ->orWhere('puesto', 'LIKE', '%COORDINADOR%');
+                })
+                    // Local Bosses (Same Organism or Admin)
+                    ->orWhere(function ($q) {
+                    if (!Auth::user()->hasRole('Administrador')) {
+                        $q->where('organismo_id', Auth::user()->organismo_id);
+                    }
+                    $q->where(function ($subQ) {
+                        $subQ->where('puesto', 'LIKE', '%JEFE%')
+                            ->orWhere('puesto', 'LIKE', '%GERENTE%')
+                            ->orWhere('puesto', 'LIKE', '%SUBGERENTE%');
+                    });
+                });
             })
             ->orderBy('nombre')
             ->get()
