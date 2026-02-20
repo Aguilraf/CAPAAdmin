@@ -1022,7 +1022,7 @@ class RequirementController extends Controller
             'cuotaPasaje' => $cuotaPasaje,
             'cuotaHospedaje' => $cuotaHospedaje,
             'oficioNumber' => $oficioNumber,
-        ])->setPaper('a4', 'landscape');
+        ])->setPaper('letter', 'landscape');
 
         return $pdf->stream($filename);
     }
