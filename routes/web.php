@@ -94,6 +94,13 @@ Route::middleware('auth')->group(function () {
         // CFE Query Routes
         Route::get('/cfe/query', [\App\Http\Controllers\CfeQueryController::class, 'index'])->name('cfe.query');
         Route::get('/cfe/export', [\App\Http\Controllers\CfeQueryController::class, 'export'])->name('cfe.export');
+
+        // Modulo de Pagos
+        Route::resource('payments', \App\Http\Controllers\PaymentController::class);
+        Route::get('payments/{payment}/pdf', [\App\Http\Controllers\PaymentController::class, 'downloadPdf'])->name('payments.pdf');
+
+        // Catalogo de Proveedores
+        Route::resource('providers', \App\Http\Controllers\ProviderController::class);
     });
 
     // Rutas de Configuración (Unificada)

@@ -64,9 +64,19 @@ export default function Index({ auth, requirements, filters, types }) {
                                             <td className="px-6 py-4">{req.description || '-'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">${Number(req.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${req.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                    {req.status}
-                                                </span>
+                                                {req.status === 'pending' ? (
+                                                    <Link
+                                                        href={route('payments.create', { requirement_id: req.id })}
+                                                        className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors cursor-pointer"
+                                                        title="Pagar este requerimiento"
+                                                    >
+                                                        {req.status}
+                                                    </Link>
+                                                ) : (
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${req.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                        {req.status === 'paid' ? 'Pagado' : req.status}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <a href={route('requirements.pdf', req.id)} className="text-blue-600 hover:text-blue-900 mr-4" title="Requerimiento PDF" target="_blank">PDF</a>

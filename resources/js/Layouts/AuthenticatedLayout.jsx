@@ -38,6 +38,13 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Requerimientos
                                 </NavLink>
 
+                                <NavLink
+                                    href={route('payments.index')}
+                                    active={route().current('payments.*')}
+                                >
+                                    Cobro / Pagos
+                                </NavLink>
+
                                 <div className="relative flex items-center pt-1">
                                     <Dropdown>
                                         <Dropdown.Trigger>
@@ -139,6 +146,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                                     <Dropdown.Link href={route('unidades-medida.index')}>Unidades de Medida</Dropdown.Link>
                                                     <Dropdown.Link href={route('puestos.index')}>Puestos</Dropdown.Link>
                                                     <Dropdown.Link href={route('organismos.index')}>Organismos</Dropdown.Link>
+                                                    <Dropdown.Link href={route('providers.index')}>Proveedores</Dropdown.Link>
                                                     <div className="border-t border-gray-100"></div>
                                                     <Dropdown.Link href={route('travel-allowance-rates.index')}>Viáticos, Hospedaje y Pasaje</Dropdown.Link>
                                                     <div className="border-t border-gray-100"></div>
@@ -350,6 +358,13 @@ export default function AuthenticatedLayout({ header, children }) {
                             Requerimientos
                         </ResponsiveNavLink>
 
+                        <ResponsiveNavLink
+                            href={route('payments.index')}
+                            active={route().current('payments.*')}
+                        >
+                            Cobro / Pagos
+                        </ResponsiveNavLink>
+
                         {user.permissions && user.permissions.includes('generar reportes') && (
                             <>
                                 <ResponsiveNavLink
@@ -466,6 +481,9 @@ export default function AuthenticatedLayout({ header, children }) {
                                     </ResponsiveNavLink>
                                     <ResponsiveNavLink href={route('organismos.index')}>
                                         Organismos
+                                    </ResponsiveNavLink>
+                                    <ResponsiveNavLink href={route('providers.index')}>
+                                        Proveedores
                                     </ResponsiveNavLink>
                                     <ResponsiveNavLink href={route('unidades-medida.index')}>
                                         Unidades de Medida

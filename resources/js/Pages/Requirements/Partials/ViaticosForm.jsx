@@ -36,16 +36,52 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
         // Find rate based on Nivel and Year
         const rate = travelAllowanceRates.find(r =>
             r.year == (data.year || new Date().getFullYear()) &&
-            r.nivel === emp.nivel &&
-            r.rate_type === 'Viaticos' // Ensure we pick Viaticos rate
+            String(r.nivel) == String(emp.nivel) && // Loose equality and string cast
+            String(r.rate_type).toLowerCase() === 'viaticos' // Case-insensitive check
         );
 
-        // Default to Zona 1 for now (or implement zone logic if needed)
-        // If "half_day_payment" is checked, maybe reduce? User didn't specify, but usually it's full day unless specified.
-        // Actually, previous task mentioned "Half Day". Let's check matching logic.
-        // For now, simple daily rate.
-        return rate ? parseFloat(rate.zona_1_amount) : 0;
+        let amount = rate ? parseFloat(rate.zona_1_amount) : 0;
+
+        // Aplicar reducción de medio día si está marcado
+        if (data.half_day_payment) {
+            amount = amount / 2;
+        }
+
+        return amount;
     };
+
+    // Auto-adjust items when half_day_payment or duration changes
+    useEffect(() => {
+        if (!data.items || data.items.length === 0) return;
+
+        const viaticosId = partidas.find(p => p.codigo === '37501')?.id;
+        if (!viaticosId) return;
+
+        let needsUpdate = false;
+        const newItems = data.items.map(item => {
+            if (item.partida_id == viaticosId && item.employee_id) {
+                const limitPerDay = getAuthorizedLimit(item.employee_id);
+                const duration = parseInt(data.days_duration) || 1;
+                const maxAuthorized = limitPerDay * duration;
+
+                // Check other items for same employee to distribute cap
+                const sameEmployeeItems = data.items.filter(i => i.employee_id == item.employee_id && i.partida_id == viaticosId);
+                const totalInvoiceForEmp = sameEmployeeItems.reduce((sum, i) => sum + (parseFloat(i.invoice_total) || parseFloat(i.amount) || 0), 0);
+
+                const shouldBeAmount = Math.min(parseFloat(item.invoice_total) || parseFloat(item.amount), maxAuthorized);
+
+                if (parseFloat(item.amount) !== shouldBeAmount) {
+                    needsUpdate = true;
+                    return { ...item, amount: shouldBeAmount };
+                }
+            }
+            return item;
+        });
+
+        if (needsUpdate) {
+            setData('items', newItems);
+        }
+    }, [data.half_day_payment, data.days_duration]);
 
     // Initialize Commissioner List State (for UI)
     useEffect(() => {
@@ -85,8 +121,7 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
         newDetails.splice(index, 1);
 
         // Also remove items associated with this commissioner?
-        // Maybe ask confirmation? For now, we keep them or filter them?
-        // Better to remove them to avoid consistency issues.
+        // Maybe ask confirmation? For now, we filter them.
         const newItems = (data.items || []).filter(item => item.employee_id != idToRemove);
 
         setData(prev => ({ ...prev, commissioners_details: newDetails, items: newItems }));
@@ -156,12 +191,28 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
             return;
         }
 
+        // Apply Cap if Viaticos
+        let finalAmount = parseFloat(expenseForm.amount);
+        if (partidaCodigo === '37501') {
+            const limitPerDay = getAuthorizedLimit(expenseForm.employee_id);
+            const duration = parseInt(data.days_duration) || 1;
+            const maxAuthorized = limitPerDay * duration;
+
+            // Sum already assigned viaticos for this employee
+            const alreadyAssigned = (data.items || [])
+                .filter(item => item.employee_id == expenseForm.employee_id && item.partida_codigo === '37501')
+                .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+            const roomLeft = Math.max(0, maxAuthorized - alreadyAssigned);
+            finalAmount = Math.min(finalAmount, roomLeft);
+        }
+
         const newItem = {
-            id: Date.now(), // Temp ID
+            id: Date.now(),
             employee_id: expenseForm.employee_id,
             partida_id: partidaId,
-            partida_codigo: partidaCodigo, // For display/grouping
-            amount: parseFloat(expenseForm.amount),
+            partida_codigo: partidaCodigo,
+            amount: finalAmount, // Payable (capped)
             description: expenseForm.description || `${expenseForm.type} - ${getEmployee(expenseForm.employee_id)?.nombre || ''}`,
             uuid: expenseForm.uuid,
             invoice_folio: expenseForm.invoice_folio,
@@ -172,14 +223,14 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
             invoice_iva: expenseForm.invoice_iva,
             invoice_retention_isr: expenseForm.invoice_retention_isr,
             invoice_retention_iva: expenseForm.invoice_retention_iva,
-            invoice_total: expenseForm.invoice_total,
-            type: expenseForm.type // Friendly type
+            invoice_total: expenseForm.invoice_total || expenseForm.amount, // Full original
+            type: expenseForm.type
         };
 
         const newItems = [...(data.items || []), newItem];
         setData(prev => ({ ...prev, items: newItems }));
 
-        // Reset form (keep employee maybe?)
+        // Reset form
         setExpenseForm({
             employee_id: '',
             type: 'Viaticos',
@@ -217,58 +268,24 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
         const viaticosId = partidas.find(p => p.codigo === '37501')?.id;
         const hospedajeId = partidas.find(p => p.codigo === '37502')?.id;
         const pasajeId1 = partidas.find(p => p.codigo === '37201')?.id;
-        const pasajeId2 = partidas.find(p => p.codigo === '37301')?.id; // Aereo
+        const pasajeId2 = partidas.find(p => p.codigo === '37301')?.id;
 
         data.items.forEach(item => {
             const amt = parseFloat(item.amount) || 0;
-            if (item.partida_id == hospedajeId) totalHospedaje += amt; // Hospedaje not capped per plan (usually per invoice)
+            if (item.partida_id == viaticosId) totalViaticos += amt;
+            else if (item.partida_id == hospedajeId) totalHospedaje += amt;
             else if (item.partida_id == pasajeId1 || item.partida_id == pasajeId2) totalPasaje += amt;
         });
 
-        // Calculate Viaticos Capped per Commissioner
-        // Calculate Viaticos Capped per Commissioner
-        let calculatedViaticos = 0;
-        (data.commissioners_details || []).forEach(comm => {
-            const empId = comm.id;
-            const limitPerDay = getAuthorizedLimit(empId);
-            const duration = parseInt(data.days_duration) || 1;
-            const maxAuthorized = limitPerDay * duration;
-
-            // Debugging
-            // console.log('Calc Debug:', { empId, viaticosId, items: data.items });
-
-            // Sum actual expenses for this employee
-            const actualSpent = data.items
-                .filter(item => {
-                    // Loose equality for IDs to handle string/number mismatch
-                    return item.employee_id == empId && item.partida_id == viaticosId;
-                })
-                .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-
-            // Cap it
-            calculatedViaticos += Math.min(actualSpent, maxAuthorized);
-        });
-
-        // Add uncategorized viaticos (no employee_id)? Or assume correct?
-        // Better: Add non-assigned items directly (fallback)
-        const unassignedViaticos = data.items
-            .filter(item => !item.employee_id && item.partida_id == viaticosId)
-            .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-
-        totalViaticos = calculatedViaticos + unassignedViaticos;
-
-        // Update headers if changed
         const updates = {};
         if (data.viaticos_amount !== totalViaticos) updates.viaticos_amount = totalViaticos;
         if (data.hospedaje_amount !== totalHospedaje) updates.hospedaje_amount = totalHospedaje;
         if (data.pasaje_amount !== totalPasaje) updates.pasaje_amount = totalPasaje;
 
-        // Update Booleans
         if (totalViaticos > 0 && !data.has_viaticos) updates.has_viaticos = true;
         if (totalHospedaje > 0 && !data.has_hospedaje) updates.has_hospedaje = true;
         if (totalPasaje > 0 && !data.has_pasaje) updates.has_pasaje = true;
 
-        // Set Partida IDs if missing
         if (totalViaticos > 0 && !data.viaticos_partida_id) updates.viaticos_partida_id = viaticosId;
         if (totalHospedaje > 0 && !data.hospedaje_partida_id) updates.hospedaje_partida_id = hospedajeId;
         if (totalPasaje > 0 && !data.pasaje_partida_id) updates.pasaje_partida_id = pasajeId1;
@@ -634,18 +651,20 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                 <tr>
                                     <th className="px-3 py-2">Comisionado</th>
                                     <th className="px-3 py-2">Concepto</th>
-                                    <th className="px-3 py-2">Factura</th>
+                                    <th className="px-3 py-2">UUID / Folio / Fecha</th>
                                     <th className="px-3 py-2 text-right">Subtotal</th>
                                     <th className="px-3 py-2 text-right">IVA</th>
-                                    <th className="px-3 py-2 text-right">Total</th>
+                                    <th className="px-3 py-2 text-right">Total Factura</th>
+                                    <th className="px-3 py-2 text-right bg-green-50 text-green-800">Importe Aut.</th>
                                     <th className="px-3 py-2 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {data.items.map((item, idx) => {
                                     const emp = getEmployee(item.employee_id);
+                                    const isCapped = parseFloat(item.invoice_total || item.amount) > parseFloat(item.amount);
                                     return (
-                                        <tr key={idx}>
+                                        <tr key={idx} className={isCapped ? 'bg-orange-50' : ''}>
                                             <td className="px-3 py-2 font-medium text-gray-800">{emp ? `${emp.nombre} ${emp.primer_apellido}` : 'General'}</td>
                                             <td className="px-3 py-2">
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] ${item.partida_codigo === '37501' ? 'bg-blue-100 text-blue-800' : item.partida_codigo === '37502' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'}`}>
@@ -653,14 +672,18 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                                 </span>
                                             </td>
                                             <td className="px-3 py-2 text-gray-500 text-[10px]">
-                                                {item.uuid && <div><span className="font-bold">UUID:</span> {item.uuid.substring(0, 8)}...</div>}
+                                                {item.uuid && <div><span className="font-bold">UUID:</span> {item.uuid.substring(10, 15)}...</div>}
                                                 {item.invoice_folio && <div><span className="font-bold">Folio:</span> {item.invoice_folio}</div>}
-                                                {item.provider_name && <div><span className="font-bold">Prov:</span> {item.provider_name.substring(0, 10)}...</div>}
                                                 {item.invoice_date && <div><span className="font-bold">Fecha:</span> {item.invoice_date}</div>}
                                             </td>
                                             <td className="px-3 py-2 text-right text-gray-600">${item.invoice_subtotal ? parseFloat(item.invoice_subtotal).toFixed(2) : '-'}</td>
                                             <td className="px-3 py-2 text-right text-gray-600">${item.invoice_iva ? parseFloat(item.invoice_iva).toFixed(2) : '-'}</td>
-                                            <td className="px-3 py-2 text-right font-bold">${parseFloat(item.amount).toFixed(2)}</td>
+                                            <td className="px-3 py-2 text-right text-gray-500 line-through decoration-red-400 decoration-1">
+                                                ${parseFloat(item.invoice_total || item.amount).toFixed(2)}
+                                            </td>
+                                            <td className="px-3 py-2 text-right font-bold bg-green-50 text-green-700">
+                                                ${parseFloat(item.amount).toFixed(2)}
+                                            </td>
                                             <td className="px-3 py-2 text-center">
                                                 <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700 font-bold">×</button>
                                             </td>
@@ -668,19 +691,19 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                     );
                                 })}
                                 {/* Totals Row */}
-                                <tr className="bg-gray-50 font-bold">
-                                    <td colSpan="5" className="px-3 py-2 text-right uppercase">Total Viáticos (37501):</td>
-                                    <td className="px-3 py-2 text-right">${(data.viaticos_amount || 0)}</td>
+                                <tr className="bg-gray-50 font-bold border-t-2 border-gray-300">
+                                    <td colSpan="6" className="px-3 py-2 text-right uppercase">Total Viáticos (37501):</td>
+                                    <td className="px-3 py-2 text-right text-green-800 font-black text-sm">${(data.viaticos_amount || 0).toFixed(2)}</td>
                                     <td></td>
                                 </tr>
                                 <tr className="bg-gray-50 font-bold">
-                                    <td colSpan="3" className="px-3 py-2 text-right uppercase">Total Hospedaje (37502):</td>
-                                    <td className="px-3 py-2 text-right">${(data.hospedaje_amount || 0)}</td>
+                                    <td colSpan="6" className="px-3 py-2 text-right uppercase">Total Hospedaje (37502):</td>
+                                    <td className="px-3 py-2 text-right font-black text-sm">${(data.hospedaje_amount || 0).toFixed(2)}</td>
                                     <td></td>
                                 </tr>
-                                <tr className="bg-gray-50 font-bold">
-                                    <td colSpan="3" className="px-3 py-2 text-right uppercase">Total Pasajes (37201):</td>
-                                    <td className="px-3 py-2 text-right">${(data.pasaje_amount || 0)}</td>
+                                <tr className="bg-gray-50 font-bold text-blue-900">
+                                    <td colSpan="6" className="px-3 py-2 text-right uppercase">Total Pasajes (37201):</td>
+                                    <td className="px-3 py-2 text-right font-black text-sm">${(data.pasaje_amount || 0).toFixed(2)}</td>
                                     <td></td>
                                 </tr>
                             </tbody>
@@ -713,7 +736,7 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-blue-200">
-                                    {data.commissioner_ids.map(id => {
+                                    {data.commissioner_ids?.map(id => {
                                         const emp = getEmployee(id);
                                         if (!emp) return null;
 
@@ -722,12 +745,18 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                         const maxAuthorized = limitPerDay * duration;
 
                                         const viaticosId = partidas.find(p => p.codigo === '37501')?.id;
+
+                                        // Gasto Real: Suma de los totales de factura originales
                                         const actualSpent = data.items
+                                            .filter(item => item.employee_id == id && item.partida_id === viaticosId)
+                                            .reduce((sum, item) => sum + (parseFloat(item.invoice_total || item.amount) || 0), 0);
+
+                                        // A Pagar: Suma de los importes ya calculados (topeados)
+                                        const payable = data.items
                                             .filter(item => item.employee_id == id && item.partida_id === viaticosId)
                                             .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
-                                        const payable = Math.min(actualSpent, maxAuthorized);
-                                        const isOverLimit = actualSpent > maxAuthorized;
+                                        const isOverLimit = actualSpent > maxAuthorized + 0.01;
 
                                         return (
                                             <tr key={id}>
@@ -737,18 +766,11 @@ export default function ViaticosForm({ data, setData, employees, partidas, vehic
                                                 <td className="px-3 py-2 text-right">{duration}</td>
                                                 <td className="px-3 py-2 text-right font-medium">${maxAuthorized.toFixed(2)}</td>
                                                 <td className="px-3 py-2 text-right text-gray-700">${actualSpent.toFixed(2)}</td>
-                                                <td className="px-3 py-2 text-right font-bold text-green-700">${payable.toFixed(2)}</td>
+                                                <td className="px-3 py-2 text-right font-bold text-green-700 bg-green-50">${payable.toFixed(2)}</td>
                                                 <td className="px-3 py-2 text-center">
                                                     {isOverLimit ?
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleAdjustLimit(id, maxAuthorized)}
-                                                            className="text-red-600 font-bold text-[10px] hover:text-red-800 underline"
-                                                            title={`Ajustar a límite (Reducir $${(actualSpent - maxAuthorized).toFixed(2)})`}
-                                                        >
-                                                            EXCEDE LÍMITE (AJUSTAR)
-                                                        </button> :
-                                                        <span className="text-green-600 font-bold text-[10px]">OK</span>
+                                                        <span className="text-orange-600 font-bold text-[10px] bg-orange-100 px-2 py-1 rounded">CAPPED AL LÍMITE</span> :
+                                                        <span className="text-green-600 font-bold text-[10px]">DENTRO DE LÍMITE</span>
                                                     }
                                                 </td>
                                             </tr>
