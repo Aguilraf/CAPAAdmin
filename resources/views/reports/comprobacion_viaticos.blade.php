@@ -246,62 +246,75 @@
             <tr>
                 <td colspan="4" style="border: none;"></td> <!-- Empty left side -->
                 <td style="text-align: left;">TOTAL PAGOS VIÁTICOS, HOSPEDAJE Y PASAJES</td>
-                <td style="font-size: 6pt;"></td> <!-- Empty Reg.Contable -->
-                <td></td> <!-- Empty Col 7 -->
-                <td></td> <!-- Empty Col 8 -->
-                <td></td> <!-- Empty Col 9 -->
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_subtotal') + $viaticosItems->sum('invoice_subtotal') + $hospedajeItems->sum('invoice_subtotal'), 2) }}</td>
+                <td style="text-align: right;">0.00</td>
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_iva') + $viaticosItems->sum('invoice_iva') + $hospedajeItems->sum('invoice_iva'), 2) }}</td>
+                <td style="text-align: right;">{{ number_format(
+                    $transporteItems->sum('invoice_retention_isr') + $transporteItems->sum('invoice_retention_iva') +
+                    $viaticosItems->sum('invoice_retention_isr') + $viaticosItems->sum('invoice_retention_iva') +
+                    $hospedajeItems->sum('invoice_retention_isr') + $hospedajeItems->sum('invoice_retention_iva'), 2)
+                }}</td>
                 <td style="text-align: right; font-weight: bold;">{{ number_format($cuotaViaticos + $cuotaPasaje + $cuotaHospedaje, 2) }}</td>
             </tr>
             <!-- Row 2: Total Pasajes -->
             <tr>
                 <td colspan="4" style="border: none;"></td>
                 <td style="text-align: left;">TOTAL PASAJES</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_subtotal'), 2) }}</td>
+                <td style="text-align: right;">0.00</td>
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_iva'), 2) }}</td>
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_retention_isr') + $transporteItems->sum('invoice_retention_iva'), 2) }}</td>
                 <td style="text-align: right;">{{ number_format($totalTransporteComprobado, 2) }}</td>
             </tr>
             <!-- Row 3: Total Alimentos -->
             <tr>
                 <td colspan="4" style="border: none;"></td>
                 <td style="text-align: left;">TOTAL ALIMENTOS (VIÁTICOS)</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td style="text-align: right;">{{ number_format($viaticosItems->sum('invoice_subtotal'), 2) }}</td>
+                <td style="text-align: right;">0.00</td>
+                <td style="text-align: right;">{{ number_format($viaticosItems->sum('invoice_iva'), 2) }}</td>
+                <td style="text-align: right;">{{ number_format($viaticosItems->sum('invoice_retention_isr') + $viaticosItems->sum('invoice_retention_iva'), 2) }}</td>
                 <td style="text-align: right;">{{ number_format($totalViaticosComprobado, 2) }}</td>
             </tr>
             <!-- Row 4: Total Hospedaje -->
             <tr>
                 <td colspan="4" style="border: none;"></td>
                 <td style="text-align: left;">TOTAL HOSPEDAJE</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td style="text-align: right;">{{ number_format($hospedajeItems->sum('invoice_subtotal'), 2) }}</td>
+                <td style="text-align: right;">0.00</td>
+                <td style="text-align: right;">{{ number_format($hospedajeItems->sum('invoice_iva'), 2) }}</td>
+                <td style="text-align: right;">{{ number_format($hospedajeItems->sum('invoice_retention_isr') + $hospedajeItems->sum('invoice_retention_iva'), 2) }}</td>
                 <td style="text-align: right;">{{ number_format($totalHospedajeComprobado, 2) }}</td>
             </tr>
-            <!-- Row 6: Devolucion (Reintegro) -->
+            <!-- Row 5: Total de Viaticos Comprobados -->
             <tr>
                 <td colspan="4" style="border: none;"></td>
-                <td style="text-align: left;">DEVOLUCION (REINTEGRO)</td>
+                <td style="text-align: left;">TOTAL DE VIATICOS COMPROBADOS</td>
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_subtotal') + $viaticosItems->sum('invoice_subtotal') + $hospedajeItems->sum('invoice_subtotal'), 2) }}</td>
+                <td style="text-align: right;">0.00</td>
+                <td style="text-align: right;">{{ number_format($transporteItems->sum('invoice_iva') + $viaticosItems->sum('invoice_iva') + $hospedajeItems->sum('invoice_iva'), 2) }}</td>
+                <td style="text-align: right;">{{ number_format(
+                    $transporteItems->sum('invoice_retention_isr') + $transporteItems->sum('invoice_retention_iva') +
+                    $viaticosItems->sum('invoice_retention_isr') + $viaticosItems->sum('invoice_retention_iva') +
+                    $hospedajeItems->sum('invoice_retention_isr') + $hospedajeItems->sum('invoice_retention_iva'), 2)
+                }}</td>
+                <td style="text-align: right;">{{ number_format($totalTransporteComprobado + $totalViaticosComprobado + $totalHospedajeComprobado, 2) }}</td>
+            </tr>
+            <!-- Row 6: Excedente -->
+            <tr>
+                <td colspan="4" style="border: none;"></td>
+                <td style="text-align: left;">EXCEDENTE</td>
                 <td></td>
                 <td></td>
                 <td></td>
                 <td></td>
                 <td style="text-align: right;">{{ number_format(($cuotaViaticos + $cuotaPasaje + $cuotaHospedaje) - ($totalTransporteComprobado + $totalViaticosComprobado + $totalHospedajeComprobado), 2) }}</td>
             </tr>
-            <!-- Row 7: Reintegro Santander Text -->
+            <!-- Row 7: Deposito a Pagar -->
             <tr>
-                <td colspan="4" style="border: none;"></td>
-                <td colspan="6" style="text-align: center; font-weight: bold; border-top: 2px solid black;">REINTEGRO A SANTANDER CTA 014690567170391180</td>
-            </tr>
-            <!-- Row 8: Final Total -->
-            <tr>
-                <td colspan="4" style="border: none;"></td>
-                <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL:</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format($cuotaViaticos + $cuotaPasaje + $cuotaHospedaje, 2) }}</td>
+                <td colspan="4" style="border: none;"></td> <!-- Empty left side, no border -->
+                <td colspan="5" style="text-align: center; font-weight: bold; border-bottom: 2px solid black;">DEPOSITO A PAGAR</td>
+                <td style="text-align: right; font-weight: bold; border-bottom: 2px solid black;">{{ number_format($cuotaViaticos + $cuotaPasaje + $cuotaHospedaje, 2) }}</td>
             </tr>
         </tbody>
     </table>
