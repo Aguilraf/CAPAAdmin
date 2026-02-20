@@ -271,19 +271,19 @@
             <tr>
                 <td>
                     <div class="sig-box">
-                        <div class="sig-name">C. {{ $employee->nombre }} {{ $employee->primer_apellido }} {{ $employee->segundo_apellido }}</div>
+                        <div class="sig-name">C. {{ $employee->nombre_completo }}</div>
                         <div class="sig-puesto">{{ $employee->cargo }}</div>
                     </div>
                 </td>
                 <td>
                     <div class="sig-box">
-                        <div class="sig-name">C. {{ $superior ? $superior->nombre . ' ' . $superior->primer_apellido . ' ' . $superior->segundo_apellido : ($employee->jefe_inmediato ?? '__________________________') }}</div>
+                        <div class="sig-name">C. {{ $superior ? $superior->nombre_completo : ($employee->jefe_inmediato ?? '__________________________') }}</div>
                         <div class="sig-puesto">{{ $superior->cargo ?? 'JEFE INMEDIATO' }}</div>
                     </div>
                 </td>
                 <td>
                     <div class="sig-box">
-                        <div class="sig-name">C. {{ $autorizador ? $autorizador->nombre . ' ' . $autorizador->primer_apellido . ' ' . $autorizador->segundo_apellido : '__________________________' }}</div>
+                        <div class="sig-name">C. {{ $autorizador ? $autorizador->nombre_completo : '__________________________' }}</div>
                         <div class="sig-puesto">{{ $autorizador->puesto ?? 'GERENTE' }}</div>
                     </div>
                 </td>

@@ -660,21 +660,28 @@ class RequirementController extends Controller
 
         // Signatories logic
         // 1. Persona Comisionada: $employee
-        // 2. Titular Superior: jefe_inmediato string OR Director General if employee is Gerente
+        // 2. Titular Superior & 3. Titular Autorizador depend on whether employee is a Gerente
         $superior = null;
+        $autorizador = null;
+
         if ($employee->es_gerente) {
-            $superior = \App\Models\Empleado::where('puesto', 'LIKE', '%DIRECTOR GENERAL%')->first();
+            // When the comisionado IS a Gerente:
+            //   - Titular Superior    → Director General
+            //   - Titular Autorizador → Subgerente Administrativo
+            $superior = \App\Models\Empleado::where('puesto', 'LIKE', '%DIRECTOR GENERAL%')
+                ->where('activo', true)->first();
+            $autorizador = \App\Models\Empleado::where('puesto', 'LIKE', '%SUBGERENTE ADMINISTRATIVO%')
+                ->where('activo', true)->first();
         } else {
-            // Attempt to find the employee object by name stored in jefe_inmediato
+            // Regular employee:
+            //   - Titular Superior  → jefe_inmediato (by name match)
+            //   - Titular Autorizador → active Gerente
             $superior = \App\Models\Empleado::where('nombre', $employee->jefe_inmediato)
                 ->orWhere(DB::raw("CONCAT(nombre, ' ', primer_apellido, ' ', segundo_apellido)"), $employee->jefe_inmediato)
                 ->first();
 
-            // If still not found, we will just use the string in the view via a helper or fallback object
+            $autorizador = \App\Models\Empleado::where('es_gerente', true)->where('activo', true)->first();
         }
-
-        // 3. Titular Autorizador: Gerente del Organismo (active manager)
-        $autorizador = \App\Models\Empleado::where('es_gerente', true)->where('activo', true)->first();
 
         // Pernoctas logic: days_duration - 1 if > 1
         $pernoctas = 0;
