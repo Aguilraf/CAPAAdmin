@@ -99,6 +99,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('payments', \App\Http\Controllers\PaymentController::class);
         Route::get('payments/{payment}/pdf', [\App\Http\Controllers\PaymentController::class, 'downloadPdf'])->name('payments.pdf');
 
+        // Modulo de Comisiones
+        Route::resource('commissions', \App\Http\Controllers\CommissionController::class);
+        Route::get('commissions/{commission}/pdf', [\App\Http\Controllers\CommissionController::class, 'printPdf'])->name('commissions.pdf');
+
         // Catalogo de Proveedores
         Route::resource('providers', \App\Http\Controllers\ProviderController::class);
     });

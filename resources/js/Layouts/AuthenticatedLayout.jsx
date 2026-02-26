@@ -39,6 +39,13 @@ export default function AuthenticatedLayout({ header, children }) {
                                 </NavLink>
 
                                 <NavLink
+                                    href={route('commissions.index')}
+                                    active={route().current('commissions.*')}
+                                >
+                                    Comisiones
+                                </NavLink>
+
+                                <NavLink
                                     href={route('payments.index')}
                                     active={route().current('payments.*')}
                                 >
@@ -356,6 +363,13 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('requirements.*')}
                         >
                             Requerimientos
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('commissions.index')}
+                            active={route().current('commissions.*')}
+                        >
+                            Comisiones
                         </ResponsiveNavLink>
 
                         <ResponsiveNavLink
