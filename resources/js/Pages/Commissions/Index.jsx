@@ -11,6 +11,27 @@ export default function Index({ auth, commissions }) {
         }
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        // Parse date string (YYYY-MM-DD...) taking only the date part to avoid timezone shifts
+        const datePart = dateString.split('T')[0];
+        const [year, month, day] = datePart.split('-');
+
+        // Month is 0-indexed in JS Date
+        const date = new Date(year, month - 1, day);
+
+        return new Intl.DateTimeFormat('es-MX', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        }).format(date);
+    };
+
+    const isSameDay = (date1, date2) => {
+        if (!date1 || !date2) return false;
+        return date1.split('T')[0] === date2.split('T')[0];
+    };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -62,11 +83,22 @@ export default function Index({ auth, commissions }) {
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     {commission.oficio_number || 'N/A'}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                    {commission.empleado ? `${commission.empleado.nombre} ${commission.empleado.primer_apellido} ${commission.empleado.segundo_apellido}` : 'Desconocido'}
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 uppercase">
+                                                    {commission.empleado ?
+                                                        `${commission.empleado.nombre} ${commission.empleado.primer_apellido || ''} ${commission.empleado.segundo_apellido || ''}`.trim()
+                                                        : 'Desconocido'
+                                                    }
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {commission.start_date} al {commission.end_date}
+                                                    {isSameDay(commission.start_date, commission.end_date) ? (
+                                                        <span className="font-semibold">{formatDate(commission.start_date)}</span>
+                                                    ) : (
+                                                        <>
+                                                            <span className="font-semibold">{formatDate(commission.start_date)}</span>
+                                                            <span className="mx-2">al</span>
+                                                            <span className="font-semibold">{formatDate(commission.end_date)}</span>
+                                                        </>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                                     <a href={route('commissions.pdf', commission.id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded-md text-xs font-semibold transition-colors">

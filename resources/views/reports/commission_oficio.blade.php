@@ -150,7 +150,7 @@
         </div>
         
         <div class="header-info uppercase">
-            <div>Oficio: CAPA/G/AT/{{ str_pad($commission->oficio_number, 3, '0', STR_PAD_LEFT) }}/{{ date('Y') }}</div>
+            <div>Oficio: CAPA/G/AT/{{ str_pad($commission->oficio_number, 3, '0', STR_PAD_LEFT) }}/{{ $start->format('Y') }}</div>
             <div>ASUNTO: COMISION</div>
         </div>
     </div>

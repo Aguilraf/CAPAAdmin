@@ -51,6 +51,7 @@ class CommissionController extends Controller
             'vehicle_id' => 'nullable|exists:vehicles,id',
         ], [
             'oficio_number.unique' => 'El número de oficio ya existe para este año.',
+            'end_date.after_or_equal' => 'La fecha de fin no puede ser anterior a la fecha de inicio.',
         ]);
 
         Commission::create($validated);
@@ -89,6 +90,7 @@ class CommissionController extends Controller
             'vehicle_id' => 'nullable|exists:vehicles,id',
         ], [
             'oficio_number.unique' => 'El número de oficio ya existe para este año.',
+            'end_date.after_or_equal' => 'La fecha de fin no puede ser anterior a la fecha de inicio.',
         ]);
 
         $commission->update($validated);

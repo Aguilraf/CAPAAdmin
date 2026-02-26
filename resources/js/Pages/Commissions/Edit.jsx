@@ -72,7 +72,14 @@ export default function Edit({ auth, commission, empleados, vehicles }) {
                                             id="start_date"
                                             name="start_date"
                                             value={data.start_date}
-                                            onChange={(e) => setData('start_date', e.target.value)}
+                                            onChange={(e) => {
+                                                const newStartDate = e.target.value;
+                                                setData(prevData => ({
+                                                    ...prevData,
+                                                    start_date: newStartDate,
+                                                    end_date: prevData.end_date && prevData.end_date < newStartDate ? newStartDate : prevData.end_date
+                                                }));
+                                            }}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         />
                                         {errors.start_date && <div className="text-red-600 text-sm mt-1">{errors.start_date}</div>}
@@ -84,6 +91,7 @@ export default function Edit({ auth, commission, empleados, vehicles }) {
                                             id="end_date"
                                             name="end_date"
                                             value={data.end_date}
+                                            min={data.start_date}
                                             onChange={(e) => setData('end_date', e.target.value)}
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         />
@@ -99,6 +107,7 @@ export default function Edit({ auth, commission, empleados, vehicles }) {
                                         rows="4"
                                         value={data.reason}
                                         onChange={(e) => setData('reason', e.target.value)}
+                                        placeholder="para operar los equipos de bombeo de las comunidades de Saban y Huay-Max, (GUARDIA DE SABADO, DOMINGO Y DIAS FESTIVOS)."
                                         className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                     />
                                     {errors.reason && <div className="text-red-600 text-sm mt-1">{errors.reason}</div>}
