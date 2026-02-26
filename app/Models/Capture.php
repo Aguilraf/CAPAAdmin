@@ -25,7 +25,13 @@ class Capture extends Model
         'requirement_number',
         'requirement_type', // Nuevo
         'assignment_date',
+        'requirement_id',
     ];
+
+    public function requirement()
+    {
+        return $this->belongsTo(Requirement::class);
+    }
 
     public function community()
     {

@@ -81,25 +81,48 @@ export default function Receive(props) {
         setIsEditModalOpen(true);
     };
 
+    const getCommunityPercentage = (communityId) => {
+        const community = communities.find(c => c.id === communityId);
+        return community && community.percentage ? parseFloat(community.percentage) / 100 : 0.15;
+    };
+
     const handleEditSubmit = async (e) => {
         e.preventDefault();
 
-        // Recalculate values like in Capture page
-        const subtotal = parseFloat(editFormData.subtotal) || 0;
-        const roundingComm = parseFloat(editFormData.rounding_commission) || 0;
-        const roundingTot = parseFloat(editFormData.rounding_total) || 0;
-        const commission = (subtotal * 0.15) + roundingComm;
-        const total = (subtotal - commission) + roundingTot;
+        try {
+            // Recalculate values using community percentage
+            const subtotal = parseFloat(editFormData.subtotal) || 0;
+            const roundingComm = parseFloat(editFormData.rounding_commission) || 0;
+            const roundingTot = parseFloat(editFormData.rounding_total) || 0;
 
-        await axios.put(`/captures/${editingCapture.id}`, {
-            ...editingCapture,
-            ...editFormData,
-            commission: commission.toFixed(2),
-            total: total.toFixed(2)
-        });
+            const rate = getCommunityPercentage(editingCapture.community_id);
+            const rawCommission = (subtotal * rate) + roundingComm;
+            const commissionRounded = Math.round(rawCommission * 100) / 100;
+            const total = (subtotal - commissionRounded) + roundingTot;
 
-        setIsEditModalOpen(false);
-        fetchCaptures();
+            await axios.put(`/captures/${editingCapture.id}`, {
+                ...editingCapture,
+                subtotal: subtotal.toFixed(2),
+                rounding_commission: roundingComm.toFixed(2),
+                rounding_total: roundingTot.toFixed(2),
+                commission: commissionRounded.toFixed(2),
+                total: total.toFixed(2)
+            });
+
+            setIsEditModalOpen(false);
+            fetchCaptures();
+
+            Swal.fire({
+                title: 'Actualizado',
+                text: 'Los cambios se han guardado correctamente.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', error.response?.data?.message || 'No se pudieron guardar los cambios.', 'error');
+        }
     };
 
     const handleBulkAssign = async () => {
@@ -408,23 +431,36 @@ export default function Receive(props) {
                                             </div>
 
                                             <div className="space-y-3 pt-2 border-t border-gray-100">
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-gray-500 uppercase">Comisión Calculada (15% + Red):</label>
-                                                    <div className="text-md font-bold text-blue-700">
-                                                        {formatCurrency((parseFloat(editFormData.subtotal || 0) * 0.15) + parseFloat(editFormData.rounding_commission || 0))}
-                                                    </div>
-                                                </div>
+                                                {(() => {
+                                                    const rate = getCommunityPercentage(editingCapture?.community_id);
+                                                    const subtotal = parseFloat(editFormData.subtotal || 0);
+                                                    const roundingComm = parseFloat(editFormData.rounding_commission || 0);
+                                                    const roundingTot = parseFloat(editFormData.rounding_total || 0);
 
-                                                <div className="bg-green-50 p-3 rounded-md flex justify-between items-center border border-green-100">
-                                                    <span className="text-xs font-bold text-green-800 uppercase tracking-wider">Total Final:</span>
-                                                    <span className="text-xl font-black text-green-900">
-                                                        {formatCurrency(
-                                                            (parseFloat(editFormData.subtotal || 0) -
-                                                                ((parseFloat(editFormData.subtotal || 0) * 0.15) + parseFloat(editFormData.rounding_commission || 0))) +
-                                                            parseFloat(editFormData.rounding_total || 0)
-                                                        )}
-                                                    </span>
-                                                </div>
+                                                    const commissionRaw = (subtotal * rate) + roundingComm;
+                                                    const commissionRounded = Math.round(commissionRaw * 100) / 100;
+                                                    const totalFinal = subtotal - commissionRounded + roundingTot;
+
+                                                    return (
+                                                        <>
+                                                            <div>
+                                                                <label className="block text-xs font-semibold text-gray-500 uppercase">
+                                                                    Comisión Calculada ({(rate * 100).toFixed(0)}% + RED):
+                                                                </label>
+                                                                <div className="text-md font-bold text-blue-700">
+                                                                    {formatCurrency(commissionRounded)}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="bg-green-50 p-3 rounded-md flex justify-between items-center border border-green-100">
+                                                                <span className="text-xs font-bold text-green-800 uppercase tracking-wider">Total Final:</span>
+                                                                <span className="text-xl font-black text-green-900">
+                                                                    {formatCurrency(totalFinal)}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
 
                                             <div className="flex justify-end gap-3 mt-6">

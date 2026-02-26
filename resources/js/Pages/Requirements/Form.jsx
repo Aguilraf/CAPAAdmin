@@ -1,5 +1,6 @@
-import { useForm } from '@inertiajs/react';
 import { useEffect, useState, useRef } from 'react';
+import axios from 'axios';
+import { useForm } from '@inertiajs/react';
 import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
 import InputError from '@/Components/InputError';
@@ -19,7 +20,10 @@ export default function RequirementForm({
     vehicles = [], // Receive vehicles
     defaultSignatories = {}, // Receive defaults
     defaultLegend = '', // Receive legend
-    travelAllowanceRates = [] // Receive rates
+    travelAllowanceRates = [], // Receive rates
+    defaultMonths = {},
+    monthsList = [],
+    defaultBomberos = {}
 }) {
     // Helper to find chapter from partida
     const getCapituloFromPartida = (partidaId) => {
@@ -59,12 +63,15 @@ export default function RequirementForm({
         requirement_number: initialData.requirement_number || nextNumber,
         type: initialData.type || 'bomberos',
         assignment_date: initialData.assignment_date || new Date().toISOString().split('T')[0],
+        oficio_number: initialData.oficio_number || initialData.travel_allowance?.oficio_number || '',
         coordinator_id: initialData.coordinator_id || defaultSignatories.coordinator_id || '',
         director_id: initialData.director_id || defaultSignatories.director_id || '',
         manager_id: initialData.manager_id || (defaultManager ? defaultManager.id : ''),
         elaborator_id: initialData.elaborator_id || (defaultElaborator ? defaultElaborator.id : ''),
-        month_charged: initialData.month_charged || '',
-        month_billed: initialData.month_billed || '',
+        month_charged: initialData.month_charged || defaultMonths.month_charged || '',
+        year_charged: initialData.year_charged || defaultMonths.year_charged || year,
+        month_billed: initialData.month_billed || defaultMonths.month_billed || '',
+        year_billed: initialData.year_billed || defaultMonths.year_billed || year,
         start_date: initialData.start_date || '',
         end_date: initialData.end_date || '',
         due_date: initialData.due_date || '',
@@ -111,11 +118,110 @@ export default function RequirementForm({
             }))
             : [],
 
-        ...initialData
+        firefighter_folio: initialData.firefighter_folio || '',
     });
+
+    const [availableBomberosFolios, setAvailableBomberosFolios] = useState([]);
+
+    // Fetch available firefighter reports
+    useEffect(() => {
+        if (data.type === 'bomberos' && mode === 'create') {
+            axios.get(route('captures.requirements')).then(res => {
+                setAvailableBomberosFolios(res.data);
+            }).catch(err => console.error(err));
+
+            // Set default coordinator for bomberos
+            if (defaultBomberos.coordinator_id) {
+                setData('coordinator_id', defaultBomberos.coordinator_id);
+            }
+        }
+    }, [data.type]);
+
+    // Fetch next number when type or year changes
+    useEffect(() => {
+        if (mode === 'create') {
+            // Special Case: Bomberos with selected folio is handled by its own auto-fill
+            if (data.type === 'bomberos' && data.firefighter_folio) return;
+
+            axios.get(route('requirements.next-number'), {
+                params: { type: data.type, year: data.year }
+            }).then(res => {
+                setData('requirement_number', res.data.nextNumber);
+            }).catch(err => console.error(err));
+        }
+    }, [data.type, data.year]);
 
     const [totals, setTotals] = useState({ subtotal: 0, iva: 0, total: 0 });
     const fileInputRef = useRef(null);
+
+    // Firefighter Auto-fill Logic
+    useEffect(() => {
+        if (data.type === 'bomberos' && data.firefighter_folio && mode === 'create') {
+            axios.get(route('captures.summary'), {
+                params: {
+                    requirement_number: data.firefighter_folio,
+                    year: data.year
+                }
+            }).then(res => {
+                const summary = res.data;
+
+                // Find Partida 34201
+                const partida34201 = partidas.find(p => p.codigo.startsWith('34201'));
+                const partidaId = partida34201 ? partida34201.id : '';
+                const capituloId = partida34201 ? partida34201.capitulo_id : '';
+
+                // Calculate Months Based on assignment_date
+                let billedMonth = '';
+                let billedYear = data.year;
+                let chargedMonth = '';
+                let chargedYear = data.year;
+
+                if (summary.assignment_date) {
+                    const parts = summary.assignment_date.split('-');
+                    let y = parseInt(parts[0]);
+                    let m = parseInt(parts[1]) - 1; // 0-indexed month
+
+                    // Charged: 1 month back
+                    let cm = m - 1;
+                    let cy = y;
+                    if (cm < 0) { cm = 11; cy--; }
+                    chargedMonth = monthsList[cm];
+                    chargedYear = cy;
+
+                    // Billed: 2 months back
+                    let bm = m - 2;
+                    let by = y;
+                    if (bm < 0) { bm += 12; by--; }
+                    billedMonth = monthsList[bm];
+                    billedYear = by;
+                }
+
+                setData(prev => ({
+                    ...prev,
+                    requirement_number: data.firefighter_folio, // Sync number from folio
+                    oficio_number: prev.oficio_number || `CAPA/JMM/G/${String(data.firefighter_folio).padStart(3, '0')}/${data.year}`,
+                    description: prev.description || 'COMISIONES FONDO DE BOMBEROS',
+                    assignment_date: summary.assignment_date || prev.assignment_date,
+                    coordinator_id: defaultBomberos?.coordinator_id || prev.coordinator_id,
+                    month_billed: billedMonth || prev.month_billed,
+                    year_billed: billedYear || prev.year_billed,
+                    month_charged: chargedMonth || prev.month_charged,
+                    year_charged: chargedYear || prev.year_charged,
+                    items: [
+                        {
+                            capitulo_id: capituloId,
+                            partida_id: partidaId,
+                            description: 'PAGO DE COMISIONES A BOMBEROS',
+                            amount: summary.total_commission,
+                            employee_id: defaultBomberos?.subgerente_id || ''
+                        }
+                    ]
+                }));
+            }).catch(err => {
+                console.log("No pending firefighter assignment found for this number.");
+            });
+        }
+    }, [data.type, data.firefighter_folio, data.year]);
 
     // Calculate Totals
     useEffect(() => {
@@ -132,7 +238,7 @@ export default function RequirementForm({
             finalSub = sumSub;
             finalIva = sumIva;
             finalTotal = sumTotal;
-        } else if (data.type === 'viaticos') {
+        } else if (data.type === 'viaticos' || data.type === 'bomberos') {
             // Viaticos Logic: Sum items directly (amount includes relevant taxes or is exempt)
             const sub = data.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
             finalSub = sub;
@@ -463,14 +569,20 @@ export default function RequirementForm({
 
     return (
         <form onSubmit={submit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                     <InputLabel value="Año" />
                     <TextInput value={data.year} className="mt-1 block w-full bg-gray-100" readOnly />
                 </div>
                 <div>
                     <InputLabel value="Número" />
-                    <TextInput value={data.requirement_number} onChange={e => setData('requirement_number', e.target.value)} className="mt-1 block w-full" type="number" />
+                    <TextInput
+                        value={data.requirement_number}
+                        onChange={e => setData('requirement_number', e.target.value)}
+                        className={`mt-1 block w-full ${(data.type === 'bomberos' && data.firefighter_folio) ? 'bg-gray-100 text-gray-500 font-bold border-red-200' : ''}`}
+                        type="number"
+                        readOnly={data.type === 'bomberos' && data.firefighter_folio}
+                    />
                     <InputError message={errors.requirement_number} className="mt-2" />
                 </div>
                 <div>
@@ -487,7 +599,23 @@ export default function RequirementForm({
                 </div>
                 <div>
                     <InputLabel value="Fecha Asignación" />
-                    <TextInput type="date" value={data.assignment_date} onChange={e => setData('assignment_date', e.target.value)} className="mt-1 block w-full" />
+                    <TextInput
+                        type="date"
+                        value={data.assignment_date}
+                        onChange={e => setData('assignment_date', e.target.value)}
+                        className={`mt-1 block w-full ${(data.type === 'bomberos' && data.firefighter_folio) ? 'bg-gray-100 text-gray-500 border-red-200' : ''}`}
+                        readOnly={data.type === 'bomberos' && data.firefighter_folio}
+                    />
+                </div>
+                <div>
+                    <InputLabel value="Número de Oficio" />
+                    <TextInput
+                        value={data.oficio_number}
+                        onChange={e => setData('oficio_number', e.target.value)}
+                        className="mt-1 block w-full border-red-300 focus:border-red-500 focus:ring-red-500"
+                        placeholder="Ej: JMM/001/2026"
+                    />
+                    <InputError message={errors.oficio_number} className="mt-2" />
                 </div>
             </div>
 
@@ -546,6 +674,84 @@ export default function RequirementForm({
                     vehicles={vehicles}
                     travelAllowanceRates={travelAllowanceRates}
                 />
+            )}
+
+            {/* Bomberos Specific Section */}
+            {data.type === 'bomberos' && mode === 'create' && (
+                <div className="bg-red-50 p-4 rounded-md border border-red-200 space-y-4">
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="w-full md:w-1/2">
+                            <InputLabel value="Seleccionar Reporte de Bomberos (Folio)" />
+                            <select
+                                value={data.firefighter_folio}
+                                onChange={e => setData('firefighter_folio', e.target.value)}
+                                className="border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-md shadow-sm mt-1 block w-full font-bold"
+                            >
+                                <option value="">-- Seleccione un reporte capturado --</option>
+                                {availableBomberosFolios.map(req => (
+                                    <option key={`${req.year}-${req.requirement_number}`} value={req.requirement_number}>
+                                        Folio: {req.requirement_number} ({req.year})
+                                    </option>
+                                ))}
+                            </select>
+                            {availableBomberosFolios.length === 0 && (
+                                <p className="text-xs text-red-600 mt-1 font-medium italic">
+                                    No hay reportes de bomberos pendientes de procesamiento.
+                                </p>
+                            )}
+                        </div>
+                        <div className="w-full md:w-1/2 text-sm text-red-800">
+                            <p className="font-bold underline mb-1">Nota:</p>
+                            Al seleccionar un folio, se cargarán automáticamente los importes y la fecha del reporte capturado.
+                            Al guardar, este reporte se marcará como <b>USADO</b>.
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-red-200 pt-4">
+                        <div className="bg-white p-3 rounded border border-red-100 shadow-sm">
+                            <p className="text-xs font-bold text-red-700 uppercase mb-2">Período que se Factura (Servicio)</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <select
+                                    value={data.month_billed}
+                                    onChange={e => setData('month_billed', e.target.value)}
+                                    className="border-gray-300 rounded-md text-sm w-full"
+                                >
+                                    <option value="">Mes...</option>
+                                    {monthsList.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                                <TextInput
+                                    type="number"
+                                    value={data.year_billed}
+                                    onChange={e => setData('year_billed', e.target.value)}
+                                    className="text-sm"
+                                    placeholder="Año"
+                                />
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-1 italic">* Mes de consumo (atrasado)</p>
+                        </div>
+
+                        <div className="bg-white p-3 rounded border border-red-100 shadow-sm">
+                            <p className="text-xs font-bold text-red-700 uppercase mb-2">Mes de Cobro (Actual)</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <select
+                                    value={data.month_charged}
+                                    onChange={e => setData('month_charged', e.target.value)}
+                                    className="border-gray-300 rounded-md text-sm w-full"
+                                >
+                                    <option value="">Mes...</option>
+                                    {monthsList.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                                <TextInput
+                                    type="number"
+                                    value={data.year_charged}
+                                    onChange={e => setData('year_charged', e.target.value)}
+                                    className="text-sm"
+                                    placeholder="Año"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* General Description Field - HIDE for CFE and Viaticos (since they have their own) */}

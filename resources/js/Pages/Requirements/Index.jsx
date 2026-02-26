@@ -79,7 +79,14 @@ export default function Index({ auth, requirements, filters, types }) {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <a href={route('requirements.pdf', req.id)} className="text-blue-600 hover:text-blue-900 mr-4" title="Requerimiento PDF" target="_blank">PDF</a>
+                                                <a href={route('requirements.pdf', req.id)} className="text-blue-600 hover:text-blue-900 mr-4" title="Requerimiento PDF" target="_blank">
+                                                    {req.type === 'bomberos' ? 'Requerimiento' : 'PDF'}
+                                                </a>
+                                                {req.type === 'bomberos' && (
+                                                    <a href={route('requirements.bomberos-oficio', req.id)} className="text-purple-600 hover:text-purple-900 mr-4" title="Oficio de Bomberos" target="_blank">
+                                                        Oficio
+                                                    </a>
+                                                )}
                                                 {req.type === 'viaticos' && (
                                                     <div className="flex flex-col gap-1 mt-1">
 

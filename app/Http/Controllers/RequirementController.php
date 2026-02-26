@@ -46,10 +46,16 @@ class RequirementController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $year = date('Y');
-        $latest = Requirement::where('year', $year)->max('requirement_number');
+        $type = $request->get('type', 'bomberos');
+        $group = Requirement::getNumberingGroup($type);
+        $typesInGroup = Requirement::getTypesByGroup($group);
+
+        $latest = Requirement::where('year', $year)
+            ->whereIn('type', $typesInGroup)
+            ->max('requirement_number');
         $nextNumber = $latest ? $latest + 1 : 1;
 
         // Fetch Data Directly for Props (No API)
@@ -72,11 +78,41 @@ class RequirementController extends Controller
         $leyenda = \App\Models\Leyenda::where('anio', $year)->first();
         $defaultLegend = $leyenda ? $leyenda->texto : '';
 
+        // Bomberos Specific Defaults
+        $bomberosCoordinador = Empleado::where('puesto', 'LIKE', '%COORDINADOR COMERCIAL%')
+            ->where('activo', true)
+            ->orderByDesc('id')
+            ->first();
+        $bomberosSubgerente = Empleado::where('puesto', 'LIKE', '%SUBGERENTE COMERCIAL%')
+            ->where('activo', true)
+            ->orderByDesc('id')
+            ->first();
+
         // Fetch active travel allowance rates for current year
         $travelAllowanceRates = \App\Models\TravelAllowanceRate::with('partida')
             ->active()
             ->forYear($year)
             ->get();
+
+        // Set default months based on logic: we pay one month delayed.
+        // If current is February, default should be January.
+        $months = [
+            1 => 'Enero',
+            2 => 'Febrero',
+            3 => 'Marzo',
+            4 => 'Abril',
+            5 => 'Mayo',
+            6 => 'Junio',
+            7 => 'Julio',
+            8 => 'Agosto',
+            9 => 'Septiembre',
+            10 => 'Octubre',
+            11 => 'Noviembre',
+            12 => 'Diciembre'
+        ];
+        $currentMonthNum = (int) date('n');
+        $prevMonthNum = $currentMonthNum === 1 ? 12 : $currentMonthNum - 1;
+        $prevMonthYear = $currentMonthNum === 1 ? $year - 1 : $year;
 
         return Inertia::render('Requirements/Create', [
             'nextNumber' => $nextNumber,
@@ -89,9 +125,37 @@ class RequirementController extends Controller
                 'coordinator_id' => $defaultCoordinador ? $defaultCoordinador->id : '',
                 'director_id' => $defaultDirector ? $defaultDirector->id : '',
             ],
+            'defaultBomberos' => [
+                'coordinator_id' => $bomberosCoordinador ? $bomberosCoordinador->id : '',
+                'subgerente_id' => $bomberosSubgerente ? $bomberosSubgerente->id : '',
+            ],
             'defaultLegend' => $defaultLegend, // Pass legend
             'vehicles' => $vehicles,
             'travelAllowanceRates' => $travelAllowanceRates,
+            'defaultMonths' => [
+                'month_billed' => $months[$prevMonthNum],
+                'year_billed' => $prevMonthYear,
+                'month_charged' => $months[$currentMonthNum],
+                'year_charged' => $year,
+            ],
+            'monthsList' => array_values($months)
+        ]);
+    }
+
+    public function getNextNumber(Request $request)
+    {
+        $year = $request->get('year', date('Y'));
+        $type = $request->get('type', 'estandard');
+
+        $group = Requirement::getNumberingGroup($type);
+        $typesInGroup = Requirement::getTypesByGroup($group);
+
+        $latest = Requirement::where('year', $year)
+            ->whereIn('type', $typesInGroup)
+            ->max('requirement_number');
+
+        return response()->json([
+            'nextNumber' => $latest ? $latest + 1 : 1
         ]);
     }
 
@@ -102,12 +166,15 @@ class RequirementController extends Controller
             'requirement_number' => 'required|integer',
             'type' => 'required|string',
             'assignment_date' => 'nullable|date',
+            'oficio_number' => 'nullable|string',
             'coordinator_id' => 'nullable|exists:empleados,id',
             'director_id' => 'nullable|exists:empleados,id',
             'manager_id' => 'nullable|exists:empleados,id',
             'elaborator_id' => 'nullable|exists:empleados,id',
             'month_charged' => 'nullable|string',
+            'year_charged' => 'nullable|integer',
             'month_billed' => 'nullable|string',
+            'year_billed' => 'nullable|integer',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'due_date' => 'nullable|date',
@@ -139,7 +206,6 @@ class RequirementController extends Controller
             'cfe_receipts.*.total' => 'nullable|numeric',
 
             // Viaticos Validation
-            'oficio_number' => 'nullable|string',
             'commission_summary_legend' => 'nullable|string',
             'exercise_year' => 'nullable|integer',
             'quarter' => 'nullable|string|in:I,II,III,IV',
@@ -185,11 +251,12 @@ class RequirementController extends Controller
             'commissioners_details.*.oficio_number' => 'nullable|string',
             'commissioners_details.*.report_date' => 'nullable|date',
             'commissioners_details.*.report_link' => 'nullable|string',
+            'firefighter_folio' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($validated) {
             // Calculation Logic
-            if ($validated['type'] === 'viaticos') {
+            if ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
                 // Viaticos Logic: Amounts are considered total or specific as entered
                 $subtotal = collect($validated['items'])->sum('amount');
                 $iva = 0; // We do not auto-calculate IVA for Viaticos
@@ -305,6 +372,15 @@ class RequirementController extends Controller
                     $travelAllowance->commissioners()->sync([$validated['commissioner_id']]);
                 }
             }
+
+            // Link Firefighter Captures if applicable
+            if ($validated['type'] === 'bomberos') {
+                $folio = $validated['firefighter_folio'] ?? $validated['requirement_number'];
+                \App\Models\Capture::where('requirement_number', $folio)
+                    ->where('year', $validated['year'])
+                    ->whereNull('requirement_id')
+                    ->update(['requirement_id' => $requirement->id]);
+            }
         });
 
         return redirect()->route('requirements.index')->with('success', 'Requerimiento creado exitosamente.');
@@ -313,6 +389,10 @@ class RequirementController extends Controller
     public function edit(Requirement $requirement)
     {
         $requirement->load(['items', 'cfeReceipts', 'travelAllowance.commissioners']); // Load receipts and travel allowance with commissioners
+
+        // Find linked firefighter folio if any
+        $linkedCapture = \App\Models\Capture::where('requirement_id', $requirement->id)->first();
+        $requirement->firefighter_folio = $linkedCapture ? $linkedCapture->requirement_number : null;
 
         $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe', 'organismo_id')->get(); // Added fields for Viaticos auto-fill
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get();
@@ -338,6 +418,20 @@ class RequirementController extends Controller
             'types' => Requirement::TYPES,
             'defaultLegend' => $defaultLegend, // Pass legend
             'travelAllowanceRates' => $travelAllowanceRates,
+            'monthsList' => [
+                'Enero',
+                'Febrero',
+                'Marzo',
+                'Abril',
+                'Mayo',
+                'Junio',
+                'Julio',
+                'Agosto',
+                'Septiembre',
+                'Octubre',
+                'Noviembre',
+                'Diciembre'
+            ]
         ]);
     }
 
@@ -348,12 +442,15 @@ class RequirementController extends Controller
             'requirement_number' => 'required|integer',
             'type' => 'required|string',
             'assignment_date' => 'nullable|date',
+            'oficio_number' => 'nullable|string',
             'coordinator_id' => 'nullable|exists:empleados,id',
             'director_id' => 'nullable|exists:empleados,id',
             'manager_id' => 'nullable|exists:empleados,id',
             'elaborator_id' => 'nullable|exists:empleados,id',
             'month_charged' => 'nullable|string',
+            'year_charged' => 'nullable|integer',
             'month_billed' => 'nullable|string',
+            'year_billed' => 'nullable|integer',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'due_date' => 'nullable|date',
@@ -385,7 +482,6 @@ class RequirementController extends Controller
             'cfe_receipts.*.total' => 'nullable|numeric',
 
             // Viaticos Validation
-            'oficio_number' => 'nullable|string',
             'commission_summary_legend' => 'nullable|string',
             'exercise_year' => 'nullable|integer',
             'quarter' => 'nullable|string|in:I,II,III,IV',
@@ -431,11 +527,12 @@ class RequirementController extends Controller
             'commissioners_details.*.oficio_number' => 'nullable|string',
             'commissioners_details.*.report_date' => 'nullable|date',
             'commissioners_details.*.report_link' => 'nullable|string',
+            'firefighter_folio' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($validated, $requirement) {
             // Calculation Logic
-            if ($validated['type'] === 'viaticos') {
+            if ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
                 $subtotal = collect($validated['items'])->sum('amount');
                 $iva = 0;
                 $total = $subtotal;
@@ -548,6 +645,20 @@ class RequirementController extends Controller
                     $requirement->cfeReceipts()->create($receipt);
                 }
             }
+
+            // Link Firefighter Captures if applicable
+            if ($validated['type'] === 'bomberos') {
+                // Clear previous links first if any
+                \App\Models\Capture::where('requirement_id', $requirement->id)->update(['requirement_id' => null]);
+
+                $folio = $validated['firefighter_folio'] ?? $validated['requirement_number'];
+                \App\Models\Capture::where('requirement_number', $folio)
+                    ->where('year', $validated['year'])
+                    ->where(function ($q) use ($requirement) {
+                        $q->whereNull('requirement_id')->orWhere('requirement_id', $requirement->id);
+                    })
+                    ->update(['requirement_id' => $requirement->id]);
+            }
         });
 
         return redirect()->route('requirements.index')->with('success', 'Requerimiento actualizado exitosamente.');
@@ -556,32 +667,50 @@ class RequirementController extends Controller
     public function destroy(Requirement $requirement)
     {
         $requirement->delete();
-        return redirect()->back()->with('success', 'Requerimiento eliminado.');
+        return redirect()->route('requirements.index')->with('success', 'Requerimiento eliminado exitosamente.');
     }
 
-    public function downloadPdf(Requirement $requirement)
+    public function downloadBomberosOficio(Requirement $requirement)
     {
-        $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator', 'travelAllowance']);
+        if ($requirement->type !== 'bomberos') {
+            abort(404);
+        }
 
-        // Group items by partida_id to consolidate amounts for the report (User Request)
-        $groupedItems = $requirement->items->groupBy('partida_id')->map(function ($group) {
-            $firstItem = $group->first();
-            // Create a clone or just modify the instance in memory? 
-            // Modifying the instance is safe here as it's not persisted
-            $firstItem->amount = $group->sum('amount');
-            return $firstItem;
-        })->values();
-
-        $requirement->setRelation('items', $groupedItems);
+        $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator']);
 
         // Fetch settings
+        $settings = $this->getSettingsForPdf();
+
+        // Fetch specific Coordinador Comercial for the addressee
+        $bomberosCoordinador = \App\Models\Empleado::where('puesto', 'LIKE', '%COORDINADOR COMERCIAL%')
+            ->where('activo', true)
+            ->orderByDesc('id')
+            ->first();
+        $destinatario = $bomberosCoordinador ?? $requirement->coordinator;
+
+        $fecha = \Carbon\Carbon::parse($requirement->assignment_date);
+        $fecha_formateada = $fecha->day . ' DE ' . strtoupper($fecha->translatedFormat('F')) . ' DEL ' . $fecha->year;
+
+        $importe_letras = \App\Helpers\NumberHelper::convert($requirement->total);
+
+        $pdf = Pdf::loadView('reports.bomberos_oficio', [
+            'requirement' => $requirement,
+            'settings' => $settings,
+            'fecha_formateada' => $fecha_formateada,
+            'importe_letras' => $importe_letras,
+            'destinatario' => $destinatario
+        ])->setPaper('letter', 'portrait');
+
+        return $pdf->download('Oficio_Bomberos_' . $requirement->requirement_number . '.pdf');
+    }
+
+    private function getSettingsForPdf()
+    {
         $rawSettings = \App\Models\Setting::pluck('value', 'key')->toArray();
         $settings = [];
 
-        // Process images for DomPDF (Must be Base64 or Absolute Path)
         foreach ($rawSettings as $key => $value) {
             if (in_array($key, ['logo_qroo', 'logo_unidos', 'logo_capa_header', 'logo_capa', 'footer_imagen']) && $value) {
-                // Assuming values are stored as 'logos/filename.png' in public disk
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($value)) {
                     $path = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
                     $type = pathinfo($path, PATHINFO_EXTENSION);
@@ -589,7 +718,6 @@ class RequirementController extends Controller
                     $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
                     $settings[$key] = $base64;
                 } else {
-                    // Fallback or leave as is if not found (might be external URL though unlikely)
                     $settings[$key] = $value;
                 }
             } else {
@@ -597,10 +725,29 @@ class RequirementController extends Controller
             }
         }
 
-        // Fetch year legend from leyendas catalog based on requirement year
-        $requirementYear = \Carbon\Carbon::parse($requirement->assignment_date)->year;
-        $leyenda = \App\Models\Leyenda::where('anio', $requirementYear)->first();
+        // Year Legend
+        $leyenda = \App\Models\Leyenda::orderBy('anio', 'desc')->first();
         $settings['leyenda_anio'] = $leyenda ? $leyenda->texto : '';
+
+        return $settings;
+    }
+
+    public function downloadPdf(Requirement $requirement)
+    {
+        $requirement->load(['items.partida.capitulo', 'items.employee', 'coordinator', 'director', 'manager', 'elaborator', 'travelAllowance']);
+
+        // Group items by partida_id to consolidate amounts for the report (except for specific cases)
+        if ($requirement->type !== 'bomberos') {
+            $groupedItems = $requirement->items->groupBy('partida_id')->map(function ($group) {
+                $firstItem = $group->first();
+                $firstItem->amount = $group->sum('amount');
+                return $firstItem;
+            })->values();
+            $requirement->setRelation('items', $groupedItems);
+        }
+
+        // Fetch settings using helper
+        $settings = $this->getSettingsForPdf();
 
         // Prepare data for the view
         $fecha = \Carbon\Carbon::parse($requirement->assignment_date);
@@ -608,11 +755,24 @@ class RequirementController extends Controller
 
         $importe_letras = \App\Helpers\NumberHelper::convert($requirement->total);
 
-        // Logic for Signatures/Addresses based on specific Job Title (User Request)
-        // Always look for the employee with this specific title via catalog
-        $adminCoordinator = \App\Models\Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO%')->first();
+        if ($requirement->type === 'bomberos') {
+            // Find Subgerente for "ENTERÉ" signature in Anexo 15
+            $subgerente = Empleado::where('puesto', 'LIKE', '%SUBGERENTE COMERCIAL%')
+                ->where('activo', true)
+                ->orderByDesc('id')
+                ->first();
 
-        // Fallback to the one selected in the requirement if no match found by title
+            return Pdf::loadView('reports.bomberos_anexo_15', [
+                'requirement' => $requirement,
+                'settings' => $settings,
+                'fecha_formateada' => $fecha_formateada,
+                'importe_letras' => $importe_letras,
+                'subgerente' => $subgerente
+            ])->setPaper('letter', 'portrait')->download('Anexo_15_Bomberos_' . $requirement->requirement_number . '.pdf');
+        }
+
+        // Standard Logic for other types
+        $adminCoordinator = \App\Models\Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO, FINANCIERO Y DE ARCHIVO%')->first();
         $finalCoordinator = $adminCoordinator ?? $requirement->coordinator;
 
         $data = [

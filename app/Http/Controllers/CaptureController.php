@@ -187,6 +187,7 @@ class CaptureController extends Controller
     public function getRequirements()
     {
         return Capture::whereNotNull('requirement_number')
+            ->whereNull('requirement_id') // Filter out used ones
             ->select('year', 'requirement_number', 'requirement_type')
             ->groupBy('year', 'requirement_number', 'requirement_type')
             ->orderByRaw('year DESC, requirement_type, MAX(id) DESC')
@@ -198,5 +199,28 @@ class CaptureController extends Controller
                     'requirement_type' => $item->requirement_type ?? 'bomberos',
                 ];
             });
+    }
+
+    public function getSummaryByAssignment(Request $request)
+    {
+        $request->validate([
+            'requirement_number' => 'required',
+            'year' => 'required|integer',
+        ]);
+
+        $captures = Capture::where('requirement_number', $request->requirement_number)
+            ->where('year', $request->year)
+            ->whereNull('requirement_id') // Only unused captures
+            ->get();
+
+        if ($captures->isEmpty()) {
+            return response()->json(['message' => 'No se encontraron registros pendientes para este requerimiento.'], 404);
+        }
+
+        return response()->json([
+            'total_commission' => $captures->sum('commission'),
+            'assignment_date' => $captures->min('date'), // Use the earliest date as reference
+            'count' => $captures->count(),
+        ]);
     }
 }

@@ -22,12 +22,15 @@ class Requirement extends Model
         'requirement_number',
         'type',
         'assignment_date',
+        'oficio_number',
         'coordinator_id',
         'director_id',
         'manager_id',
         'elaborator_id',
         'month_charged',
+        'year_charged',
         'month_billed',
+        'year_billed',
         'start_date',
         'end_date',
         'due_date',
@@ -88,5 +91,24 @@ class Requirement extends Model
     public function travelAllowance()
     {
         return $this->hasOne(TravelAllowance::class);
+    }
+
+    public static function getNumberingGroup($type)
+    {
+        return match ($type) {
+            'bomberos' => 'bomberos',
+            'revolvente' => 'fondo_fijo',
+            default => 'standard',
+        };
+    }
+
+    public static function getTypesByGroup($group)
+    {
+        return match ($group) {
+            'bomberos' => ['bomberos'],
+            'fondo_fijo' => ['revolvente'],
+            'standard' => ['cfe', 'estandard', 'viaticos'],
+            default => [],
+        };
     }
 }

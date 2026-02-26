@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import RequirementForm from './Form';
 
-export default function Create({ auth, nextNumber, year, employees, capitulos, partidas, vehicles, types, defaultSignatories, defaultLegend, travelAllowanceRates }) {
+export default function Create({ auth, nextNumber, year, employees, capitulos, partidas, vehicles, types, defaultSignatories, defaultLegend, travelAllowanceRates, defaultMonths, monthsList, defaultBomberos }) {
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -30,6 +30,9 @@ export default function Create({ auth, nextNumber, year, employees, capitulos, p
                                 defaultSignatories={defaultSignatories}
                                 defaultLegend={defaultLegend}
                                 travelAllowanceRates={travelAllowanceRates}
+                                defaultMonths={defaultMonths}
+                                monthsList={monthsList}
+                                defaultBomberos={defaultBomberos}
                             />
                         </div>
                     </div>

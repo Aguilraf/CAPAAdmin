@@ -79,15 +79,16 @@ export default function Capture({ auth, communities: initialCommunities, firefig
             }
         }
 
-        const rawCommission = subtotal * rate;
-        const commission = rawCommission + roundingComm;
+        const rawCommission = (subtotal * rate) + roundingComm;
+        const commissionRounded = Math.round(rawCommission * 100) / 100;
 
         // Total is Subtotal minus Commission plus Rounding Total adjustment
-        const total = subtotal - commission + roundingTot;
+        // We use the rounded commission to ensure the sum matches the subtotal exactly
+        const total = subtotal - commissionRounded + roundingTot;
 
         setFormData(prev => ({
             ...prev,
-            commission: commission.toFixed(2),
+            commission: commissionRounded.toFixed(2),
             total: total.toFixed(2)
         }));
     }, [formData.subtotal, formData.rounding_commission, formData.rounding_total, formData.community_id, communities]);
