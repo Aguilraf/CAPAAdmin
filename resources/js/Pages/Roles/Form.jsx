@@ -61,20 +61,69 @@ export default function RoleForm({ role, permissions, rolePermissions = [] }) {
 
                                     {/* Agrupar permisos por categoría */}
                                     {(() => {
+                                        const categorized = new Set();
+
                                         const categories = {
-                                            'Usuarios': permissions.filter(p => p.name.includes('usuarios')),
-                                            'Roles': permissions.filter(p => p.name.includes('roles')),
-                                            'Reportes': permissions.filter(p => p.name.includes('reportes') && !p.name.includes('bomberos')),
-                                            'Vacaciones': permissions.filter(p => p.name.includes('vacaciones')),
-                                            'Bomberos': permissions.filter(p =>
-                                                p.name.includes('bomberos') ||
-                                                p.name.includes('comunidades') ||
-                                                p.name === 'capturar bomberos' ||
-                                                p.name === 'recibir bomberos' ||
-                                                p.name === 'reportes bomberos' ||
-                                                p.name === 'configurar bomberos' ||
-                                                p.name === 'importar bomberos'
-                                            ),
+                                            'Usuarios': permissions.filter(p => {
+                                                const match = p.name.includes('usuarios');
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Roles': permissions.filter(p => {
+                                                const match = p.name.includes('roles');
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Catálogos': permissions.filter(p => {
+                                                const match = (
+                                                    p.name.includes('empleados') ||
+                                                    p.name.includes('puestos') ||
+                                                    p.name.includes('organismos') ||
+                                                    p.name.includes('providers') ||
+                                                    p.name.includes('vehicles') ||
+                                                    p.name.includes('materiales') ||
+                                                    p.name.includes('unidades-medida') ||
+                                                    p.name.includes('capitulos') ||
+                                                    p.name.includes('partidas') ||
+                                                    p.name.includes('leyendas')
+                                                );
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Viáticos y Pagos': permissions.filter(p => {
+                                                const match = (
+                                                    p.name.includes('travel-allowance') ||
+                                                    p.name.includes('payments') ||
+                                                    p.name.includes('viaticos')
+                                                );
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Vacaciones': permissions.filter(p => {
+                                                const match = p.name.includes('vacaciones');
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Bomberos': permissions.filter(p => {
+                                                const match = (
+                                                    p.name.includes('bomberos') ||
+                                                    p.name.includes('comunidades') ||
+                                                    p.name === 'capturar bomberos' ||
+                                                    p.name === 'recibir bomberos' ||
+                                                    p.name === 'reportes bomberos' ||
+                                                    p.name === 'configurar bomberos' ||
+                                                    p.name === 'importar bomberos'
+                                                );
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Reportes': permissions.filter(p => {
+                                                if (categorized.has(p.id)) return false;
+                                                const match = p.name.includes('reportes');
+                                                if (match) categorized.add(p.id);
+                                                return match;
+                                            }),
+                                            'Otros / General': permissions.filter(p => !categorized.has(p.id)),
                                         };
 
                                         return Object.entries(categories).map(([category, perms]) => {
@@ -87,6 +136,7 @@ export default function RoleForm({ role, permissions, rolePermissions = [] }) {
                                                         {perms.map((permission) => (
                                                             <label key={permission.id} className="flex items-center space-x-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
                                                                 <Checkbox
+                                                                    id={`perm-${permission.id}`}
                                                                     checked={data.permissions.includes(permission.name)}
                                                                     onChange={(e) => handlePermissionChange(permission.name, e.target.checked)}
                                                                 />

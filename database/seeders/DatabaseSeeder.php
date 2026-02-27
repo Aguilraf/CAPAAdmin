@@ -19,11 +19,10 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             RolePermissionSeeder::class,
+            FirefightersPermissionsSeeder::class,
+            CatalogPermissionsSeeder::class,
+            EssentialDataSeeder::class,
+            UserSeeder::class,
         ]);
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ])->assignRole('Administrador');
     }
 }

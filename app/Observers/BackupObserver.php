@@ -37,17 +37,13 @@ class BackupObserver
 
     protected function triggerBackup()
     {
-        // Use Artisan::call to run the backup command
-        // We run it in background or async if possible, but for simplicity here we run it directly.
-        // To avoid blocking the user request too much, we might want to dispatch a Job if queue is set up.
-        // Assuming queue is 'sync' (default dev), it will run synchronously.
-        // If 'database' or 'redis' queue is used, we should dispatch a Job.
+        // El comando de backup está deshabilitado temporalmente debido a restricciones
+        // de funciones de sistema (exec) en el servidor de producción que causan errores 500.
 
-        // For now, let's run it directly but catch exceptions to not break the app flow
-        try {
+        /* try {
             Artisan::call('db:backup', ['--type' => 'instant']);
         } catch (\Exception $e) {
             Log::error('Backup on change failed: ' . $e->getMessage());
-        }
+        } */
     }
 }
