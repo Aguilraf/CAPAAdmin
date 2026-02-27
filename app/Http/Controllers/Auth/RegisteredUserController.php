@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 class RegisteredUserController extends Controller
 {
@@ -53,8 +54,11 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        // Asegurar que el rol Administrador existe
+        $role = Role::firstOrCreate(['name' => 'Administrador', 'guard_name' => 'web']);
+
         // Asignar rol de Administrador al primer usuario
-        $user->assignRole('Administrador');
+        $user->assignRole($role);
 
         event(new Registered($user));
 
