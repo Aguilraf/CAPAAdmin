@@ -29,6 +29,7 @@ Route::middleware('auth')->group(function () {
     // Rutas de Catálogos (Solo Administrador)
     Route::middleware(['role:Administrador'])->group(function () {
         Route::get('empleados/plantilla', [\App\Http\Controllers\EmpleadoController::class, 'downloadTemplate'])->name('empleados.template');
+        Route::get('empleados/export', [\App\Http\Controllers\EmpleadoController::class, 'export'])->name('empleados.export');
         Route::post('empleados/import', [\App\Http\Controllers\EmpleadoController::class, 'import'])->name('empleados.import');
         Route::resource('empleados', \App\Http\Controllers\EmpleadoController::class);
         Route::resource('capitulos', \App\Http\Controllers\CapituloController::class);

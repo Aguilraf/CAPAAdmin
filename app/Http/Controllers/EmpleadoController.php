@@ -302,4 +302,12 @@ class EmpleadoController extends Controller
     {
         return Excel::download(new \App\Exports\EmpleadosTemplateExport, 'plantilla_empleados.xlsx');
     }
+
+    /**
+     * Export employees to Excel.
+     */
+    public function export()
+    {
+        return Excel::download(new \App\Exports\EmpleadoExport, 'catalogo_empleados.xlsx');
+    }
 }
