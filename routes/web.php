@@ -28,9 +28,9 @@ Route::middleware('auth')->group(function () {
     // Specific routes must come BEFORE resource routes
     // Rutas de Catálogos (Solo Administrador)
     Route::middleware(['role:Administrador'])->group(function () {
-        Route::get('empleados/plantilla', [\App\Http\Controllers\EmpleadoController::class, 'downloadTemplate'])->name('empleados.template');
+        /* Route::get('empleados/plantilla', [\App\Http\Controllers\EmpleadoController::class, 'downloadTemplate'])->name('empleados.template');
         Route::get('empleados/export', [\App\Http\Controllers\EmpleadoController::class, 'export'])->name('empleados.export');
-        Route::post('empleados/import', [\App\Http\Controllers\EmpleadoController::class, 'import'])->name('empleados.import');
+        Route::post('empleados/import', [\App\Http\Controllers\EmpleadoController::class, 'import'])->name('empleados.import'); */
         Route::resource('empleados', \App\Http\Controllers\EmpleadoController::class);
         Route::resource('capitulos', \App\Http\Controllers\CapituloController::class);
         Route::resource('partidas', \App\Http\Controllers\PartidaController::class);
@@ -46,9 +46,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('vehicles', \App\Http\Controllers\VehicleController::class);
         Route::resource('travel-allowance-rates', \App\Http\Controllers\TravelAllowanceRateController::class);
 
-        // Rutas de Importación
+        // Rutas de Importación/Exportación Unificada
         Route::get('/importar', [\App\Http\Controllers\ImportController::class, 'index'])->name('import.index');
         Route::post('/importar', [\App\Http\Controllers\ImportController::class, 'store'])->name('import.store');
+        Route::get('/exportar', [\App\Http\Controllers\ImportController::class, 'export'])->name('import.export');
         Route::get('/importar/plantilla', [\App\Http\Controllers\ImportController::class, 'downloadTemplate'])->name('import.template');
 
         // Rutas de Administración de Usuarios
@@ -219,13 +220,13 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['auth'])->group(function () {
         // Communities
         Route::resource('communities', \App\Http\Controllers\CommunityController::class);
-        Route::post('communities/import', [\App\Http\Controllers\CommunityImportController::class, 'import'])->name('communities.import');
-        Route::get('communities/import/template', [\App\Http\Controllers\CommunityImportController::class, 'downloadTemplate'])->name('communities.import.template');
+        /* Route::post('communities/import', [\App\Http\Controllers\CommunityImportController::class, 'import'])->name('communities.import');
+        Route::get('communities/import/template', [\App\Http\Controllers\CommunityImportController::class, 'downloadTemplate'])->name('communities.import.template'); */
 
         // Firefighters
         Route::resource('firefighters', \App\Http\Controllers\FirefighterController::class);
-        Route::post('firefighters/import', [\App\Http\Controllers\FirefighterImportController::class, 'import'])->name('firefighters.import');
-        Route::get('firefighters/import/template', [\App\Http\Controllers\FirefighterImportController::class, 'downloadTemplate'])->name('firefighters.import.template');
+        /* Route::post('firefighters/import', [\App\Http\Controllers\FirefighterImportController::class, 'import'])->name('firefighters.import');
+        Route::get('firefighters/import/template', [\App\Http\Controllers\FirefighterImportController::class, 'downloadTemplate'])->name('firefighters.import.template'); */
 
         // Captures
         Route::post('captures/assign-requirement', [\App\Http\Controllers\CaptureController::class, 'assignRequirement'])->name('captures.assign-requirement');

@@ -159,25 +159,6 @@ export default function Communities({ auth, communities: initialCommunities }) {
                                 <h2 className="text-2xl font-bold text-gray-800">Catálogo de Comunidades</h2>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={handleDownloadTemplate}
-                                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                                    >
-                                        Descargar Plantilla
-                                    </button>
-                                    <button
-                                        onClick={handleImportClick}
-                                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                                    >
-                                        Importar CSV
-                                    </button>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".csv"
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                    />
-                                    <button
                                         onClick={() => handleOpenModal()}
                                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                                     >

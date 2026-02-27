@@ -141,29 +141,6 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
                                 <h2 className="text-2xl font-bold text-gray-800">Catálogo de Bomberos</h2>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={handleDownloadTemplate}
-                                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                                        title="Descargar plantilla CSV para importar"
-                                    >
-                                        <Download className="w-5 h-5 mr-2" />
-                                        Bajar Layout
-                                    </button>
-                                    <button
-                                        onClick={handleImportClick}
-                                        className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-                                        title="Subir archivo CSV con bomberos"
-                                    >
-                                        <Upload className="w-5 h-5 mr-2" />
-                                        Subir Bomberos
-                                    </button>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".csv,.xlsx"
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                    />
-                                    <button
                                         onClick={() => handleOpenModal()}
                                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                                     >
@@ -175,8 +152,8 @@ export default function Firefighters({ auth, firefighters: initialFirefighters, 
 
                             {importMessage && (
                                 <div className={`p-4 mb-4 rounded flex justify-between items-center ${importMessage.type === 'success' ? 'bg-green-100 text-green-700' :
-                                        importMessage.type === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                                            'bg-red-100 text-red-700'
+                                    importMessage.type === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-red-100 text-red-700'
                                     }`}>
                                     <span>{importMessage.text}</span>
                                     <button onClick={() => setImportMessage(null)} className="ml-4 hover:opacity-75">

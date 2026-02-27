@@ -54,24 +54,6 @@ export default function Index({ empleados, filters }) {
                         Catálogo de Empleados
                     </h2>
                     <div className="flex gap-3">
-                        <a
-                            href={route('empleados.template')}
-                            className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                        >
-                            📥 Plantilla
-                        </a>
-                        <a
-                            href={route('empleados.export')}
-                            className="inline-flex items-center px-4 py-2 bg-emerald-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-emerald-700 focus:bg-emerald-700 active:bg-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                        >
-                            📊 Exportar Excel
-                        </a>
-                        <button
-                            onClick={() => setShowImportModal(true)}
-                            className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:bg-green-700 active:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                        >
-                            📤 Importar
-                        </button>
                         <Link
                             href={route('empleados.create')}
                             className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition ease-in-out duration-150"
@@ -232,67 +214,6 @@ export default function Index({ empleados, filters }) {
                     </div>
                 </div>
             </div>
-
-            {/* Import Modal */}
-            {showImportModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                        <div className="p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-medium text-gray-900">
-                                    Importar Empleados desde Excel
-                                </h3>
-                                <button
-                                    onClick={() => setShowImportModal(false)}
-                                    className="text-gray-400 hover:text-gray-500"
-                                >
-                                    <span className="text-2xl">×</span>
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleImport}>
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Archivo Excel (.xlsx, .xls, .csv)
-                                    </label>
-                                    <input
-                                        type="file"
-                                        accept=".xlsx,.xls,.csv"
-                                        onChange={(e) => setImportFile(e.target.files[0])}
-                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                                        required
-                                    />
-                                    <p className="mt-2 text-xs text-gray-500">
-                                        El archivo debe tener las columnas: CLAVE, NOMBRE, PUESTO, DEPARTAMENTO, F. ALTA, NSS, RFC, NIVEL, CURP, OTRO
-                                    </p>
-                                    <a
-                                        href={route('empleados.template')}
-                                        className="mt-2 inline-block text-sm text-indigo-600 hover:text-indigo-800 underline"
-                                    >
-                                        📥 Descargar Plantilla Excel
-                                    </a>
-                                </div>
-
-                                <div className="flex justify-end gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowImportModal(false)}
-                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                                    >
-                                        Importar
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            )}
         </AuthenticatedLayout>
     );
 }
