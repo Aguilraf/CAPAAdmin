@@ -82,7 +82,7 @@ class BackupDatabase extends Command
         // Execute
         $output = null;
         $resultCode = null;
-        exec($cmd, $output, $resultCode);
+        \exec($cmd, $output, $resultCode);
 
         if ($resultCode === 0) {
             $this->info("Backup successful: {$filename}");
@@ -136,7 +136,7 @@ class BackupDatabase extends Command
         // Check if global as last resort
         $output = null;
         $resultCode = null;
-        exec('mysqldump --version', $output, $resultCode);
+        \exec('mysqldump --version', $output, $resultCode);
         if ($resultCode === 0) {
             return 'mysqldump';
         }
