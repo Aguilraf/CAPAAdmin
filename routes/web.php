@@ -73,7 +73,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Rutas de Reportes
-    Route::middleware(['permission:generar reportes'])->group(function () {
+    Route::middleware(['role:Administrador|permission:generar reportes|permission:gestionar reportes'])->group(function () {
         Route::get('/reportes', [\App\Http\Controllers\ReportController::class, 'index'])->name('reportes.index');
         Route::get('/reportes/historial', [\App\Http\Controllers\ReportController::class, 'historial'])->name('reportes.historial');
         Route::get('/reportes/historial/{id}/print', [\App\Http\Controllers\ReportController::class, 'reprint'])->name('reportes.historial.print');
@@ -92,6 +92,9 @@ Route::middleware('auth')->group(function () {
         Route::get('requirements/{requirement}/cfe-relation', [\App\Http\Controllers\RequirementController::class, 'downloadCfeRelation'])->name('requirements.cfe-relation');
         Route::get('requirements/{requirement}/comprobacion-viaticos/{employee}', [\App\Http\Controllers\RequirementController::class, 'downloadComprobacionViaticos'])->name('requirements.comprobacion-viaticos');
         Route::get('requirements/{requirement}/bomberos-oficio', [\App\Http\Controllers\RequirementController::class, 'downloadBomberosOficio'])->name('requirements.bomberos-oficio');
+        Route::get('requirements/{requirement}/revolvente-oficio', [\App\Http\Controllers\RequirementController::class, 'downloadRevolventeOficio'])->name('requirements.revolvente-oficio');
+        Route::get('requirements/{requirement}/revolvente-anexo4', [\App\Http\Controllers\RequirementController::class, 'downloadRevolventeAnexo4'])->name('requirements.revolvente-anexo4');
+        Route::get('requirements/{requirement}/revolvente-cedula', [\App\Http\Controllers\RequirementController::class, 'downloadRevolvanteCedula'])->name('requirements.revolvente-cedula');
 
 
 
@@ -121,7 +124,7 @@ Route::middleware('auth')->group(function () {
 
 
     // Modulo de Vacaciones
-    Route::middleware(['auth', 'permission:ver vacaciones'])->group(function () {
+    Route::middleware(['auth', 'role:Administrador|permission:ver vacaciones'])->group(function () {
         Route::get('/vacaciones', [\App\Http\Controllers\VacationController::class, 'index'])->name('vacations.index');
         Route::post('/vacaciones', [\App\Http\Controllers\VacationController::class, 'store'])->name('vacations.store');
         Route::get('/vacaciones/solicitud/{solicitud}/pdf', [\App\Http\Controllers\VacationPdfController::class, 'downloadRequest'])->name('vacations.pdf.request');

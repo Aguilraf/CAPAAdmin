@@ -125,6 +125,8 @@
                 $fv = \Carbon\Carbon::parse($requirement->travelAllowance->departure_date);
                 $finalDescription .= ' EL DÍA ' . $fv->day . ' DE ' . $fv->translatedFormat('F') . ' DEL ' . $fv->year;
             }
+        } elseif ($requirement->type === 'revolvente') {
+            $finalDescription = ($requirement->revolving_fund_type ?? 'REPOSICIÓN') . " DE FONDO REVOLVENTE No. " . ($requirement->revolving_fund_number ?? 'S/N');
         }
         $finalDescription = mb_strtoupper($finalDescription);
     @endphp

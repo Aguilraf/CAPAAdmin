@@ -87,6 +87,19 @@ export default function Index({ auth, requirements, filters, types }) {
                                                         Oficio
                                                     </a>
                                                 )}
+                                                {req.type === 'revolvente' && (
+                                                    <div className="flex flex-col gap-1 mt-1 items-end">
+                                                        <a href={route('requirements.revolvente-oficio', req.id)} className="text-purple-600 hover:text-purple-900 font-semibold text-xs" target="_blank" title="Oficio de solicitud">
+                                                            📄 Oficio
+                                                        </a>
+                                                        <a href={route('requirements.revolvente-anexo4', req.id)} className="text-teal-600 hover:text-teal-900 font-semibold text-xs" target="_blank" title="Anexo 4 - Entero de Reposición">
+                                                            📋 Anexo 4
+                                                        </a>
+                                                        <a href={route('requirements.revolvente-cedula', req.id)} className="text-orange-600 hover:text-orange-900 font-semibold text-xs" target="_blank" title="Cédula de Control de Erogaciones">
+                                                            📊 Cédula
+                                                        </a>
+                                                    </div>
+                                                )}
                                                 {req.type === 'viaticos' && (
                                                     <div className="flex flex-col gap-1 mt-1">
 

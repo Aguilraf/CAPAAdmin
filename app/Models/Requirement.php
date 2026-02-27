@@ -40,6 +40,8 @@ class Requirement extends Model
         'isr',
         'total',
         'status',
+        'revolving_fund_type',
+        'revolving_fund_number',
     ];
 
     protected $casts = [

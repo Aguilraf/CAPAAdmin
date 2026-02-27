@@ -7,6 +7,7 @@ import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import ViaticosForm from './Partials/ViaticosForm';
+import RevolventeForm from './Partials/RevolventeForm';
 
 export default function RequirementForm({
     initialData = {},
@@ -119,6 +120,21 @@ export default function RequirementForm({
             : [],
 
         firefighter_folio: initialData.firefighter_folio || '',
+
+        // Revolvente Fields
+        revolving_fund_type: initialData.revolving_fund_type || '',
+        revolving_fund_number: initialData.revolving_fund_number || '',
+
+        // Saved totals for revolvente (used to restore adjustments on edit)
+        totals_adjust: initialData.type === 'revolvente' && initialData.subtotal != null ? {
+            invoice_subtotal: parseFloat(initialData.subtotal || 0),
+            invoice_discount: parseFloat(initialData.discount || 0),
+            invoice_iva: parseFloat(initialData.iva || 0),
+            invoice_ieps: parseFloat(initialData.ieps || 0),
+            invoice_retention_isr: parseFloat(initialData.retention_isr || 0),
+            invoice_retention_iva: parseFloat(initialData.retention_iva || 0),
+            amount: parseFloat(initialData.total || 0),
+        } : null,
     });
 
     const [availableBomberosFolios, setAvailableBomberosFolios] = useState([]);
@@ -238,12 +254,34 @@ export default function RequirementForm({
             finalSub = sumSub;
             finalIva = sumIva;
             finalTotal = sumTotal;
-        } else if (data.type === 'viaticos' || data.type === 'bomberos') {
-            // Viaticos Logic: Sum items directly (amount includes relevant taxes or is exempt)
+        } else if (data.type === 'viaticos' || data.type === 'bomberos' || data.type === 'revolvente') {
+            // Logic for these types: Sum items directly (amount already includes taxes/details)
             const sub = data.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
-            finalSub = sub;
-            finalIva = 0; // Or sum specific IVA if tracked, but for now 0 as per controller
-            finalTotal = finalSub;
+            const iva = data.type === 'revolvente'
+                ? data.items.reduce((acc, item) => acc + Number(item.invoice_iva || 0), 0)
+                : 0;
+            finalSub = sub - iva; // If amount is total, subtotal should be total - iva? 
+            // Wait, usually in these requirements, subtotal + iva = total.
+            // If item.amount is total, and we have iva, then subtotal is amount - iva.
+
+            finalSub = sub; // Actually, for these reports, sometimes they treat the base amount as subtotal.
+            // Let's stick to what's most standard for them.
+            // For revolvente, let's sum subtotal and iva separately if possible.
+
+            const sumInvoiceSub = data.type === 'revolvente'
+                ? data.items.reduce((acc, item) => acc + Number(item.invoice_subtotal || 0), 0)
+                : sub;
+
+            finalSub = sumInvoiceSub;
+            finalIva = iva;
+            finalTotal = sub;
+
+            // Apply manual adjustments from RevolventeForm (max ±$0.02 per column)
+            if (data.type === 'revolvente' && data.totals_adjust) {
+                if (data.totals_adjust.invoice_subtotal !== undefined) finalSub = data.totals_adjust.invoice_subtotal;
+                if (data.totals_adjust.invoice_iva !== undefined) finalIva = data.totals_adjust.invoice_iva;
+                if (data.totals_adjust.amount !== undefined) finalTotal = data.totals_adjust.amount;
+            }
         } else {
             // Standard Logic: Sum items + 16% IVA
             const sub = data.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
@@ -257,7 +295,7 @@ export default function RequirementForm({
             iva: parseFloat(finalIva.toFixed(2)),
             total: parseFloat(finalTotal.toFixed(2))
         });
-    }, [data.items, data.cfe_receipts, data.type]);
+    }, [data.items, data.cfe_receipts, data.type, data.totals_adjust]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -676,6 +714,17 @@ export default function RequirementForm({
                 />
             )}
 
+            {/* Revolvente Specific Section */}
+            {data.type === 'revolvente' && (
+                <RevolventeForm
+                    data={data}
+                    setData={setData}
+                    partidas={partidas}
+                    capitulos={capitulos}
+                    errors={errors}
+                />
+            )}
+
             {/* Bomberos Specific Section */}
             {data.type === 'bomberos' && mode === 'create' && (
                 <div className="bg-red-50 p-4 rounded-md border border-red-200 space-y-4">
@@ -754,8 +803,8 @@ export default function RequirementForm({
                 </div>
             )}
 
-            {/* General Description Field - HIDE for CFE and Viaticos (since they have their own) */}
-            {data.type !== 'cfe' && data.type !== 'viaticos' && (
+            {/* General Description Field - HIDE for CFE, Viaticos and Revolvente */}
+            {data.type !== 'cfe' && data.type !== 'viaticos' && data.type !== 'revolvente' && (
                 <div>
                     <InputLabel value="Concepto General (Descripción)" />
                     <textarea
@@ -769,8 +818,8 @@ export default function RequirementForm({
 
             {/* Conditional Rendering: If CFE, we mainly show Summary Item + Receipts Table */}
 
-            {/* Standard Items List - HIDE for CFE and Viaticos (Viaticos has its own table) */}
-            {data.type !== 'cfe' && data.type !== 'viaticos' && (
+            {/* Standard Items List - HIDE for CFE, Viaticos and Revolvente */}
+            {data.type !== 'cfe' && data.type !== 'viaticos' && data.type !== 'revolvente' && (
                 <div className="border p-4 rounded-md">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-medium">Partidas / Conceptos</h3>

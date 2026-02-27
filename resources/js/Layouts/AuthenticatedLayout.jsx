@@ -34,15 +34,17 @@ export default function AuthenticatedLayout({ header, children }) {
                                 <NavLink href={route('commissions.index')} active={route().current('commissions.*')}>
                                     Comisiones
                                 </NavLink>
-                                <NavLink href={route('requirements.index')} active={route().current('requirements.*')}>
-                                    Requerimientos
-                                </NavLink>
+                                {user.roles?.some(r => r.name === 'Administrador') && (
+                                    <NavLink href={route('requirements.index')} active={route().current('requirements.*')}>
+                                        Requerimientos
+                                    </NavLink>
+                                )}
                                 <NavLink href={route('payments.index')} active={route().current('payments.*')}>
                                     Cobro / Pagos
                                 </NavLink>
 
                                 {/* Dropdown Reportes */}
-                                {user.permissions?.includes('generar reportes') && (
+                                {(user.permissions?.includes('generar reportes') || user.permissions?.includes('gestionar reportes') || user.roles?.some(r => r.name === 'Administrador')) && (
                                     <div className="inline-flex items-center">
                                         <Dropdown>
                                             <Dropdown.Trigger>

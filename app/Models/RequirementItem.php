@@ -31,6 +31,8 @@ class RequirementItem extends Model
         'cfe_subtotal',
         'cfe_iva',
         'cfe_rounding',
+        'invoice_discount',
+        'invoice_ieps',
     ];
 
     protected $casts = [
@@ -43,6 +45,8 @@ class RequirementItem extends Model
         'cfe_subtotal' => 'decimal:2',
         'cfe_iva' => 'decimal:2',
         'cfe_rounding' => 'decimal:2',
+        'invoice_discount' => 'decimal:2',
+        'invoice_ieps' => 'decimal:2',
         'invoice_date' => 'date',
         'cfe_period_start' => 'date',
         'cfe_period_end' => 'date',

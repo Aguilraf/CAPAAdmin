@@ -66,7 +66,7 @@ class RequirementController extends Controller
         // pero "No API" implica mandar todo o manejar filtrado por recarga de página.
         // Mandaremos todo seleccionado campos mínimos.
         // Mandaremos todo seleccionado campos mínimos.
-        $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
+        $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->orderBy('codigo')->get();
         $vehicles = \App\Models\Vehicle::where('active', true)->select('id', 'brand', 'model_year', 'plate_number', 'organismo_id')->get();
 
         // Default Signatories by Job Title
@@ -179,6 +179,8 @@ class RequirementController extends Controller
             'end_date' => 'nullable|date',
             'due_date' => 'nullable|date',
             'description' => 'nullable|string',
+            'revolving_fund_type' => 'nullable|string',
+            'revolving_fund_number' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.partida_id' => 'required|exists:partidas,id',
             'items.*.amount' => 'required|numeric|min:0',
@@ -191,6 +193,8 @@ class RequirementController extends Controller
             'items.*.provider_name' => 'nullable|string',
             'items.*.invoice_subtotal' => 'nullable|numeric|min:0',
             'items.*.invoice_iva' => 'nullable|numeric|min:0',
+            'items.*.invoice_discount' => 'nullable|numeric|min:0',
+            'items.*.invoice_ieps' => 'nullable|numeric|min:0',
             'items.*.invoice_retention_isr' => 'nullable|numeric|min:0',
             'items.*.invoice_retention_iva' => 'nullable|numeric|min:0',
             'items.*.invoice_total' => 'nullable|numeric|min:0',
@@ -252,32 +256,57 @@ class RequirementController extends Controller
             'commissioners_details.*.report_date' => 'nullable|date',
             'commissioners_details.*.report_link' => 'nullable|string',
             'firefighter_folio' => 'nullable|string',
+            'totals_adjust' => 'nullable|array',
         ]);
 
         DB::transaction(function () use ($validated) {
-            // Calculation Logic
-            if ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
-                // Viaticos Logic: Amounts are considered total or specific as entered
+            // Calculation Logic for Revolvente: prefer manually adjusted totals
+            if ($validated['type'] === 'revolvente') {
+                $adj = $validated['totals_adjust'] ?? [];
+                $subtotal = isset($adj['invoice_subtotal']) ? (float) $adj['invoice_subtotal'] : collect($validated['items'])->sum('invoice_subtotal');
+                $discount = isset($adj['invoice_discount']) ? (float) $adj['invoice_discount'] : collect($validated['items'])->sum('invoice_discount');
+                $iva = isset($adj['invoice_iva']) ? (float) $adj['invoice_iva'] : collect($validated['items'])->sum('invoice_iva');
+                $ieps = isset($adj['invoice_ieps']) ? (float) $adj['invoice_ieps'] : collect($validated['items'])->sum('invoice_ieps');
+                $retention_isr = isset($adj['invoice_retention_isr']) ? (float) $adj['invoice_retention_isr'] : collect($validated['items'])->sum('invoice_retention_isr');
+                $retention_iva = isset($adj['invoice_retention_iva']) ? (float) $adj['invoice_retention_iva'] : collect($validated['items'])->sum('invoice_retention_iva');
+                $total = isset($adj['amount']) ? (float) $adj['amount'] : collect($validated['items'])->sum('amount');
+            } elseif ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
                 $subtotal = collect($validated['items'])->sum('amount');
-                $iva = 0; // We do not auto-calculate IVA for Viaticos
+                $discount = 0;
+                $iva = 0;
+                $ieps = 0;
+                $retention_isr = 0;
+                $retention_iva = 0;
                 $total = $subtotal;
             } elseif (!empty($validated['cfe_receipts'])) {
                 // CFE Logic: Sum from receipts table for exact precision
                 $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
                 $iva = collect($validated['cfe_receipts'])->sum('iva');
                 $total = collect($validated['cfe_receipts'])->sum('total');
+                $discount = 0;
+                $ieps = 0;
+                $retention_isr = 0;
+                $retention_iva = 0;
             } else {
                 // Standard Logic
                 $subtotal = collect($validated['items'])->sum('amount');
                 $iva = $subtotal * 0.16;
                 $total = $subtotal + $iva;
+                $discount = 0;
+                $ieps = 0;
+                $retention_isr = 0;
+                $retention_iva = 0;
             }
 
             $requirement = Requirement::create([
                 ...$validated,
-                'subtotal' => $subtotal,
-                'iva' => $iva,
-                'total' => $total,
+                'subtotal' => round($subtotal, 2),
+                'discount' => round($discount, 2),
+                'iva' => round($iva, 2),
+                'ieps' => round($ieps, 2),
+                'retention_isr' => round($retention_isr, 2),
+                'retention_iva' => round($retention_iva, 2),
+                'total' => round($total, 2),
                 'status' => 'pending'
             ]);
 
@@ -295,6 +324,8 @@ class RequirementController extends Controller
                     'provider_name' => $item['provider_name'] ?? null,
                     'invoice_subtotal' => $item['invoice_subtotal'] ?? null,
                     'invoice_iva' => $item['invoice_iva'] ?? null,
+                    'invoice_discount' => $item['invoice_discount'] ?? null,
+                    'invoice_ieps' => $item['invoice_ieps'] ?? null,
                     'invoice_retention_isr' => $item['invoice_retention_isr'] ?? null,
                     'invoice_retention_iva' => $item['invoice_retention_iva'] ?? null,
                     'invoice_total' => $item['invoice_total'] ?? null,
@@ -396,7 +427,7 @@ class RequirementController extends Controller
 
         $employees = Empleado::activos()->select('id', 'nombre', 'primer_nombre', 'primer_apellido', 'segundo_apellido', 'puesto', 'cargo', 'rfc', 'clave', 'nivel', 'departamento', 'categoria', 'tipo_plaza', 'jefe_inmediato', 'banco', 'clabe', 'organismo_id')->get(); // Added fields for Viaticos auto-fill
         $capitulos = Capitulo::activos()->select('id', 'codigo', 'nombre')->get();
-        $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->get();
+        $partidas = Partida::activos()->with('capitulo')->select('id', 'codigo', 'nombre', 'partida_generica', 'capitulo_id')->orderBy('codigo')->get();
         $vehicles = \App\Models\Vehicle::where('active', true)->select('id', 'brand', 'model_year', 'plate_number', 'organismo_id')->get();
 
         // Fetch year legend for edit (based on requirement year)
@@ -455,6 +486,8 @@ class RequirementController extends Controller
             'end_date' => 'nullable|date',
             'due_date' => 'nullable|date',
             'description' => 'nullable|string',
+            'revolving_fund_type' => 'nullable|string',
+            'revolving_fund_number' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.partida_id' => 'required|exists:partidas,id',
             'items.*.amount' => 'required|numeric|min:0',
@@ -467,6 +500,8 @@ class RequirementController extends Controller
             'items.*.provider_name' => 'nullable|string',
             'items.*.invoice_subtotal' => 'nullable|numeric|min:0',
             'items.*.invoice_iva' => 'nullable|numeric|min:0',
+            'items.*.invoice_discount' => 'nullable|numeric|min:0',
+            'items.*.invoice_ieps' => 'nullable|numeric|min:0',
             'items.*.invoice_retention_isr' => 'nullable|numeric|min:0',
             'items.*.invoice_retention_iva' => 'nullable|numeric|min:0',
             'items.*.invoice_total' => 'nullable|numeric|min:0',
@@ -528,29 +563,55 @@ class RequirementController extends Controller
             'commissioners_details.*.report_date' => 'nullable|date',
             'commissioners_details.*.report_link' => 'nullable|string',
             'firefighter_folio' => 'nullable|string',
+            'totals_adjust' => 'nullable|array',
         ]);
 
         DB::transaction(function () use ($validated, $requirement) {
-            // Calculation Logic
-            if ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
+            // Calculation Logic for Revolvente: prefer manually adjusted totals
+            if ($validated['type'] === 'revolvente') {
+                $adj = $validated['totals_adjust'] ?? [];
+                $subtotal = isset($adj['invoice_subtotal']) ? (float) $adj['invoice_subtotal'] : collect($validated['items'])->sum('invoice_subtotal');
+                $discount = isset($adj['invoice_discount']) ? (float) $adj['invoice_discount'] : collect($validated['items'])->sum('invoice_discount');
+                $iva = isset($adj['invoice_iva']) ? (float) $adj['invoice_iva'] : collect($validated['items'])->sum('invoice_iva');
+                $ieps = isset($adj['invoice_ieps']) ? (float) $adj['invoice_ieps'] : collect($validated['items'])->sum('invoice_ieps');
+                $retention_isr = isset($adj['invoice_retention_isr']) ? (float) $adj['invoice_retention_isr'] : collect($validated['items'])->sum('invoice_retention_isr');
+                $retention_iva = isset($adj['invoice_retention_iva']) ? (float) $adj['invoice_retention_iva'] : collect($validated['items'])->sum('invoice_retention_iva');
+                $total = isset($adj['amount']) ? (float) $adj['amount'] : collect($validated['items'])->sum('amount');
+            } elseif ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
                 $subtotal = collect($validated['items'])->sum('amount');
+                $discount = 0;
                 $iva = 0;
+                $ieps = 0;
+                $retention_isr = 0;
+                $retention_iva = 0;
                 $total = $subtotal;
             } elseif (!empty($validated['cfe_receipts'])) {
                 $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
                 $iva = collect($validated['cfe_receipts'])->sum('iva');
                 $total = collect($validated['cfe_receipts'])->sum('total');
+                $discount = 0;
+                $ieps = 0;
+                $retention_isr = 0;
+                $retention_iva = 0;
             } else {
                 $subtotal = collect($validated['items'])->sum('amount');
                 $iva = $subtotal * 0.16;
                 $total = $subtotal + $iva;
+                $discount = 0;
+                $ieps = 0;
+                $retention_isr = 0;
+                $retention_iva = 0;
             }
 
             $requirement->update([
                 ...$validated,
-                'subtotal' => $subtotal,
-                'iva' => $iva,
-                'total' => $total,
+                'subtotal' => round($subtotal, 2),
+                'discount' => round($discount, 2),
+                'iva' => round($iva, 2),
+                'ieps' => round($ieps, 2),
+                'retention_isr' => round($retention_isr, 2),
+                'retention_iva' => round($retention_iva, 2),
+                'total' => round($total, 2),
             ]);
 
             // Create or update Travel Allowance specific data
@@ -632,6 +693,8 @@ class RequirementController extends Controller
                     'provider_name' => $item['provider_name'] ?? null,
                     'invoice_subtotal' => $item['invoice_subtotal'] ?? null,
                     'invoice_iva' => $item['invoice_iva'] ?? null,
+                    'invoice_discount' => $item['invoice_discount'] ?? null,
+                    'invoice_ieps' => $item['invoice_ieps'] ?? null,
                     'invoice_retention_isr' => $item['invoice_retention_isr'] ?? null,
                     'invoice_retention_iva' => $item['invoice_retention_iva'] ?? null,
                     'invoice_total' => $item['invoice_total'] ?? null,
@@ -663,6 +726,80 @@ class RequirementController extends Controller
 
         return redirect()->route('requirements.index')->with('success', 'Requerimiento actualizado exitosamente.');
     }
+
+    // ─── REVOLVENTE PDFs ──────────────────────────────────────────────────────
+
+    private function revolventeBaseData(Requirement $requirement): array
+    {
+        $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator', 'items.employee']);
+        $settings = $this->getSettingsForPdf();
+        \Carbon\Carbon::setLocale('es');
+        $fecha = \Carbon\Carbon::parse($requirement->assignment_date);
+        $fecha_lugar = strtoupper($fecha->translatedFormat('d')) . ' DE ' . strtoupper($fecha->translatedFormat('F')) . ' DEL ' . $fecha->year;
+        $importe_letras = \App\Helpers\NumberHelper::convert($requirement->total);
+        return compact('settings', 'fecha_lugar', 'importe_letras');
+    }
+
+    /** Documento 1: Oficio de solicitud */
+    public function downloadRevolventeOficio(Requirement $requirement)
+    {
+        if ($requirement->type !== 'revolvente')
+            abort(404);
+        $base = $this->revolventeBaseData($requirement);
+
+        // Destinatario: Coord. Adm. Financiero y de Archivo
+        $destino = \App\Models\Empleado::where('puesto', 'LIKE', '%COORDINADOR ADMINISTRATIVO%FINANCIERO%')
+            ->where('activo', true)->orderByDesc('id')->first();
+
+        $pdf = Pdf::loadView('reports.revolvente_oficio', array_merge($base, [
+            'requirement' => $requirement,
+            'fecha_formateada' => $base['fecha_lugar'],
+            'destinatario' => $destino,
+        ]))->setPaper('letter', 'portrait');
+
+        return $pdf->download('Oficio_Revolvente_' . $requirement->revolving_fund_number . '.pdf');
+    }
+
+    /** Documento 2: Anexo 4 - Entero de Reposición */
+    public function downloadRevolventeAnexo4(Requirement $requirement)
+    {
+        if ($requirement->type !== 'revolvente')
+            abort(404);
+        $base = $this->revolventeBaseData($requirement);
+
+        // Group items by partida to consolidate amounts
+        $grouped = $requirement->items->groupBy('partida_id')->map(function ($grp) {
+            $first = $grp->first();
+            $first->amount = round($grp->sum('amount'), 2);
+            return $first;
+        })->values();
+        $requirement->setRelation('items', $grouped);
+
+        $pdf = Pdf::loadView('reports.revolvente_anexo4', array_merge($base, [
+            'requirement' => $requirement,
+            'fecha_lugar' => $base['fecha_lugar'],
+        ]))->setPaper('letter', 'portrait');
+
+        return $pdf->download('Anexo4_Revolvente_' . $requirement->revolving_fund_number . '.pdf');
+    }
+
+    /** Documento 3: Cédula de Control de Erogaciones */
+    public function downloadRevolvanteCedula(Requirement $requirement)
+    {
+        if ($requirement->type !== 'revolvente')
+            abort(404);
+        $base = $this->revolventeBaseData($requirement);
+
+        $pdf = Pdf::loadView('reports.revolvente_cedula', array_merge($base, [
+            'requirement' => $requirement,
+            'items' => $requirement->items,
+            'fecha_lugar' => $base['fecha_lugar'],
+        ]))->setPaper('letter', 'landscape');
+
+        return $pdf->download('Cedula_Revolvente_' . $requirement->revolving_fund_number . '.pdf');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     public function destroy(Requirement $requirement)
     {
@@ -977,6 +1114,7 @@ class RequirementController extends Controller
             $attributes = $xml->attributes();
             $total = (float) $attributes['Total'];
             $subtotal = isset($attributes['SubTotal']) ? (float) $attributes['SubTotal'] : (float) ($attributes['Subtotal'] ?? 0);
+            $descuento = isset($attributes['Descuento']) ? (float) $attributes['Descuento'] : 0;
             $fecha = (string) $attributes['Fecha'];
             $folio = isset($attributes['Folio']) ? (string) $attributes['Folio'] : '';
             $serie = isset($attributes['Serie']) ? (string) $attributes['Serie'] : '';
@@ -1006,13 +1144,17 @@ class RequirementController extends Controller
                 $descripcion = (string) $conceptos[0]['Descripcion'];
             }
 
-            // Impuestos (IVA, Retenciones)
+            // Impuestos (IVA, IEPS, Retenciones)
             // Use direct child selector to avoid summing concept-level taxes + global taxes (Double counting)
             $traslados = $xml->xpath('cfdi:Impuestos/cfdi:Traslados/cfdi:Traslado');
             $iva = 0;
+            $ieps = 0;
             foreach ($traslados as $traslado) {
                 if ((string) $traslado['Impuesto'] === '002') { // IVA
                     $iva += (float) $traslado['Importe'];
+                }
+                if ((string) $traslado['Impuesto'] === '003') { // IEPS
+                    $ieps += (float) $traslado['Importe'];
                 }
             }
 
@@ -1043,10 +1185,12 @@ class RequirementController extends Controller
                     'invoice_folio' => $invoiceNumber,
                     'invoice_date' => substr($fecha, 0, 10), // YYYY-MM-DD
                     'provider_rfc' => $rfcEmisor,
-                    'provider_name' => $nombreEmisor, // Optional, might need to store in different field if exists
+                    'provider_name' => $nombreEmisor,
                     'description' => $descripcion,
                     'subtotal' => $subtotal,
+                    'descuento' => $descuento,
                     'iva' => $iva,
+                    'ieps' => $ieps,
                     'retention_isr' => $retencionIsr,
                     'retention_iva' => $retencionIva,
                     'total' => $total,
