@@ -20,7 +20,7 @@ class CatalogsImport implements WithMultipleSheets
             'Puestos' => new PuestosImport(),
             'Organismos' => new OrganismosImport(),
             'Proveedores' => new ProvidersImport(),
-            'Vehiculos' => new VehicleImport(),
+            'Vehiculos' => new VehiclesImport(),
             'Tarifas_Viaticos' => new TravelAllowanceRatesImport(),
             'Materiales' => new MaterialesImport(),
             'Unidades_Medida' => new UnidadMedidaImport(),

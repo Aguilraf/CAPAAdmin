@@ -17,7 +17,7 @@ class PuestosImport implements ToModel, WithHeadingRow
         return Puesto::updateOrCreate(
             ['nombre' => trim($row['nombre'])],
             [
-                'nivel' => $row['nivel'] ?? null,
+                'nivel' => !empty($row['nivel']) ? trim($row['nivel']) : '0',
                 'descripcion' => $row['descripcion'] ?? null,
                 'activo' => (strtoupper($row['activo'] ?? '') === 'NO' ? false : true),
             ]
