@@ -20,6 +20,11 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
+        if (User::count() > 0) {
+            return Inertia::render('Auth/Login', [
+                'status' => 'El registro está deshabilitado ya que existe una cuenta activa.',
+            ]);
+        }
         return Inertia::render('Auth/Register');
     }
 
@@ -30,6 +35,10 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if (User::count() > 0) {
+            return redirect(route('login'))->with('error', 'El registro de nuevas cuentas está deshabilitado.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:' . User::class,
@@ -43,6 +52,9 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+
+        // Asignar rol de Administrador al primer usuario
+        $user->assignRole('Administrador');
 
         event(new Registered($user));
 

@@ -121,6 +121,9 @@ export default function Index({ auth, requirements, filters, types }) {
                                                 {req.type === 'cfe' && (
                                                     <a href={route('requirements.cfe-relation', req.id)} className="text-green-600 hover:text-green-900 mr-4" target="_blank">Relación</a>
                                                 )}
+                                                {req.status === 'paid' && (
+                                                    <a href={route('payments.requirement.pdf', req.id)} className="text-emerald-600 hover:text-emerald-900 mr-4 font-bold" target="_blank">RECIBO</a>
+                                                )}
                                                 <Link href={route('requirements.edit', req.id)} className="text-indigo-600 hover:text-indigo-900 mr-4">Editar</Link>
                                                 <button onClick={() => handleDelete(req.id)} className="text-red-600 hover:text-red-900">Eliminar</button>
                                             </td>

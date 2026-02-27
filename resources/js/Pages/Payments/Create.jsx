@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -96,7 +96,7 @@ const convertToLetters = (amount) => {
     return result.trim() + ' PESOS ' + decimal + '/100 MN';
 };
 
-export default function Create({ auth, requirement, employees, organismos, pendingRequirements, providers, defaultSignatories }) {
+export default function Create({ auth, requirement, employees, organismos, pendingRequirements, providers, defaultSignatories, subgerente }) {
     const { data, setData, post, processing, errors } = useForm({
         organismo_id: requirement?.organismo_id || organismos[0]?.id || '',
         payment_date: new Date().toISOString().split('T')[0],
@@ -106,13 +106,19 @@ export default function Create({ auth, requirement, employees, organismos, pendi
         amount: requirement?.total || 0,
         amount_letters: requirement ? convertToLetters(requirement.total) : '',
         requirement_id: requirement?.id || '',
-        concept: requirement ? `PAGO CORRESPONDIENTE AL REQUERIMIENTO ${requirement.requirement_number}/${requirement.year}: ${requirement.description}` : '',
+        concept: requirement ? (
+            requirement.type === 'viaticos' && requirement.travel_allowance?.justification
+                ? `PAGO CORRESPONDIENTE AL REQUERIMIENTO ${requirement.requirement_number}/${requirement.year}: ${requirement.travel_allowance.justification}`
+                : `PAGO CORRESPONDIENTE AL REQUERIMIENTO ${requirement.requirement_number}/${requirement.year}: ${requirement.description || ''}`
+        ) : '',
         payment_type: 'transferencia',
         reference: '',
         elaborated_by_id: defaultSignatories.elaborated_by_id || '',
         formulated_by_id: defaultSignatories.formulated_by_id || '',
         authorized_by_id: defaultSignatories.authorized_by_id || '',
     });
+
+    const [recipients, setRecipients] = useState(requirement?.employee_breakdown?.map(r => ({ ...r, reference: '' })) || []);
 
     useEffect(() => {
         if (requirement?.type === 'cfe') {
@@ -126,7 +132,18 @@ export default function Create({ auth, requirement, employees, organismos, pendi
                 }));
             }
         }
-    }, [requirement]);
+
+        if (requirement?.type === 'bomberos' && subgerente) {
+            setData(prev => ({
+                ...prev,
+                payment_type: 'cheque',
+                beneficiary_type: 'employee',
+                beneficiary_id: subgerente.id,
+                beneficiary: `C. ${subgerente.nombre} ${subgerente.primer_apellido} ${subgerente.segundo_apellido}`,
+                concept: `PAGO CORRESPONDIENTE AL REQUERIMIENTO ${requirement.requirement_number}/${requirement.year}: COMISIONES FONDO DE BOMBEROS CORRESPONDIENTE AL MES FACTURADO ${requirement.month_billed}-${requirement.year_billed} RECAUDADO EN ${requirement.month_charged}-${requirement.year_charged}`,
+            }));
+        }
+    }, [requirement, subgerente]);
 
     useEffect(() => {
         if (data.amount) {
@@ -191,11 +208,18 @@ export default function Create({ auth, requirement, employees, organismos, pendi
         const selectedReq = pendingRequirements.find(r => r.id == reqId);
 
         if (selectedReq) {
+            let conceptText = `CORRESPONDIENTE AL REQUERIMIENTO ${selectedReq.label.split(' - ')[0]}`;
+            if (selectedReq.type === 'viaticos' && selectedReq.justification) {
+                conceptText += `: ${selectedReq.justification}`;
+            } else if (selectedReq.description) {
+                conceptText += `: ${selectedReq.description}`;
+            }
+
             let newData = {
                 ...data,
                 requirement_id: reqId,
                 amount: selectedReq.total,
-                concept: `CORRESPONDIENTE AL REQUERIMIENTO ${selectedReq.label.split(' - ')[0]}: ${selectedReq.description}`,
+                concept: conceptText,
             };
 
             // Auto-select CFE provider if type is CFE
@@ -208,8 +232,24 @@ export default function Create({ auth, requirement, employees, organismos, pendi
                 }
             }
 
+            // Auto-select Subgerente for Bomberos
+            if (selectedReq.type === 'bomberos' && subgerente) {
+                newData.payment_type = 'cheque';
+                newData.beneficiary_type = 'employee';
+                newData.beneficiary_id = subgerente.id;
+                newData.beneficiary = `C. ${subgerente.nombre} ${subgerente.primer_apellido} ${subgerente.segundo_apellido}`;
+                newData.concept = `PAGO CORRESPONDIENTE AL REQUERIMIENTO ${selectedReq.requirement_number}/${selectedReq.year}: COMISIONES FONDO DE BOMBEROS CORRESPONDIENTE AL MES FACTURADO ${selectedReq.month_billed}-${selectedReq.year_billed} RECAUDADO EN ${selectedReq.month_charged}-${selectedReq.year_charged}`;
+            }
+
+            if (selectedReq.employee_breakdown) {
+                setRecipients(selectedReq.employee_breakdown.map(r => ({ ...r, reference: '' })));
+            } else {
+                setRecipients([]);
+            }
+
             setData(newData);
         } else {
+            setRecipients([]);
             setData({
                 ...data,
                 requirement_id: '',
@@ -221,7 +261,33 @@ export default function Create({ auth, requirement, employees, organismos, pendi
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('payments.store'));
+
+        let submissions = [];
+
+        if (recipients.length > 0) {
+            submissions = recipients.map(r => ({
+                organismo_id: data.organismo_id,
+                payment_date: data.payment_date,
+                beneficiary_type: 'employee',
+                beneficiary_id: r.employee_id,
+                beneficiary: r.full_name,
+                amount: r.total,
+                amount_letters: convertToLetters(r.total),
+                requirement_id: data.requirement_id,
+                concept: data.concept,
+                payment_type: data.payment_type,
+                reference: r.reference,
+                elaborated_by_id: data.elaborated_by_id,
+                formulated_by_id: data.formulated_by_id,
+                authorized_by_id: data.authorized_by_id,
+            }));
+        } else {
+            submissions = [{
+                ...data
+            }];
+        }
+
+        router.post(route('payments.store'), { payments: submissions });
     };
 
     return (
@@ -386,47 +452,94 @@ export default function Create({ auth, requirement, employees, organismos, pendi
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                {/* Monto */}
-                                <div className="md:col-span-1">
-                                    <InputLabel htmlFor="amount" value="Cantidad ($)" />
-                                    <TextInput
-                                        id="amount"
-                                        type="text"
-                                        className="mt-1 block w-full font-bold text-lg"
-                                        value={data.amount ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(data.amount) : ''}
-                                        onChange={(e) => {
-                                            // Extract numbers and one decimal point
-                                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                                            // Prevent multiple decimal points
-                                            const parts = val.split('.');
-                                            const finalVal = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
-                                            setData('amount', finalVal);
-                                        }}
-                                        onBlur={(e) => {
-                                            const val = parseFloat(data.amount);
-                                            if (!isNaN(val)) {
-                                                setData('amount', val.toFixed(2));
-                                            }
-                                        }}
-                                        required
-                                    />
-                                    <InputError message={errors.amount} className="mt-2" />
+                            {recipients.length > 0 && (
+                                <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
+                                    <div className="bg-gray-50 p-3 border-bottom font-bold text-gray-700">
+                                        DESGLOSE DE PAGOS POR TRABAJADOR
+                                    </div>
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trabajador</th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Importe</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referencia de Pago</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {recipients.map((r, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.full_name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-900">$ {new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(r.total)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <TextInput
+                                                            className="block w-full text-sm"
+                                                            value={r.reference}
+                                                            onChange={(e) => {
+                                                                const newRecipients = [...recipients];
+                                                                newRecipients[idx].reference = e.target.value;
+                                                                setRecipients(newRecipients);
+                                                            }}
+                                                            placeholder={data.payment_type === 'cheque' ? 'Num. Cheque' : 'Referencia'}
+                                                            required
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-gray-50">
+                                            <tr>
+                                                <td className="px-6 py-3 text-right font-bold">TOTAL REQUERIMIENTO:</td>
+                                                <td className="px-6 py-3 text-right font-bold text-lg">$ {new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(recipients.reduce((sum, r) => sum + parseFloat(r.total), 0))}</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
+                            )}
 
-                                {/* Cantidad con Letras */}
-                                <div className="md:col-span-3">
-                                    <InputLabel htmlFor="amount_letters" value="Cantidad con Letra" />
-                                    <TextInput
-                                        id="amount_letters"
-                                        className="mt-1 block w-full bg-gray-50 italic"
-                                        value={data.amount_letters}
-                                        onChange={(e) => setData('amount_letters', e.target.value)}
-                                        required
-                                    />
-                                    <InputError message={errors.amount_letters} className="mt-2" />
+                            {recipients.length === 0 && (
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                    {/* Monto */}
+                                    <div className="md:col-span-1">
+                                        <InputLabel htmlFor="amount" value="Cantidad ($)" />
+                                        <TextInput
+                                            id="amount"
+                                            type="text"
+                                            className="mt-1 block w-full font-bold text-lg"
+                                            value={data.amount ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(data.amount) : ''}
+                                            onChange={(e) => {
+                                                // Extract numbers and one decimal point
+                                                const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                // Prevent multiple decimal points
+                                                const parts = val.split('.');
+                                                const finalVal = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                                                setData('amount', finalVal);
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = parseFloat(data.amount);
+                                                if (!isNaN(val)) {
+                                                    setData('amount', val.toFixed(2));
+                                                }
+                                            }}
+                                            required
+                                        />
+                                        <InputError message={errors.amount} className="mt-2" />
+                                    </div>
+
+                                    {/* Cantidad con Letras */}
+                                    <div className="md:col-span-3">
+                                        <InputLabel htmlFor="amount_letters" value="Cantidad con Letra" />
+                                        <TextInput
+                                            id="amount_letters"
+                                            className="mt-1 block w-full bg-gray-50 italic"
+                                            value={data.amount_letters}
+                                            onChange={(e) => setData('amount_letters', e.target.value)}
+                                            required
+                                        />
+                                        <InputError message={errors.amount_letters} className="mt-2" />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Concepto */}
                             <div>

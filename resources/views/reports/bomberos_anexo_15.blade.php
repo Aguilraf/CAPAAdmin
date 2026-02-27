@@ -86,7 +86,7 @@
     <table class="folio-table" style="width: 40%; float: right; margin-top: 5px;">
         <tr>
             <td class="folio-label">N° DE SOLICITUD Y/O RECIBO</td>
-            <td class="folio-value">CAPA/JMM/G/{{ $requirement->oficio_number }}/{{ $requirement->year }}/FB-01</td>
+            <td class="folio-value">CAPA/JMM/G/{{ $requirement->oficio_number }}/{{ $requirement->year }}-FB/{{ str_pad($requirement->requirement_number, 2, '0', STR_PAD_LEFT) }}</td>
         </tr>
     </table>
     <div class="clear"></div>

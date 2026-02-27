@@ -99,7 +99,13 @@
             POR CONCEPTO:
         @endif
         
-        {{ mb_strtoupper($payment->concept) }}, PAGADO SEGÚN {{ mb_strtoupper($payment->payment_type) }} CON CLAVE DE RASTREO NO. <strong>{{ $payment->reference }}</strong>
+        {{ mb_strtoupper($payment->concept) }}, PAGADO SEGÚN {{ mb_strtoupper($payment->payment_type) }} 
+        @if($payment->payment_type === 'cheque')
+            NO.
+        @else
+            CON CLAVE DE RASTREO NO.
+        @endif
+        <strong>{{ $payment->reference }}</strong>
     </div>
 
     <div class="recibi-section">

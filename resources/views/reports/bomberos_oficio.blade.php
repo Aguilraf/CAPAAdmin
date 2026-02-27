@@ -64,7 +64,7 @@
     </table>
 
     <div class="oficio-info">
-        <div>No. de oficio: CAPA/JMM/G/{{ $requirement->oficio_number }}/{{ $requirement->year }}</div>
+        <div>No. de oficio: CAPA/JMM/G/{{ $requirement->oficio_number }}/{{ $requirement->year }}-FB-{{ str_pad($requirement->requirement_number, 2, '0', STR_PAD_LEFT) }}</div>
         <div>Asunto: REPOSICION {{ str_pad($requirement->requirement_number, 2, '0', STR_PAD_LEFT) }}/{{ $requirement->year }}</div>
     </div>
 

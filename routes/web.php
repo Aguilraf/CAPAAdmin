@@ -100,6 +100,7 @@ Route::middleware('auth')->group(function () {
         // Modulo de Pagos
         Route::resource('payments', \App\Http\Controllers\PaymentController::class);
         Route::get('payments/{payment}/pdf', [\App\Http\Controllers\PaymentController::class, 'downloadPdf'])->name('payments.pdf');
+        Route::get('payments/requirement/{requirement}/pdf', [\App\Http\Controllers\PaymentController::class, 'downloadRequirementPaymentsPdf'])->name('payments.requirement.pdf');
 
         // Modulo de Comisiones
         Route::resource('commissions', \App\Http\Controllers\CommissionController::class);
