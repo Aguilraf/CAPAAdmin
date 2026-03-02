@@ -256,9 +256,27 @@ export default function RevolventeForm({ data, setData, partidas, capitulos, err
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-blue-50 p-4 rounded-md border border-blue-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-blue-50 p-4 rounded-md border border-blue-200">
                 <div>
-                    <InputLabel value="Número de Fondo Revolvente" />
+                    <InputLabel value="Fecha Inicial (Periodo)" />
+                    <TextInput
+                        type="date"
+                        value={data.start_date || ''}
+                        onChange={e => setData('start_date', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                </div>
+                <div>
+                    <InputLabel value="Fecha Final (Periodo)" />
+                    <TextInput
+                        type="date"
+                        value={data.end_date || ''}
+                        onChange={e => setData('end_date', e.target.value)}
+                        className="mt-1 block w-full"
+                    />
+                </div>
+                <div>
+                    <InputLabel value="Núm. Revolvente" />
                     <TextInput
                         value={data.revolving_fund_number || ''}
                         onChange={e => setData('revolving_fund_number', e.target.value)}
@@ -279,8 +297,8 @@ export default function RevolventeForm({ data, setData, partidas, capitulos, err
                     </select>
                     <InputError message={errors.revolving_fund_type} className="mt-2" />
                 </div>
-                <div className="flex items-end">
-                    <div className="w-full">
+                <div className="md:col-span-4 flex justify-end items-end">
+                    <div className="w-full md:w-1/4">
                         <input
                             type="file"
                             multiple
@@ -289,7 +307,7 @@ export default function RevolventeForm({ data, setData, partidas, capitulos, err
                             className="hidden"
                             ref={fileInputRef}
                         />
-                        <SecondaryButton type="button" onClick={() => fileInputRef.current.click()} className="w-full justify-center">
+                        <SecondaryButton type="button" onClick={() => fileInputRef.current.click()} className="w-full justify-center text-xs py-2">
                             📥 Cargar Facturas XML
                         </SecondaryButton>
                     </div>

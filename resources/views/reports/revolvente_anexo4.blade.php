@@ -79,9 +79,8 @@
 
     <!-- Breakdown by Chapter / Partida -->
     @php
-        // Group items by capitulo
-        $byCapitulo = $requirement->items->groupBy(fn($i) => $i->partida->capitulo->codigo ?? '0000');
-        ksort($byCapitulo->toArray()); // sort by chapter code
+        // Group items by capitulo and sort by chapter code
+        $byCapitulo = $requirement->items->groupBy(fn($i) => $i->partida->capitulo->codigo ?? '0000')->sortKeys();
     @endphp
 
     <table class="concepts-table">

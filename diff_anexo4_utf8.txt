@@ -1,0 +1,16 @@
+﻿diff --git a/resources/views/reports/revolvente_anexo4.blade.php b/resources/views/reports/revolvente_anexo4.blade.php
+index 6392c93..a747eb5 100644
+--- a/resources/views/reports/revolvente_anexo4.blade.php
++++ b/resources/views/reports/revolvente_anexo4.blade.php
+@@ -79,9 +79,8 @@
+ 
+     <!-- Breakdown by Chapter / Partida -->
+     @php
+-        // Group items by capitulo
+-        $byCapitulo = $requirement->items->groupBy(fn($i) => $i->partida->capitulo->codigo ?? '0000');
+-        ksort($byCapitulo->toArray()); // sort by chapter code
++        // Group items by capitulo and sort by chapter code
++        $byCapitulo = $requirement->items->groupBy(fn($i) => $i->partida->capitulo->codigo ?? '0000')->sortKeys();
+     @endphp
+ 
+     <table class="concepts-table">

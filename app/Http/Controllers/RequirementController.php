@@ -790,10 +790,21 @@ class RequirementController extends Controller
             abort(404);
         $base = $this->revolventeBaseData($requirement);
 
+        // Signers for Cedula
+        $firmas = [
+            'elaboro' => \App\Models\Empleado::where('nombre', 'LIKE', '%HEREDIA DUARTE LUIS DANIEL%')->first(),
+            'reviso' => \App\Models\Empleado::where('puesto', 'LIKE', '%SUBGERENTE ADMINISTRATIVO%')->first(),
+            'autorizo' => \App\Models\Empleado::where('nombre', 'LIKE', '%HEREDIA DUARTE LUIS DANIEL%')->first(),
+            'valido' => \App\Models\Empleado::where('puesto', 'LIKE', '%DIRECTOR%RECU%MATERIALES%')->first(),
+            'vobo' => \App\Models\Empleado::where('puesto', 'LIKE', '%DIRECTOR%RECURSOS FINANCIEROS%')->first(),
+            'ministrece' => \App\Models\Empleado::where('puesto', 'LIKE', '%COORDINADOR%ADMINISTRATIVO%FINANCIERO%')->first(),
+        ];
+
         $pdf = Pdf::loadView('reports.revolvente_cedula', array_merge($base, [
             'requirement' => $requirement,
             'items' => $requirement->items,
             'fecha_lugar' => $base['fecha_lugar'],
+            'firmas' => $firmas,
         ]))->setPaper('letter', 'landscape');
 
         return $pdf->download('Cedula_Revolvente_' . $requirement->revolving_fund_number . '.pdf');
