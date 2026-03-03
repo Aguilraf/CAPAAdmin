@@ -70,38 +70,38 @@
                 <td class="sig-cell">
                     <div class="sig-label">ELABORÓ</div>
                     <div class="sig-line"></div>
-                    <div class="sig-name">{{ $firmas['elaboro']->nombre ?? 'HEREDIA DUARTE LUIS DANIEL' }}</div>
-                    <div class="sig-puesto">{{ strtoupper($firmas['elaboro']->puesto ?? 'GERENTE ORG. OPER. JMM') }}</div>
+                    <div class="sig-name">{{ $firmas['elaboro']?->nombre ?? 'HEREDIA DUARTE LUIS DANIEL' }}</div>
+                    <div class="sig-puesto">{{ strtoupper($firmas['elaboro']?->puesto ?? 'GERENTE ORG. OPER. JMM') }}</div>
                 </td>
                 <td class="sig-cell">
                     <div class="sig-label">REVISÓ</div>
                     <div class="sig-line"></div>
-                    <div class="sig-name">{{ $firmas['reviso']->nombre ?? 'CERVANTES SANCHEZ MARIANO' }}</div>
-                    <div class="sig-puesto">{{ strtoupper($firmas['reviso']->puesto ?? 'SUBGERENTE ADMINISTRATIVO') }}</div>
+                    <div class="sig-name">{{ $firmas['reviso']?->nombre ?? 'CERVANTES SANCHEZ MARIANO' }}</div>
+                    <div class="sig-puesto">{{ strtoupper($firmas['reviso']?->puesto ?? 'SUBGERENTE ADMINISTRATIVO') }}</div>
                 </td>
                 <td class="sig-cell">
                     <div class="sig-label">AUTORIZÓ</div>
                     <div class="sig-line"></div>
-                    <div class="sig-name">{{ $firmas['autorizo']->nombre ?? 'HEREDIA DUARTE LUIS DANIEL' }}</div>
-                    <div class="sig-puesto">{{ strtoupper($firmas['autorizo']->puesto ?? 'GERENTE ORG. OPER. JMM') }}</div>
+                    <div class="sig-name">{{ $firmas['autorizo']?->nombre ?? 'HEREDIA DUARTE LUIS DANIEL' }}</div>
+                    <div class="sig-puesto">{{ strtoupper($firmas['autorizo']?->puesto ?? 'GERENTE ORG. OPER. JMM') }}</div>
                 </td>
                 <td class="sig-cell">
                     <div class="sig-label">VALIDÓ</div>
                     <div class="sig-line"></div>
-                    <div class="sig-name">{{ $firmas['valido']->nombre ?? 'LIC. JOAQUIN ISRAEL PEREZ MALDONADO' }}</div>
-                    <div class="sig-puesto">{{ strtoupper($firmas['valido']->puesto ?? 'DIRECTOR DE RECURSOS MATERIALES Y DE ARCHIVO') }}</div>
+                    <div class="sig-name">{{ $firmas['valido']?->nombre ?? 'LIC. JOAQUIN ISRAEL PEREZ MALDONADO' }}</div>
+                    <div class="sig-puesto">{{ strtoupper($firmas['valido']?->puesto ?? 'DIRECTOR DE RECURSOS MATERIALES Y DE ARCHIVO') }}</div>
                 </td>
                 <td class="sig-cell">
                     <div class="sig-label">Vo. Bo.</div>
                     <div class="sig-line"></div>
-                    <div class="sig-name">{{ $firmas['vobo']->nombre ?? 'CINDY BLAISDEL NOVELO NOVELO' }}</div>
-                    <div class="sig-puesto">{{ strtoupper($firmas['vobo']->puesto ?? 'DIRECTOR DE RECURSOS FINANCIEROS') }}</div>
+                    <div class="sig-name">{{ $firmas['vobo']?->nombre ?? 'CINDY BLAISDEL NOVELO NOVELO' }}</div>
+                    <div class="sig-puesto">{{ strtoupper($firmas['vobo']?->puesto ?? 'DIRECTOR DE RECURSOS FINANCIEROS') }}</div>
                 </td>
                 <td class="sig-cell">
                     <div class="sig-label">MINISTRECE</div>
                     <div class="sig-line"></div>
-                    <div class="sig-name">{{ $firmas['ministrece']->nombre ?? 'HECTOR SEGUNDO MASEGOSA LLANAS' }}</div>
-                    <div class="sig-puesto">{{ strtoupper($firmas['ministrece']->puesto ?? 'COORD. ADMVO. FINANCIERO Y DE ARCHIVO DE LA CAPA') }}</div>
+                    <div class="sig-name">{{ $firmas['ministrece']?->nombre ?? 'HECTOR SEGUNDO MASEGOSA LLANAS' }}</div>
+                    <div class="sig-puesto">{{ strtoupper($firmas['ministrece']?->puesto ?? 'COORD. ADMVO. FINANCIERO Y DE ARCHIVO DE LA CAPA') }}</div>
                 </td>
             </tr>
         </table>

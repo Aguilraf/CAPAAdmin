@@ -98,13 +98,13 @@
     <table class="breakdown-table">
         @foreach($requirement->items as $item)
         <tr>
-            <td class="breakdown-item" colspan="3">CAPITULO {{ $item->partida->capitulo->codigo ?? '3000' }} {{ $item->partida->capitulo->nombre ?? 'SERVICIOS GENERALES' }}.</td>
+            <td class="breakdown-item" colspan="3">CAPITULO {{ $item?->partida?->capitulo?->codigo ?? '3000' }} {{ $item?->partida?->capitulo?->nombre ?? 'SERVICIOS GENERALES' }}.</td>
             <td class="empty-cell"></td>
             <td class="amount-cell">$ {{ number_format($item->amount, 2) }}</td>
         </tr>
         <tr>
-            <td style="padding-left: 20px;">{{ $item->partida->codigo ?? '34201' }}</td>
-            <td colspan="2">{{ $item->partida->nombre ?? 'SERVICIO DE COBRANZA, INVESTIGACIÓN CREDITICIA Y SIMILAR' }}</td>
+            <td style="padding-left: 20px;">{{ $item?->partida?->codigo ?? '34201' }}</td>
+            <td colspan="2">{{ $item?->partida?->nombre ?? 'SERVICIO DE COBRANZA, INVESTIGACIÓN CREDITICIA Y SIMILAR' }}</td>
             <td style="text-align: right; padding-right: 15px;">{{ number_format($item->amount, 2) }}</td>
             <td></td>
         </tr>
@@ -144,9 +144,9 @@
         <tbody>
             @php $item = $requirement->items->first(); @endphp
             <tr>
-                <td>{{ $subgerente->banco ?? ($item->employee->banco ?? 'AZTECA') }}</td>
-                <td>{{ $subgerente->clabe ?? ($item->employee->clabe ?? '01720154967600') }}</td>
-                <td>{{ $subgerente->nombre ?? ($item->employee->nombre ?? 'ING. JOSUE RODRIGUEZ PAMPLONA') }}</td>
+                <td>{{ $subgerente->banco ?? ($item?->employee?->banco ?? 'AZTECA') }}</td>
+                <td>{{ $subgerente->clabe ?? ($item?->employee?->clabe ?? '01720154967600') }}</td>
+                <td>{{ $subgerente->nombre ?? ($item?->employee?->nombre ?? 'ING. JOSUE RODRIGUEZ PAMPLONA') }}</td>
             </tr>
         </tbody>
     </table>
@@ -163,8 +163,8 @@
         <div style="margin-top: 20px;">
             <div class="sig-label" style="font-weight: normal;">Vo. Bueno</div>
             <div style="margin-top: 40px;">
-                <div class="sig-name">{{ $requirement->manager->nombre ?? 'C. LUIS DANIEL HEREDIA DUARTE' }}</div>
-                <div class="sig-role">{{ $requirement->manager->puesto ?? 'GERENTE' }}</div>
+                <div class="sig-name">{{ $requirement->manager?->nombre ?? 'C. LUIS DANIEL HEREDIA DUARTE' }}</div>
+                <div class="sig-role">{{ $requirement->manager?->puesto ?? 'GERENTE' }}</div>
             </div>
         </div>
     </div>

@@ -94,16 +94,16 @@
 
     <!-- Breakdown by Chapter / Partida -->
     @php
-        // Group items by capitulo, sort chapters by code, and sort items within each chapter by partida code
-        $byCapitulo = $requirement->items->groupBy(fn($i) => $i->partida->capitulo->codigo ?? '0000')
+        // Group items safely by chapter code, sort chapters, and sort items inside by partida code
+        $byCapitulo = $requirement->items->groupBy(fn($i) => $i->partida?->capitulo?->codigo ?? '0000')
             ->sortKeys()
-            ->map(fn($items) => $items->sortBy(fn($i) => $i->partida->codigo ?? '00000'));
+            ->map(fn($items) => $items->sortBy(fn($i) => $i->partida?->codigo ?? '00000'));
     @endphp
 
     <table class="concepts-table">
         @foreach($byCapitulo as $capCode => $items)
             @php
-                $cap = $items->first()->partida->capitulo ?? null;
+                $cap = $items->first()?->partida?->capitulo ?? null;
                 $capTotal = $items->sum('amount');
             @endphp
             <tr class="chapter-row">
@@ -174,7 +174,7 @@
         <tr>
             <td style="width: 8%;"></td>
             <td style="width: 57%; padding-left: 15px; font-weight: bold;">I V A &nbsp;&nbsp; ACREDITABLE</td>
-            <td style="width: 15%; font-weight: bold;" class="text-right ">{{ number_format($extraTotals['iva'] ?? $requirement->iva, 2) }}</td>
+            <td style="width: 15%; font-weight: bold;" class="text-right ">{{ number_format($extraTotals['iva'] ?: ($requirement->iva ?? 0), 2) }}</td>
             <td style="width: 20%;"></td>
         </tr>
 
@@ -235,7 +235,7 @@
             <p style="font-weight: bold; margin-bottom: 20px; font-size: 9pt;">ENTERE</p>
             <div style="border-top: 1px solid #000; width: 90%; margin: 0 auto 4px;"></div>
             <div style="font-weight: bold; text-transform: uppercase; font-size: 8pt;">
-                {{ $requirement->manager->nombre ?? '' }}
+                {{ $requirement->manager?->nombre ?? '' }}
             </div>
             <div style="font-size: 7.5pt; text-transform: uppercase;">GERENTE DEL ORG. OPER. JMM</div>
         </div>
@@ -244,7 +244,7 @@
             <p style="font-weight: bold; margin-bottom: 20px; font-size: 9pt;">Vo. Bueno</p>
             <div style="border-top: 1px solid #000; width: 90%; margin: 0 auto 4px;"></div>
             <div style="font-weight: bold; text-transform: uppercase; font-size: 8pt;">
-                C. {{ $requirement->manager->nombre ?? '' }}
+                C. {{ $requirement->manager?->nombre ?? '' }}
             </div>
             <div style="font-size: 7.5pt; text-transform: uppercase;">GERENTE DEL ORGANISMO OPERADOR JMM,</div>
         </div>

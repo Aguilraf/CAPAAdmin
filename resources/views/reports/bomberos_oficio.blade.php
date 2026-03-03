@@ -91,13 +91,13 @@
     <div class="closing">
         <p>ATENTAMENTE</p>
         <div class="signature-box">
-            <div class="signature-name">{{ $requirement->manager->nombre ?? 'C. LUIS DANIEL HEREDIA DUARTE' }}</div>
-            <div class="signature-role">{{ $requirement->manager->puesto ?? 'GERENTE DEL ORGANISMO OPERADOR' }}</div>
+            <div class="signature-name">{{ $requirement->manager?->nombre ?? 'C. LUIS DANIEL HEREDIA DUARTE' }}</div>
+            <div class="signature-role">{{ $requirement->manager?->puesto ?? 'GERENTE DEL ORGANISMO OPERADOR' }}</div>
         </div>
     </div>
 
     <div class="ccp">
-        C.C.P.- C. {{ $requirement->items->first()->employee->nombre ?? '' }}, Subgerente Comercial. Organismo Operador<br>
+        C.C.P.- C. {{ $requirement->items->first()?->employee?->nombre ?? '' }}, Subgerente Comercial. Organismo Operador<br>
         C.C.P.- ARCHIVO
     </div>
 

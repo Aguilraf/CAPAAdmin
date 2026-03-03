@@ -92,8 +92,8 @@
     <div style="text-align: center; margin-top: 20px;">
         <p style="font-weight: bold; margin-bottom: 50px;">ATENTAMENTE</p>
         <div style="border-top: 1px solid #000; width: 50%; margin: 0 auto 4px; padding-top: 4px;">
-            <div style="font-weight: bold; text-transform: uppercase; font-size: 11pt;">{{ $requirement->manager->nombre ?? 'C. LUIS DANIEL HEREDIA DUARTE' }}</div>
-            <div style="font-size: 11pt; text-transform: uppercase; font-weight: bold;">{{ $requirement->manager->puesto ?? 'GERENTE DEL ORGANISMO OPER. JMM.' }}</div>
+            <div style="font-weight: bold; text-transform: uppercase; font-size: 11pt;">{{ $requirement->manager?->nombre ?? 'C. LUIS DANIEL HEREDIA DUARTE' }}</div>
+            <div style="font-size: 11pt; text-transform: uppercase; font-weight: bold;">{{ $requirement->manager?->puesto ?? 'GERENTE DEL ORGANISMO OPER. JMM.' }}</div>
         </div>
     </div>
 
