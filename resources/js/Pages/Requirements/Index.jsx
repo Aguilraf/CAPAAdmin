@@ -134,6 +134,9 @@ export default function Index({ auth, requirements, filters, types }) {
                                                 {req.type === 'cfe' && (
                                                     <a href={route('requirements.cfe-relation', req.id)} className="text-green-600 hover:text-green-900 mr-4" target="_blank">Relación</a>
                                                 )}
+                                                {req.type === 'comisiones_bancarias' && (
+                                                    <a href={route('requirements.bank-commissions-pdf', req.id)} className="text-blue-600 hover:text-blue-900 mr-4 font-bold" target="_blank" title="Reporte Comisiones">REPORTE</a>
+                                                )}
                                                 {req.status === 'paid' && (
                                                     <a href={route('payments.requirement.pdf', req.id)} className="text-emerald-600 hover:text-emerald-900 mr-4 font-bold" target="_blank">RECIBO</a>
                                                 )}

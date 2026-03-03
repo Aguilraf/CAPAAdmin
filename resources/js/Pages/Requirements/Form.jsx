@@ -8,6 +8,8 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import ViaticosForm from './Partials/ViaticosForm';
 import RevolventeForm from './Partials/RevolventeForm';
+import BankCommissionsForm from './Partials/BankCommissionsForm';
+
 
 export default function RequirementForm({
     initialData = {},
@@ -254,7 +256,7 @@ export default function RequirementForm({
             finalSub = sumSub;
             finalIva = sumIva;
             finalTotal = sumTotal;
-        } else if (data.type === 'viaticos' || data.type === 'bomberos' || data.type === 'revolvente') {
+        } else if (data.type === 'viaticos' || data.type === 'bomberos' || data.type === 'revolvente' || data.type === 'comisiones_bancarias') {
             // Logic for these types: Sum items directly (amount already includes taxes/details)
             const sub = data.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
             const iva = data.type === 'revolvente'
@@ -307,6 +309,7 @@ export default function RequirementForm({
     };
 
     const addItem = () => {
+        if (data.type === 'comisiones_bancarias') return;
         setData('items', [...data.items, { capitulo_id: '', partida_id: '', description: '', amount: 0 }]);
     };
 
@@ -322,6 +325,20 @@ export default function RequirementForm({
         if (field === 'capitulo_id') {
             newItems[index]['partida_id'] = '';
         }
+        setData('items', newItems);
+    };
+
+    const updateGroupedItems = (isIva, field, value) => {
+        const newItems = [...data.items];
+        newItems.forEach(item => {
+            const itemIsIva = (item.description || '').toUpperCase().replace(/\./g, '').includes('IVA');
+            if (itemIsIva === isIva) {
+                item[field] = value;
+                if (field === 'capitulo_id') {
+                    item['partida_id'] = '';
+                }
+            }
+        });
         setData('items', newItems);
     };
 
@@ -725,6 +742,16 @@ export default function RequirementForm({
                 />
             )}
 
+            {/* Comisiones Bancarias Specific Section */}
+            {data.type === 'comisiones_bancarias' && (
+                <BankCommissionsForm
+                    data={data}
+                    setData={setData}
+                    monthsList={monthsList}
+                />
+            )}
+
+
             {/* Bomberos Specific Section */}
             {data.type === 'bomberos' && mode === 'create' && (
                 <div className="bg-red-50 p-4 rounded-md border border-red-200 space-y-4">
@@ -823,57 +850,150 @@ export default function RequirementForm({
                 <div className="border p-4 rounded-md">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-medium">Partidas / Conceptos</h3>
-                        <SecondaryButton onClick={addItem} type="button">Agregar Partida</SecondaryButton>
+                        {data.type !== 'comisiones_bancarias' && (
+                            <SecondaryButton onClick={addItem} type="button">Agregar Partida</SecondaryButton>
+                        )}
                     </div>
 
-                    {data.items.map((item, index) => (
-                        <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-4 items-start border-b pb-4">
-                            <div className="col-span-1 md:col-span-3">
-                                <InputLabel value="Capítulo" className="text-xs" />
-                                <select
-                                    value={item.capitulo_id}
-                                    onChange={e => updateItem(index, 'capitulo_id', e.target.value)}
-                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
-                                >
-                                    <option value="">Seleccione...</option>
-                                    {capitulos.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>)}
-                                </select>
+                    {(() => {
+                        const isBank = data.type === 'comisiones_bancarias';
+                        const hasManyItems = data.items.length > 2;
+
+                        if (isBank && hasManyItems) {
+                            const speiItems = data.items.filter(i => !(i.description || '').toUpperCase().replace(/\./g, '').includes('IVA'));
+                            const ivaItems = data.items.filter(i => (i.description || '').toUpperCase().replace(/\./g, '').includes('IVA'));
+
+                            const summary = [];
+                            if (speiItems.length > 0) {
+                                summary.push({
+                                    isGroup: true,
+                                    isIva: false,
+                                    description: 'COMISIONES POR TRANSFERENCIA SPEI',
+                                    amount: speiItems.reduce((s, i) => s + Number(i.amount), 0),
+                                    capitulo_id: speiItems[0].capitulo_id,
+                                    partida_id: speiItems[0].partida_id
+                                });
+                            }
+                            if (ivaItems.length > 0) {
+                                summary.push({
+                                    isGroup: true,
+                                    isIva: true,
+                                    description: 'I.V.A. DE COMISIONES',
+                                    amount: ivaItems.reduce((s, i) => s + Number(i.amount), 0),
+                                    capitulo_id: ivaItems[0].capitulo_id,
+                                    partida_id: ivaItems[0].partida_id
+                                });
+                            }
+
+                            return summary.map((group, idx) => (
+                                <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-4 items-start border-b pb-4">
+                                    <div className="col-span-1 md:col-span-3">
+                                        {!group.isIva && (
+                                            <>
+                                                <InputLabel value="Capítulo" className="text-xs" />
+                                                <select
+                                                    value={group.capitulo_id}
+                                                    onChange={e => updateGroupedItems(group.isIva, 'capitulo_id', e.target.value)}
+                                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
+                                                >
+                                                    <option value="">Seleccione...</option>
+                                                    {capitulos.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>)}
+                                                </select>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="col-span-1 md:col-span-3">
+                                        {!group.isIva && (
+                                            <>
+                                                <InputLabel value="Partida" className="text-xs" />
+                                                <select
+                                                    value={group.partida_id}
+                                                    onChange={e => updateGroupedItems(group.isIva, 'partida_id', e.target.value)}
+                                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
+                                                    disabled={!group.capitulo_id}
+                                                >
+                                                    <option value="">Seleccione...</option>
+                                                    {partidas.filter(p => !group.capitulo_id || p.capitulo_id == group.capitulo_id).map(p => (
+                                                        <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="col-span-1 md:col-span-3 space-y-1">
+                                        <InputLabel value="Descripción" className="text-xs" />
+                                        <div className="p-2 border bg-gray-50 rounded text-sm font-medium">{group.description}</div>
+                                    </div>
+                                    <div className="col-span-1 md:col-span-2">
+                                        <InputLabel value="Importe" className="text-xs" />
+                                        <div className="p-2 border bg-gray-50 rounded text-sm font-bold text-right italic">
+                                            $ {(Math.round(group.amount * 100) / 100).toFixed(2)}
+                                        </div>
+                                    </div>
+                                    <div className="col-span-1 flex items-center justify-center pt-6">
+                                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">Agrupado</span>
+                                    </div>
+                                </div>
+                            ));
+                        }
+
+                        return data.items.map((item, index) => (
+                            <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-4 items-start border-b pb-4">
+                                <div className="col-span-1 md:col-span-3">
+                                    {!(data.type === 'comisiones_bancarias' && (item.description || '').toUpperCase().replace(/\./g, '').includes('IVA')) && (
+                                        <>
+                                            <InputLabel value="Capítulo" className="text-xs" />
+                                            <select
+                                                value={item.capitulo_id}
+                                                onChange={e => updateItem(index, 'capitulo_id', e.target.value)}
+                                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
+                                            >
+                                                <option value="">Seleccione...</option>
+                                                {capitulos.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nombre}</option>)}
+                                            </select>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="col-span-1 md:col-span-3">
+                                    {!(data.type === 'comisiones_bancarias' && (item.description || '').toUpperCase().replace(/\./g, '').includes('IVA')) && (
+                                        <>
+                                            <InputLabel value="Partida" className="text-xs" />
+                                            <select
+                                                value={item.partida_id}
+                                                onChange={e => updateItem(index, 'partida_id', e.target.value)}
+                                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
+                                                disabled={!item.capitulo_id}
+                                            >
+                                                <option value="">Seleccione...</option>
+                                                {partidas.filter(p => !item.capitulo_id || p.capitulo_id == item.capitulo_id).map(p => (
+                                                    <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
+                                                ))}
+                                            </select>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="col-span-1 md:col-span-3 space-y-1">
+                                    <InputLabel value="Descripción" className="text-xs" />
+                                    <TextInput
+                                        value={item.description}
+                                        onChange={e => updateItem(index, 'description', e.target.value)}
+                                        className="w-full text-sm"
+                                    />
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <InputLabel value="Importe" className="text-xs" />
+                                    <TextInput
+                                        type="number" step="0.01" value={(Math.round(Number(item.amount) * 100) / 100).toFixed(2)}
+                                        onChange={e => updateItem(index, 'amount', e.target.value)}
+                                        className="w-full text-sm"
+                                    />
+                                </div>
+                                <div className="col-span-1 md:col-span-1 flex items-center justify-center pt-6">
+                                    <button type="button" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 font-bold">X</button>
+                                </div>
                             </div>
-                            <div className="col-span-1 md:col-span-3">
-                                <InputLabel value="Partida" className="text-xs" />
-                                <select
-                                    value={item.partida_id}
-                                    onChange={e => updateItem(index, 'partida_id', e.target.value)}
-                                    className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm w-full text-sm"
-                                    disabled={!item.capitulo_id}
-                                >
-                                    <option value="">Seleccione...</option>
-                                    {partidas.filter(p => !item.capitulo_id || p.capitulo_id == item.capitulo_id).map(p => (
-                                        <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="col-span-1 md:col-span-3 space-y-1">
-                                <InputLabel value="Descripción" className="text-xs" />
-                                <TextInput
-                                    value={item.description}
-                                    onChange={e => updateItem(index, 'description', e.target.value)}
-                                    className="w-full text-sm"
-                                />
-                            </div>
-                            <div className="col-span-1 md:col-span-2">
-                                <InputLabel value="Importe" className="text-xs" />
-                                <TextInput
-                                    type="number" step="0.01" value={item.amount}
-                                    onChange={e => updateItem(index, 'amount', e.target.value)}
-                                    className="w-full text-sm"
-                                />
-                            </div>
-                            <div className="col-span-1 md:col-span-1 flex items-center justify-center pt-6">
-                                <button type="button" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 font-bold">X</button>
-                            </div>
-                        </div>
-                    ))}
+                        ));
+                    })()}
                 </div>
             )}
 
@@ -970,7 +1090,7 @@ export default function RequirementForm({
                         {employees.map(e => <option key={e.id} value={e.id}>{e.nombre} - {e.puesto}</option>)}
                     </select>
                 </div>
-                {data.type !== 'cfe' && data.type !== 'viaticos' && (
+                {data.type !== 'cfe' && data.type !== 'viaticos' && data.type !== 'comisiones_bancarias' && (
                     <div>
                         <InputLabel value="Director Rec. Mat." />
                         <select

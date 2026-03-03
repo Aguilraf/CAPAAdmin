@@ -95,6 +95,9 @@ Route::middleware('auth')->group(function () {
         Route::get('requirements/{requirement}/revolvente-oficio', [\App\Http\Controllers\RequirementController::class, 'downloadRevolventeOficio'])->name('requirements.revolvente-oficio');
         Route::get('requirements/{requirement}/revolvente-anexo4', [\App\Http\Controllers\RequirementController::class, 'downloadRevolventeAnexo4'])->name('requirements.revolvente-anexo4');
         Route::get('requirements/{requirement}/revolvente-cedula', [\App\Http\Controllers\RequirementController::class, 'downloadRevolvanteCedula'])->name('requirements.revolvente-cedula');
+        Route::post('requirements/import-bank-commissions', [\App\Http\Controllers\RequirementController::class, 'importBankCommissions'])->name('requirements.import-bank-commissions');
+        Route::get('requirements/{requirement}/bank-commissions-pdf', [\App\Http\Controllers\RequirementController::class, 'downloadBankCommissionsPdf'])->name('requirements.bank-commissions-pdf');
+
 
 
 

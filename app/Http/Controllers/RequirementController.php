@@ -12,9 +12,165 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 
 class RequirementController extends Controller
 {
+    public function importBankCommissions(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file',
+        ]);
+
+        $rows = Excel::toArray(new \stdClass(), $request->file('file'))[0];
+
+        $accountNumber = '';
+        // 1. Escaneo preventivo de la cuenta bancaria (buscar número de 8-12 dígitos)
+        foreach ($rows as $row) {
+            foreach ($row as $cell) {
+                $c = trim((string) $cell);
+                if (is_numeric($c) && strlen($c) >= 8 && strlen($c) <= 18) {
+                    $accountNumber = $c;
+                    break 2;
+                }
+            }
+        }
+
+        $headerRowIndex = null;
+        // 2. Búsqueda estricta de cabecera
+        foreach ($rows as $index => $row) {
+            $rowLower = array_map(function ($v) {
+                $v = mb_strtolower(trim((string) $v), 'UTF-8');
+                return str_replace(['á', 'é', 'í', 'ó', 'ú', 'ñ'], ['a', 'e', 'i', 'o', 'u', 'n'], $v);
+            }, $row);
+
+            $hasFecha = false;
+            $hasDesc = false;
+            $hasAmt = false;
+            foreach ($rowLower as $cell) {
+                if (str_contains($cell, 'fecha'))
+                    $hasFecha = true;
+                if (str_contains($cell, 'descripcion') || str_contains($cell, 'narrativa') || str_contains($cell, 'concepto'))
+                    $hasDesc = true;
+                if (str_contains($cell, 'importe') || str_contains($cell, 'debito') || str_contains($cell, 'cargo') || str_contains($cell, 'monto'))
+                    $hasAmt = true;
+            }
+
+            if ($hasFecha && $hasDesc && $hasAmt) {
+                $headerRowIndex = $index;
+                break;
+            }
+        }
+
+        if ($headerRowIndex === null) {
+            return response()->json(['message' => 'No se encontró la fila de cabecera con columnas de Fecha, Descripción e Importe.'], 422);
+        }
+
+        $headers = array_map(function ($h) {
+            $h = mb_strtolower(trim((string) $h), 'UTF-8');
+            return str_replace(['á', 'é', 'í', 'ó', 'ú', 'ñ'], ['a', 'e', 'i', 'o', 'u', 'n'], $h);
+        }, $rows[$headerRowIndex]);
+
+        $dataRows = array_slice($rows, $headerRowIndex + 1);
+        $items = [];
+        foreach ($dataRows as $row) {
+            if (empty(array_filter($row)))
+                continue;
+
+            $dateRaw = null;
+            $desc = '';
+            $amounts = [];
+            $reference = '';
+
+            foreach ($headers as $idx => $header) {
+                $val = $row[$idx] ?? null;
+                if (str_contains($header, 'fecha'))
+                    $dateRaw = $val;
+                if (str_contains($header, 'descripcion') || str_contains($header, 'narrativa') || str_contains($header, 'concepto'))
+                    $desc = $val;
+                if (str_contains($header, 'referencia'))
+                    $reference = trim((string) $val);
+                if (str_contains($header, 'importe') || str_contains($header, 'debito') || str_contains($header, 'cargo') || str_contains($header, 'monto')) {
+                    $amt = abs((float) str_replace(['$', ',', ' '], '', (string) $val));
+                    if ($amt > 0)
+                        $amounts[] = $amt;
+                }
+            }
+
+            $amount = count($amounts) > 0 ? $amounts[0] : 0;
+            if ($amount <= 0)
+                continue;
+
+            $descUpper = mb_strtoupper(trim((string) $desc), 'UTF-8');
+            $descClean = str_replace([' ', '.', ','], '', $descUpper);
+
+            $isIva = (str_contains($descClean, 'IVA'));
+            $isSpei = str_starts_with($descClean, '00CTRANSFENVSPEI');
+
+            if ($isIva || $isSpei) {
+                $items[] = [
+                    'invoice_date' => $this->parseExcelDate($dateRaw),
+                    'description' => $descUpper,
+                    'invoice_folio' => $reference,
+                    'amount' => round($amount, 2),
+                    'capitulo_id' => 11, // Capítulo 3000
+                    'partida_id' => 141, // Partida 34101
+                    'temp_id' => bin2hex(random_bytes(8))
+                ];
+            }
+        }
+
+        return response()->json([
+            'items' => $items,
+            'account_number' => $accountNumber,
+        ]);
+    }
+
+    public function downloadBankCommissionsPdf(Requirement $requirement)
+    {
+        if ($requirement->type !== 'comisiones_bancarias') {
+            abort(404);
+        }
+
+        $requirement->load(['items.partida', 'coordinator', 'director', 'manager', 'elaborator']);
+        $settings = $this->getSettingsForPdf();
+
+        // Month/Year Billed (e.g. ENERO/2026)
+        $period = strtoupper($requirement->month_billed ?? '---') . '/' . ($requirement->year_billed ?? '---');
+
+        $pdf = Pdf::loadView('reports.bank_commissions', [
+            'requirement' => $requirement,
+            'settings' => $settings,
+            'period' => $period,
+            'bank_info' => 'HSBC ' . ($requirement->revolving_fund_number ?? ''),
+        ])->setPaper('letter', 'portrait')
+            ->setOption('enable_php', true);
+
+        return $pdf->download('Comisiones_Bancarias_' . $requirement->id . '.pdf');
+    }
+
+    private function parseExcelDate($date)
+    {
+        if (!$date)
+            return null;
+        if (is_numeric($date)) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+        try {
+            $date = (string) $date;
+            if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $matches)) {
+                return sprintf('%s-%02d-%02d', $matches[3], $matches[2], $matches[1]);
+            }
+            return \Carbon\Carbon::parse($date)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     public function index(Request $request)
     {
         $query = Requirement::query()
@@ -270,14 +426,17 @@ class RequirementController extends Controller
                 $retention_isr = isset($adj['invoice_retention_isr']) ? (float) $adj['invoice_retention_isr'] : collect($validated['items'])->sum('invoice_retention_isr');
                 $retention_iva = isset($adj['invoice_retention_iva']) ? (float) $adj['invoice_retention_iva'] : collect($validated['items'])->sum('invoice_retention_iva');
                 $total = isset($adj['amount']) ? (float) $adj['amount'] : collect($validated['items'])->sum('amount');
-            } elseif ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
-                $subtotal = collect($validated['items'])->sum('amount');
-                $discount = 0;
+            } elseif ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos' || $validated['type'] === 'comisiones_bancarias') {
+                $total = collect($validated['items'])->sum('amount');
                 $iva = 0;
-                $ieps = 0;
-                $retention_isr = 0;
-                $retention_iva = 0;
-                $total = $subtotal;
+                if ($validated['type'] === 'comisiones_bancarias') {
+                    $iva = collect($validated['items'])->filter(function ($i) {
+                        $d = str_replace([' ', '.'], '', strtoupper($i['description'] ?? ''));
+                        return str_contains($d, 'IVA') && !str_contains($d, 'SPEI');
+                    })->sum('amount');
+                }
+                $subtotal = $total - $iva;
+                $discount = $ieps = $retention_isr = $retention_iva = 0;
             } elseif (!empty($validated['cfe_receipts'])) {
                 // CFE Logic: Sum from receipts table for exact precision
                 $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
@@ -577,14 +736,17 @@ class RequirementController extends Controller
                 $retention_isr = isset($adj['invoice_retention_isr']) ? (float) $adj['invoice_retention_isr'] : collect($validated['items'])->sum('invoice_retention_isr');
                 $retention_iva = isset($adj['invoice_retention_iva']) ? (float) $adj['invoice_retention_iva'] : collect($validated['items'])->sum('invoice_retention_iva');
                 $total = isset($adj['amount']) ? (float) $adj['amount'] : collect($validated['items'])->sum('amount');
-            } elseif ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos') {
-                $subtotal = collect($validated['items'])->sum('amount');
-                $discount = 0;
+            } elseif ($validated['type'] === 'viaticos' || $validated['type'] === 'bomberos' || $validated['type'] === 'comisiones_bancarias') {
+                $total = collect($validated['items'])->sum('amount');
                 $iva = 0;
-                $ieps = 0;
-                $retention_isr = 0;
-                $retention_iva = 0;
-                $total = $subtotal;
+                if ($validated['type'] === 'comisiones_bancarias') {
+                    $iva = collect($validated['items'])->filter(function ($i) {
+                        $d = str_replace([' ', '.'], '', strtoupper($i['description'] ?? ''));
+                        return str_contains($d, 'IVA') && !str_contains($d, 'SPEI');
+                    })->sum('amount');
+                }
+                $subtotal = $total - $iva;
+                $discount = $ieps = $retention_isr = $retention_iva = 0;
             } elseif (!empty($validated['cfe_receipts'])) {
                 $subtotal = collect($validated['cfe_receipts'])->sum('subtotal');
                 $iva = collect($validated['cfe_receipts'])->sum('iva');
@@ -734,8 +896,8 @@ class RequirementController extends Controller
         $requirement->load(['items.partida.capitulo', 'coordinator', 'director', 'manager', 'elaborator', 'items.employee']);
         $settings = $this->getSettingsForPdf();
         \Carbon\Carbon::setLocale('es');
-        $fecha = \Carbon\Carbon::parse($requirement->assignment_date);
-        $fecha_lugar = strtoupper($fecha->translatedFormat('d')) . ' DE ' . strtoupper($fecha->translatedFormat('F')) . ' DEL ' . $fecha->year;
+        $fecha = \Carbon\Carbon::parse($requirement->created_at);
+        $fecha_lugar = strtoupper($fecha->translatedFormat('d')) . ' DE ' . strtoupper($fecha->translatedFormat('F')) . ' DE ' . $fecha->year;
         $importe_letras = \App\Helpers\NumberHelper::convert($requirement->total);
         return compact('settings', 'fecha_lugar', 'importe_letras');
     }
@@ -767,7 +929,16 @@ class RequirementController extends Controller
             abort(404);
         $base = $this->revolventeBaseData($requirement);
 
-        // Group items by partida to consolidate amounts
+        // Calculate grand totals for taxes/discounts for the summary section
+        $extraTotals = [
+            'discount' => round($requirement->items->sum('invoice_discount'), 2),
+            'ieps' => round($requirement->items->sum('invoice_ieps'), 2),
+            'ret_isr' => round($requirement->items->sum('invoice_retention_isr'), 2),
+            'ret_iva' => round($requirement->items->sum('invoice_retention_iva'), 2),
+            'iva' => round($requirement->items->sum('invoice_iva'), 2),
+        ];
+
+        // Group items by partida to consolidate amounts for the breakdown table
         $grouped = $requirement->items->groupBy('partida_id')->map(function ($grp) {
             $first = $grp->first();
             $first->amount = round($grp->sum('amount'), 2);
@@ -777,6 +948,7 @@ class RequirementController extends Controller
 
         $pdf = Pdf::loadView('reports.revolvente_anexo4', array_merge($base, [
             'requirement' => $requirement,
+            'extraTotals' => $extraTotals,
             'fecha_lugar' => $base['fecha_lugar'],
         ]))->setPaper('letter', 'portrait');
 
@@ -805,7 +977,8 @@ class RequirementController extends Controller
             'items' => $requirement->items,
             'fecha_lugar' => $base['fecha_lugar'],
             'firmas' => $firmas,
-        ]))->setPaper('letter', 'landscape');
+        ]))->setPaper('letter', 'landscape')
+            ->setOption('enable_php', true);
 
         return $pdf->download('Cedula_Revolvente_' . $requirement->revolving_fund_number . '.pdf');
     }

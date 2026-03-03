@@ -154,12 +154,6 @@
                     PERIODO: DEL {{ $startStr }} AL {{ $endStr }} DEL {{ $yearStr }}
                 </td>
                 <td style="font-weight: bold; font-size: 7.5pt; text-align: right; padding: 0;">
-                    <script type="text/php">
-                        if ( isset($pdf) ) {
-                            $font = $fontMetrics->get_font("Arial", "bold");
-                            $pdf->page_text($pdf->get_width() - 85, $pdf->get_height() - 570, "PAGINA {PAGE_NUM} DE {PAGE_COUNT}", $font, 6.2, array(0,0,0));
-                        }
-                    </script>
                 </td>
             </tr>
         </table>
@@ -333,5 +327,11 @@
             </tr>
         </tfoot>
     </table>
+    <script type="text/php">
+        if ( isset($pdf) ) {
+            $font = $fontMetrics->get_font("Arial", "bold");
+            $pdf->page_text(680, 55, "PAGINA {PAGE_NUM} DE {PAGE_COUNT}", $font, 7.5, array(0,0,0));
+        }
+    </script>
 </body>
 </html>

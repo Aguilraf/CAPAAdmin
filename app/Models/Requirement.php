@@ -15,6 +15,7 @@ class Requirement extends Model
         'cfe' => 'CFE',
         'estandard' => 'Requerimiento Estándar',
         'viaticos' => 'Viáticos',
+        'comisiones_bancarias' => 'Comisiones Bancarias',
     ];
 
     protected $fillable = [
@@ -100,6 +101,7 @@ class Requirement extends Model
         return match ($type) {
             'bomberos' => 'bomberos',
             'revolvente' => 'fondo_fijo',
+            'comisiones_bancarias' => 'standard',
             default => 'standard',
         };
     }
@@ -109,7 +111,7 @@ class Requirement extends Model
         return match ($group) {
             'bomberos' => ['bomberos'],
             'fondo_fijo' => ['revolvente'],
-            'standard' => ['cfe', 'estandard', 'viaticos'],
+            'standard' => ['cfe', 'estandard', 'viaticos', 'comisiones_bancarias'],
             default => [],
         };
     }

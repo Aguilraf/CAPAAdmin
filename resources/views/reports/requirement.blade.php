@@ -127,74 +127,115 @@
             }
         } elseif ($requirement->type === 'revolvente') {
             $finalDescription = ($requirement->revolving_fund_type ?? 'REPOSICIÓN') . " DE FONDO REVOLVENTE No. " . ($requirement->revolving_fund_number ?? 'S/N');
+        } elseif ($requirement->type === 'comisiones_bancarias') {
+            $finalDescription = "PAGO CORRESPONDIENTE POR TRANSFERENCIAS REALIZADAS EN EL MES DE " . ($requirement->month_billed ?? '---') . " " . ($requirement->year_billed ?? '---') . " DE LA CUENTA DEL BANCO HSBC " . ($requirement->revolving_fund_number ?? '') . " (COMISION BANCARIA E IVA)";
         }
         $finalDescription = mb_strtoupper($finalDescription);
     @endphp
     <div class="body-text">
-        POR MEDIO DEL PRESENTE ME PERMITO SOLICITAR A USTED, ME SEAN ENVIADOS LOS RECURSOS PARA CUBRIR GASTOS DEL ORGANISMO OPERADOR JOSÉ MARÍA MORELOS POR UN MONTO DE <strong>${{ number_format($requirement->total, 2) }}</strong> (SON: <span class="amount-text">{{ $importe_letras }}</span>) POR LOS SIGUIENTES CONCEPTOS: {{ $finalDescription }}
+        POR MEDIO DEL PRESENTE ME PERMITO SOLICITAR A USTED, ME SEAN ENVIADOS LOS RECURSOS PARA CUBRIR GASTOS DEL ORGANISMO OPERADOR JOSÉ MARÍA MORELOS POR UN MONTO DE <strong>$ {{ number_format($requirement->total, 2) }}</strong> (SON: <span class="amount-text">{{ $importe_letras }}</span>) POR LOS SIGUIENTES CONCEPTOS: {{ $finalDescription }}
     </div>
     <br><br>
 
     <!-- Financial Breakdown -->
     <table class="breakdown-table">
-        <!-- Define Column Widths for alignment -->
         <colgroup>
             <col style="width: 15%;">
-            <col style="width: 8%;">
-            <col style="width: 37%;">
-            <col style="width: 20%;">
+            <col style="width: 10%;">
+            <col style="width: 40%;">
+            <col style="width: 15%;">
             <col style="width: 20%;">
         </colgroup>
 
-        <!-- Loop items -->
-        @foreach($requirement->items as $item)
-        <tr>
-            <td style="font-weight: bold; text-align: left;">CAPITULO</td>
-            <td style="font-weight: bold; text-align: left;">{{ $item->capitulo->codigo ?? '3000' }}</td>
-            <td style="font-weight: bold; text-align: left;">{{ $item->capitulo->nombre ?? 'SERVICIOS GENERALES' }}</td>
-            <td></td>
-            <td class="col-amount font-bold" style="font-weight: bold; text-align: right;">${{ number_format($item->amount, 2) }}</td>
-        </tr>
-        <tr>
-            <!-- Partida Code -->
-            <td style="font-weight: bold; text-align: left; padding-left: 20px;">{{ number_format((int)($item->partida->codigo ?? '31101')) }}</td> 
-            <!-- Partida Name: Spanning 2 columns to prevent wrapping -->
-            <td colspan="2" style="font-weight: bold; text-align: left;">{{ $item->partida->nombre ?? 'ENERGIA ELECTRICA' }}</td>
-            <!-- Partida Amount (Middle Column - Yellow Area) -->
-            <td class="col-amount font-bold" style="font-weight: bold; text-align: right;">${{ number_format($item->amount, 2) }}</td>
-            <td></td> 
-        </tr>
-        @endforeach
-        
-        <tr>
-            <td style="font-weight: bold; text-align: left; padding-left: 20px;">IVA</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td class="col-amount font-bold" style="text-align: right;">${{ number_format($requirement->iva, 2) }}</td>
-        </tr>
-        
-        <tr>
-            <td></td>
-            <td colspan="2" style="font-weight: bold; text-align: left;">
-                <span style="display: inline-block; width: 100%; text-align: center;">
-                    ACREDITABLE <span style="margin-left: 20px;">{{ number_format($requirement->iva, 2) }}</span>
-                </span>
-            </td>
-            <td></td>
-            <td></td>
-        </tr>
-        
-        <tr><td colspan="5" style="height: 10px;"></td></tr>
-        
-        <tr>
-            <td></td>
-            <td></td>
-            <!-- Total Label -->
-            <td style="font-weight: bold; text-align: right;">TOTAL</td>
-            <td></td>
-            <td class="col-amount font-bold" style="border-top: 2px solid #000; text-align: right;">${{ number_format($requirement->total, 2) }}</td>
-        </tr>
+        @if($requirement->type === 'comisiones_bancarias')
+            @php
+                $subtotal = (float) $requirement->subtotal;
+                $iva = (float) $requirement->iva;
+            @endphp
+            <tr>
+                <td style="font-weight: bold; text-align: left;">CAPITULO</td>
+                <td style="font-weight: bold; text-align: left;">3400</td>
+                <td colspan="2" style="font-weight: bold; text-align: left;">SERVICIOS FINANCIEROS, BANCARIOS Y COMERCIALES</td>
+                <td class="col-amount font-bold" style="font-weight: bold; text-align: right;">$ <span style="border-bottom: 2px solid #000; padding-bottom: 1px;">{{ number_format($subtotal, 2) }}</span></td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; text-align: left; padding-left: 20px;">34,101</td> 
+                <td colspan="2" style="font-weight: bold; text-align: left;">SERVICIOS FINANCIEROS Y BANCARIOS</td>
+                <td class="col-amount font-bold" style="font-weight: bold; text-align: right;"><span style="border-bottom: 1px solid #000; padding: 0 15px;">{{ number_format($subtotal, 2) }}</span></td>
+                <td></td> 
+            </tr>
+            
+            <tr><td colspan="5" style="height: 10px;"></td></tr>
+
+            <tr>
+                <td style="font-weight: bold; text-align: left; padding-left: 20px;">IVA</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="col-amount font-bold" style="font-weight: bold; text-align: right;">$ <span style="border-bottom: 2px solid #000; padding-bottom: 1px;">{{ number_format($iva, 2) }}</span></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td colspan="2" style="font-weight: bold; text-align: left; padding-left: 40px;">
+                    EFECTIVAMENTE COBRADO
+                </td>
+                <td class="col-amount font-bold" style="font-weight: bold; text-align: right;"><span style="border-bottom: 1px solid #000; padding: 0 15px;">{{ number_format($iva, 2) }}</span></td>
+                <td></td>
+            </tr>
+
+            <tr><td colspan="5" style="height: 20px;"></td></tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td style="font-weight: bold; text-align: right; padding-right: 50px; font-size: 12pt;">TOTAL</td>
+                <td></td>
+                <td class="col-amount" style="font-weight: bold; text-align: right; font-size: 12pt;">$ {{ number_format($requirement->total, 2) }}</td>
+            </tr>
+        @else
+            @foreach($requirement->items as $item)
+            <tr>
+                <td style="font-weight: bold; text-align: left;">CAPITULO</td>
+                <td style="font-weight: bold; text-align: left;">{{ $item->capitulo->codigo ?? '3000' }}</td>
+                <td style="font-weight: bold; text-align: left;">{{ $item->capitulo->nombre ?? 'SERVICIOS GENERALES' }}</td>
+                <td></td>
+                <td class="col-amount font-bold" style="font-weight: bold; text-align: right;">$ {{ number_format($item->amount, 2) }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; text-align: left; padding-left: 20px;">{{ number_format((int)($item->partida->codigo ?? '31101')) }}</td> 
+                <td colspan="2" style="font-weight: bold; text-align: left;">{{ $item->partida->nombre ?? 'ENERGIA ELECTRICA' }}</td>
+                <td class="col-amount font-bold" style="font-weight: bold; text-align: right;">${{ number_format($item->amount, 2) }}</td>
+                <td></td> 
+            </tr>
+            @endforeach
+            
+            <tr>
+                <td style="font-weight: bold; text-align: left; padding-left: 20px;">IVA</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="col-amount font-bold" style="text-align: right;">$ {{ number_format($requirement->iva, 2) }}</td>
+            </tr>
+            
+            <tr>
+                <td></td>
+                <td colspan="2" style="font-weight: bold; text-align: left;">
+                    <span style="display: inline-block; width: 100%; text-align: center;">
+                        ACREDITABLE <span style="margin-left: 20px;">{{ number_format($requirement->iva, 2) }}</span>
+                    </span>
+                </td>
+                <td></td>
+                <td></td>
+            </tr>
+
+            <tr><td colspan="5" style="height: 10px;"></td></tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td style="font-weight: bold; text-align: right; font-size: 12pt;">TOTAL</td>
+                <td></td>
+                <td class="col-amount" style="font-weight: bold; border-top: 2px solid #000; text-align: right; font-size: 12pt;">$ {{ number_format($requirement->total, 2) }}</td>
+            </tr>
+        @endif
     </table>
 
     @if($requirement->type === 'cfe' && $requirement->description)
@@ -207,21 +248,39 @@
     <!-- Signatures -->
     <table class="signatures">
         <tr>
-            <td>
-                <div class="sig-title">ELABORÓ</div>
-                <div class="sig-name">{{ $requirement->elaborator->nombre ?? 'N/A' }}</div>
-                <div class="sig-role">{{ $requirement->elaborator->puesto ?? '' }}</div>
-            </td>
-            <td>
-                <div class="sig-title">Vo. Bo.</div>
-                <div class="sig-name">{{ $requirement->manager->nombre ?? 'N/A' }}</div>
-                <div class="sig-role">{{ $requirement->manager->puesto ?? '' }}</div>
-            </td>
-            <td>
-                <div class="sig-title">AUTORIZÓ</div>
-                <div class="sig-name">{{ $data['destinatario_nombre'] }}</div>
-                <div class="sig-role">{{ $data['destinatario_cargo'] }}</div>
-            </td>
+            @if($requirement->type === 'comisiones_bancarias')
+                <td style="width: 33%;">
+                    <div class="sig-title">ELABORÓ</div>
+                    <div class="sig-name">{{ $requirement->elaborator->nombre ?? 'N/A' }}</div>
+                    <div class="sig-role">{{ $requirement->elaborator->puesto ?? '' }}</div>
+                </td>
+                <td style="width: 33%;">
+                    <div class="sig-title">Vo. Bo.</div>
+                    <div class="sig-name">{{ $requirement->manager->nombre ?? 'N/A' }}</div>
+                    <div class="sig-role">{{ $requirement->manager->puesto ?? '' }}</div>
+                </td>
+                <td style="width: 33%;">
+                    <div class="sig-title">AUTORIZÓ</div>
+                    <div class="sig-name">{{ $data['destinatario_nombre'] }}</div>
+                    <div class="sig-role">{{ $data['destinatario_cargo'] }}</div>
+                </td>
+            @else
+                <td>
+                    <div class="sig-title">ELABORÓ</div>
+                    <div class="sig-name">{{ $requirement->elaborator->nombre ?? 'N/A' }}</div>
+                    <div class="sig-role">{{ $requirement->elaborator->puesto ?? '' }}</div>
+                </td>
+                <td>
+                    <div class="sig-title">Vo. Bo.</div>
+                    <div class="sig-name">{{ $requirement->manager->nombre ?? 'N/A' }}</div>
+                    <div class="sig-role">{{ $requirement->manager->puesto ?? '' }}</div>
+                </td>
+                <td>
+                    <div class="sig-title">AUTORIZÓ</div>
+                    <div class="sig-name">{{ $data['destinatario_nombre'] }}</div>
+                    <div class="sig-role">{{ $data['destinatario_cargo'] }}</div>
+                </td>
+            @endif
         </tr>
     </table>
     
