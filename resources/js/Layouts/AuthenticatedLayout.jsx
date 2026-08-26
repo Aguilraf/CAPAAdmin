@@ -56,7 +56,9 @@ export default function AuthenticatedLayout({ header, children }) {
                                             <Dropdown.Link href={route('daily-incomes.index')}>Cobranza del Día</Dropdown.Link>
                                             <Dropdown.Link href={route('daily-incomes.create')}>Nueva cobranza</Dropdown.Link>
                                             <Dropdown.Link href={route('income-policies.create')}>Agregar Póliza de Ingreso</Dropdown.Link>
+                                            <Dropdown.Link href={route('income-policies.index')}>Pólizas capturadas</Dropdown.Link>
                                             <Dropdown.Link href={route('income-accounts.index')}>Catálogo de cuentas</Dropdown.Link>
+                                            <Dropdown.Link href={route('income-policy-types.index')}>Catálogo de tipos de póliza</Dropdown.Link>
                                         </Dropdown.Content>
                                     </Dropdown>
                                 </div>
@@ -73,6 +75,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                             </Dropdown.Trigger>
                                             <Dropdown.Content align="right" width="48">
                                                 <Dropdown.Link href={route('reportes.index')}>Inicio Reportes</Dropdown.Link>
+                                                <Dropdown.Link href={route('reportes.cobranza')}>Reporte de cobranza</Dropdown.Link>
                                                 <Dropdown.Link href={route('reportes.revolvente.index')}>Fondo Revolvente</Dropdown.Link>
                                                 <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
                                                 <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>

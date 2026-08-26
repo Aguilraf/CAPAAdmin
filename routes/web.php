@@ -167,6 +167,14 @@ Route::middleware('auth')->group(function () {
         )->name('incomes.template');
 
         Route::get(
+            'ingresos/plantilla-azteca',
+            [
+                \App\Http\Controllers\BankMovementController::class,
+                'downloadAztecaTemplate'
+            ]
+        )->name('incomes.azteca-template');
+
+        Route::get(
             'ingresos',
             [
                 \App\Http\Controllers\BankMovementController::class,
@@ -190,6 +198,15 @@ Route::middleware('auth')->group(function () {
             ]
         )->name('income-policies.create');
 
+        Route::get('polizas-ingreso', [
+            \App\Http\Controllers\IncomePolicyController::class,
+            'index'
+        ])->name('income-policies.index');
+        Route::get('polizas-ingreso/{incomePolicy}/editar', [
+            \App\Http\Controllers\IncomePolicyController::class,
+            'edit'
+        ])->name('income-policies.edit');
+
         Route::post(
             'polizas-ingreso',
             [
@@ -197,6 +214,31 @@ Route::middleware('auth')->group(function () {
                 'store'
             ]
         )->name('income-policies.store');
+        Route::put('polizas-ingreso/{incomePolicy}', [
+            \App\Http\Controllers\IncomePolicyController::class,
+            'update'
+        ])->name('income-policies.update');
+        Route::delete('polizas-ingreso/{incomePolicy}', [
+            \App\Http\Controllers\IncomePolicyController::class,
+            'destroy'
+        ])->name('income-policies.destroy');
+
+        Route::get('catalogo-tipos-poliza', [
+            \App\Http\Controllers\IncomePolicyTypeController::class,
+            'index'
+        ])->name('income-policy-types.index');
+        Route::post('catalogo-tipos-poliza', [
+            \App\Http\Controllers\IncomePolicyTypeController::class,
+            'store'
+        ])->name('income-policy-types.store');
+        Route::patch('catalogo-tipos-poliza/{incomePolicyType}', [
+            \App\Http\Controllers\IncomePolicyTypeController::class,
+            'update'
+        ])->name('income-policy-types.update');
+        Route::delete('catalogo-tipos-poliza/{incomePolicyType}', [
+            \App\Http\Controllers\IncomePolicyTypeController::class,
+            'destroy'
+        ])->name('income-policy-types.destroy');
 
         Route::get(
             'catalogo-cuentas-ingreso',
@@ -422,6 +464,18 @@ Route::middleware('auth')->group(function () {
                 'historial'
             ]
         )->name('reportes.historial');
+
+        Route::get(
+            '/reportes/cobranza',
+            [
+                \App\Http\Controllers\ReportController::class,
+                'cobranzaReport'
+            ]
+        )->name('reportes.cobranza');
+        Route::get('/reportes/cobranza/pdf', [
+            \App\Http\Controllers\ReportController::class,
+            'cobranzaReportPdf'
+        ])->name('reportes.cobranza.pdf');
 
         Route::get(
             '/reportes/historial/{id}/print',

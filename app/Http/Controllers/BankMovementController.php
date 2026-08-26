@@ -82,11 +82,22 @@ class BankMovementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    public function downloadAztecaTemplate()
+    {
+        return response()->streamDownload(function () {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($file, ['NUMERO DE CUENTA', 'FECHA DE OP', 'FECHA DE AP', 'CONCEPTO', 'IMPORTE', 'SALDO', 'MOVIMIENTO']);
+            fputcsv($file, ['01720125596869', '2026-02-28', '2026-02-28', 'EJEMPLO DEPOSITO', '310.00', '419416.62', '000006393']);
+            fclose($file);
+        }, 'plantilla_azteca.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
     public function import(Request $request)
     {
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+            'file' => 'required|file|extensions:xlsx,xls,csv|max:20480',
         ]);
 
         $bank = Bank::findOrFail($validated['bank_id']);
@@ -108,6 +119,7 @@ class BankMovementController extends Controller
             $headers = array_map(fn ($value) => $this->header($value), array_shift($rows));
             $created = 0;
             $skipped = 0;
+            $duplicates = 0;
 
             foreach ($rows as $row) {
                 $data = array_combine($headers, array_pad(array_slice($row, 0, count($headers)), count($headers), null));
@@ -139,11 +151,16 @@ class BankMovementController extends Controller
                 ]));
 
                 $record = BankMovement::firstOrCreate(['fingerprint' => $movement['fingerprint']], $movement);
-                $record->wasRecentlyCreated ? $created++ : $skipped++;
+                if ($record->wasRecentlyCreated) {
+                    $created++;
+                } else {
+                    $skipped++;
+                    $duplicates++;
+                }
             }
 
             return redirect()->route('incomes.index', ['bank_id' => $bank->id])
-                ->with('success', "Importación terminada: {$created} movimientos nuevos y {$skipped} omitidos (duplicados o filas sin datos).");
+                ->with('success', "Importación terminada: {$created} movimientos nuevos, {$duplicates} duplicados y " . ($skipped - $duplicates) . " filas sin datos.");
         } catch (\Throwable $exception) {
             report($exception);
             return back()->with('error', 'No fue posible leer el archivo. Verifica que corresponda al formato configurado para este banco.');
@@ -175,8 +192,14 @@ class BankMovementController extends Controller
 
     private function aztecaMovement(array $row): ?array
     {
-        $date = $this->date($row['fecha_de_operacion'] ?? null);
-        $amount = $this->amount($row['importe'] ?? null, true);
+        $dateKey = $this->findKey($row, ['fecha_de_operacion', 'fecha_de_op']);
+        $amountKey = $this->findKey($row, ['importe']);
+        $movementKey = $this->findKey($row, ['movimiento']);
+        $conceptKey = $this->findKey($row, ['concepto', 'descripcion']);
+        $applicationDateKey = $this->findKey($row, ['fecha_de_aplicacion', 'fecha_de_ap']);
+
+        $date = $this->date($row[$dateKey] ?? null);
+        $amount = $this->amount($row[$amountKey] ?? null, true);
 
         if (!$date || $amount === null) {
             return null;
@@ -184,11 +207,11 @@ class BankMovementController extends Controller
 
         return [
             'operation_date' => $date,
-            'application_date' => $this->date($row['fecha_de_aplicacion'] ?? null),
-            'movement_number' => $this->aztecaMovementNumber($row['movimiento'] ?? null),
+            'application_date' => $this->date($row[$applicationDateKey] ?? null),
+            'movement_number' => $this->aztecaMovementNumber($row[$movementKey] ?? null),
             'reference' => null,
             'transaction_type' => $amount < 0 ? 'Cargo' : 'Abono',
-            'description' => $this->string($row['concepto'] ?? null),
+            'description' => $this->string($row[$conceptKey] ?? null),
             'credit_amount' => max($amount, 0),
             'debit_amount' => abs(min($amount, 0)),
             'balance' => $this->amount($row['saldo'] ?? null, true),
@@ -350,17 +373,32 @@ class BankMovementController extends Controller
                 $values = [];
                 foreach ($xmlRow->children('http://schemas.openxmlformats.org/spreadsheetml/2006/main') as $cell) {
                     $attributes = $cell->attributes();
+                    $column = preg_replace('/\d+/', '', (string) $attributes['r']);
+                    $columnIndex = $this->excelColumnIndex($column);
                     $value = (string) $cell->v;
-                    $values[] = ((string) $attributes['t'] === 's' && $value !== '')
+                    $values[$columnIndex] = ((string) $attributes['t'] === 's' && $value !== '')
                         ? ($sharedStrings[(int) $value] ?? '')
-                        : $value;
+                        : ((string) $attributes['t'] === 'inlineStr' ? trim(strip_tags($cell->asXML())) : $value);
                 }
-                $rows[] = $values;
+                if ($values !== []) {
+                    $lastColumn = max(array_keys($values));
+                    $rows[] = array_map(fn ($index) => $values[$index] ?? null, range(0, $lastColumn));
+                }
             }
 
             return $rows;
         } finally {
             $zip->close();
         }
+    }
+
+    private function excelColumnIndex(string $column): int
+    {
+        $index = 0;
+        foreach (str_split(strtoupper($column)) as $character) {
+            $index = ($index * 26) + ord($character) - 64;
+        }
+
+        return max(0, $index - 1);
     }
 }

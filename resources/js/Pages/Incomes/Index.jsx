@@ -49,6 +49,11 @@ export default function Index({ banks, movements, filters = {} }) {
                                 </p>
                             )}
                         </div>
+                        {selectedBank.import_template === 'azteca' && (
+                            <a href={route('incomes.azteca-template')} className="font-semibold text-blue-700 underline whitespace-nowrap" target="_blank" rel="noreferrer">
+                                Descargar layout Azteca
+                            </a>
+                        )}
                         {selectedBank.import_template === 'custom' && (
                             <a
                                 href={route('incomes.template')}

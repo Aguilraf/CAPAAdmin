@@ -25,4 +25,9 @@ class IncomePolicy extends Model
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
     ];
+
+    public function details()
+    {
+        return $this->hasMany(IncomePolicyDetail::class);
+    }
 }

@@ -19,6 +19,14 @@ export default function Index() {
                             <h3 className="text-lg font-medium mb-4">Disponibles</h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <Link
+                                    href={route('reportes.cobranza')}
+                                    className="block p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                                >
+                                    <h4 className="font-bold text-emerald-600 mb-2">Reporte de cobranza</h4>
+                                    <p className="text-sm text-gray-600">Consultar cobranzas, pólizas, DRAEF e importes bancarios por rango de fechas.</p>
+                                    <div className="mt-4 flex items-center text-sm font-medium text-emerald-500">Generar reporte &rarr;</div>
+                                </Link>
                                 {/* Card for Material Request */}
                                 <Link
                                     href={route('reportes.material-request.create')}

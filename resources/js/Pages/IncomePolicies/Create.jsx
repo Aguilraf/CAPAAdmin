@@ -1,23 +1,32 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
-export default function Create({ accounts = [] }) {
+export default function Create({ accounts = [], policyTypes = [] }) {
     const { flash } = usePage().props;
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, transform, processing, errors } = useForm({
         policy_number: '',
         policy_type: '',
-        account: '',
         concept: '',
-        amount: '',
         start_date: '',
         end_date: '',
         observations: '',
+        details: accounts.map((item) => ({ income_account_id: item.id, amount: '' })),
     });
+
+    const totalAmount = data.details.reduce((sum, detail) => sum + Number(detail.amount || 0), 0);
+
+    const updateDetailAmount = (accountId, amount) => {
+        setData('details', data.details.map((detail) => detail.income_account_id === accountId ? { ...detail, amount } : detail));
+    };
 
     const submit = (event) => {
         event.preventDefault();
+        transform((formData) => ({
+            ...formData,
+            details: formData.details.filter((detail) => Number(detail.amount || 0) > 0),
+        }));
         post(route('income-policies.store'));
     };
 
@@ -28,9 +37,14 @@ export default function Create({ accounts = [] }) {
             <div className="py-8">
                 <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
-                            <h3 className="text-lg font-semibold text-slate-800">Nueva póliza</h3>
-                            <p className="mt-1 text-sm text-slate-500">Captura la información de la póliza de ingreso.</p>
+                        <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800">Nueva póliza</h3>
+                                <p className="mt-1 text-sm text-slate-500">Captura la información de la póliza de ingreso.</p>
+                            </div>
+                            <Link href={route('income-policies.create')} className="inline-flex items-center justify-center rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+                                Nuevo
+                            </Link>
                         </div>
 
                         {flash?.success && (
@@ -51,27 +65,9 @@ export default function Create({ accounts = [] }) {
                                     <label htmlFor="policy_type" className="block text-sm font-medium text-slate-700">Tipo de póliza *</label>
                                     <select id="policy_type" value={data.policy_type} onChange={(event) => setData('policy_type', event.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                                         <option value="">Selecciona un tipo</option>
-                                        <option value="Ingreso">Ingreso</option>
-                                        <option value="Ingreso extraordinario">Ingreso extraordinario</option>
-                                        <option value="Traspaso">Traspaso</option>
-                                        <option value="Otro">Otro</option>
+                                        {policyTypes.map((type) => <option key={type.id} value={type.name}>{type.name}</option>)}
                                     </select>
                                     <InputError className="mt-2" message={errors.policy_type} />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="account" className="block text-sm font-medium text-slate-700">Cuenta *</label>
-                                    <select id="account" value={data.account} onChange={(event) => setData('account', event.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                                        <option value="">Selecciona una cuenta</option>
-                                        {accounts.map((item) => <option key={item.id} value={item.budget_account}>{item.accounting_account} · {item.concept}</option>)}
-                                    </select>
-                                    <InputError className="mt-2" message={errors.account} />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="amount" className="block text-sm font-medium text-slate-700">Importe *</label>
-                                    <input id="amount" type="number" min="0.01" step="0.01" value={data.amount} onChange={(event) => setData('amount', event.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required />
-                                    <InputError className="mt-2" message={errors.amount} />
                                 </div>
 
                                 <div>
@@ -93,6 +89,25 @@ export default function Create({ accounts = [] }) {
                                 <InputError className="mt-2" message={errors.concept} />
                             </div>
 
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="font-semibold text-slate-800">Cuentas que soportan la póliza</h3>
+                                        <p className="mt-1 text-sm text-slate-500">Captura el importe correspondiente a cada concepto visible.</p>
+                                    </div>
+                                    <div className="text-right font-semibold text-emerald-700">Total: {totalAmount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</div>
+                                </div>
+                                <div className="mt-4 overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-slate-200">
+                                        <thead><tr className="text-left text-xs uppercase text-slate-500"><th className="px-3 py-2">Cuenta contable</th><th className="px-3 py-2">Concepto</th><th className="px-3 py-2">Importe</th></tr></thead>
+                                        <tbody className="divide-y divide-slate-200 bg-white">
+                                            {accounts.length === 0 ? <tr><td colSpan="3" className="px-3 py-6 text-center text-sm text-slate-500">No hay cuentas marcadas para mostrar.</td></tr> : accounts.map((item) => <tr key={item.id}><td className="px-3 py-2 text-sm text-slate-700">{item.accounting_account}</td><td className="px-3 py-2 text-sm text-slate-700">{item.concept}</td><td className="px-3 py-2"><input type="number" min="0" step="0.01" value={data.details.find((detail) => detail.income_account_id === item.id)?.amount || ''} onChange={(event) => updateDetailAmount(item.id, event.target.value)} className="w-full rounded-md border-gray-300 text-sm shadow-sm" /></td></tr>)}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <InputError className="mt-2" message={errors.details} />
+                            </div>
+
                             <div>
                                 <label htmlFor="observations" className="block text-sm font-medium text-slate-700">Observaciones</label>
                                 <textarea id="observations" rows="3" value={data.observations} onChange={(event) => setData('observations', event.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
@@ -100,7 +115,7 @@ export default function Create({ accounts = [] }) {
                             </div>
 
                             <div className="flex justify-end border-t border-slate-200 pt-5">
-                                <PrimaryButton disabled={processing}>{processing ? 'Guardando...' : 'Guardar póliza'}</PrimaryButton>
+                                <PrimaryButton disabled={processing || totalAmount <= 0}>{processing ? 'Guardando...' : 'Guardar póliza'}</PrimaryButton>
                             </div>
                         </form>
                     </div>
