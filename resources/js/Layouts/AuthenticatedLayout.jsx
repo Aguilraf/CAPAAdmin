@@ -43,6 +43,24 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Cobro / Pagos
                                 </NavLink>
 
+                                <div className="inline-flex items-center">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <button className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out cursor-pointer">
+                                                Ingresos
+                                                <svg className="ml-2 -mr-0.5 h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                                            </button>
+                                        </Dropdown.Trigger>
+                                        <Dropdown.Content align="right" width="48">
+                                            <Dropdown.Link href={route('incomes.index')}>Ingresos Bancarios</Dropdown.Link>
+                                            <Dropdown.Link href={route('daily-incomes.index')}>Cobranza del Día</Dropdown.Link>
+                                            <Dropdown.Link href={route('daily-incomes.create')}>Nueva cobranza</Dropdown.Link>
+                                            <Dropdown.Link href={route('income-policies.create')}>Agregar Póliza de Ingreso</Dropdown.Link>
+                                            <Dropdown.Link href={route('income-accounts.index')}>Catálogo de cuentas</Dropdown.Link>
+                                        </Dropdown.Content>
+                                    </Dropdown>
+                                </div>
+
                                 {/* Dropdown Reportes */}
                                 {(user.permissions?.includes('generar reportes') || user.permissions?.includes('gestionar reportes') || user.roles?.some(r => r.name === 'Administrador')) && (
                                     <div className="inline-flex items-center">
@@ -55,6 +73,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                             </Dropdown.Trigger>
                                             <Dropdown.Content align="right" width="48">
                                                 <Dropdown.Link href={route('reportes.index')}>Inicio Reportes</Dropdown.Link>
+                                                <Dropdown.Link href={route('reportes.revolvente.index')}>Fondo Revolvente</Dropdown.Link>
                                                 <Dropdown.Link href={route('reportes.material-request.create')}>Nueva Solicitud</Dropdown.Link>
                                                 <Dropdown.Link href={route('reportes.historial')}>Historial</Dropdown.Link>
                                                 <Dropdown.Link href={route('cfe.query')}>Consulta Historial CFE</Dropdown.Link>
@@ -106,6 +125,9 @@ export default function AuthenticatedLayout({ header, children }) {
                                                 <Dropdown.Link href={route('puestos.index')}>Puestos</Dropdown.Link>
                                                 <Dropdown.Link href={route('organismos.index')}>Organismos</Dropdown.Link>
                                                 <Dropdown.Link href={route('providers.index')}>Proveedores</Dropdown.Link>
+                                                <Dropdown.Link href={route('banks.index')}>Bancos</Dropdown.Link>
+                                                <Dropdown.Link href={route('incomes.index')}>Ingresos</Dropdown.Link>
+
                                                 <Dropdown.Link href={route('vehicles.index')}>Parque Vehicular</Dropdown.Link>
                                                 <Dropdown.Link href={route('travel-allowance-rates.index')}>Viáticos y Pasajes</Dropdown.Link>
                                                 <Dropdown.Link href={route('materiales.index')}>Materiales</Dropdown.Link>

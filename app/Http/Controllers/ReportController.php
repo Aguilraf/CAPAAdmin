@@ -3,11 +3,56 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
+use App\Models\Requirement;
+use App\Models\RequirementItem;
+use App\Exports\RevolventeReportExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ReportController extends Controller
 {
+    public function revolventeReport(Request $request)
+    {
+        $requirements = Requirement::where('type', 'revolvente')
+            ->select('id', 'year', 'requirement_number', 'revolving_fund_number', 'description', 'total')
+            ->orderBy('year', 'desc')
+            ->orderBy('requirement_number', 'desc')
+            ->get();
+
+        $selectedRequirementId = $request->requirement_id;
+        $items = [];
+        $selectedRequirement = null;
+
+        if ($selectedRequirementId) {
+            $selectedRequirement = Requirement::with(['items.partida', 'coordinator', 'director', 'manager', 'elaborator'])
+                ->findOrFail($selectedRequirementId);
+            $items = $selectedRequirement->items;
+        }
+
+        return Inertia::render('Reports/RevolventeReport/Index', [
+            'requirements' => $requirements,
+            'items' => $items,
+            'selectedRequirement' => $selectedRequirement,
+            'filters' => $request->only(['requirement_id']),
+        ]);
+    }
+
+    public function exportRevolvente(Request $request)
+    {
+        $request->validate([
+            'requirement_id' => 'required|exists:requirements,id',
+        ]);
+
+        $selectedRequirement = Requirement::with(['items.partida'])->findOrFail($request->requirement_id);
+        $items = $selectedRequirement->items;
+
+        return Excel::download(
+            new RevolventeReportExport($items, $selectedRequirement),
+            'Reporte_Revolvente_' . $selectedRequirement->revolving_fund_number . '.xlsx'
+        );
+    }
+
     /**
      * Display a listing of the available reports.
      */

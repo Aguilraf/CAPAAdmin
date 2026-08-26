@@ -6,9 +6,14 @@ use App\Models\Empleado;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class EmpleadoExport implements FromCollection, WithHeadings, WithMapping
+class EmpleadoExport implements FromCollection, WithHeadings, WithMapping, WithTitle
 {
+    public function title(): string
+    {
+        return 'Empleados';
+    }
     /**
      * @return \Illuminate\Support\Collection
      */

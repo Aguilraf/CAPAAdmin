@@ -11,7 +11,12 @@ class VehiclesImport implements ToModel, WithHeadingRow
 {
     public function model(array $row)
     {
-        if (empty($row['numero_inventario']) && empty($row['numero_serie'])) {
+        // Headers from export: INVENTARIO, UNIDAD, MARCA, TIPO, COLOR, MODELO, SERIE, MOTOR, PLACA, AREA, UBICACION, RESGUARDANTE, ORGANISMO
+
+        $inventoryNumber = trim($row['inventario'] ?? $row['numero_inventario'] ?? '');
+        $serialNumber = trim($row['serie'] ?? $row['numero_serie'] ?? '');
+
+        if (empty($inventoryNumber) && empty($serialNumber)) {
             return null;
         }
 
@@ -23,15 +28,17 @@ class VehiclesImport implements ToModel, WithHeadingRow
         }
 
         return Vehicle::updateOrCreate(
-            ['inventory_number' => trim($row['numero_inventario'] ?? $row['numero_serie'])],
+            ['inventory_number' => $inventoryNumber ?: $serialNumber],
             [
                 'organismo_id' => $organismoId,
-                'unit_type' => $row['tipo_unidad'] ?? null,
+                'unit_type' => $row['unidad'] ?? $row['tipo_unidad'] ?? null,
                 'brand' => $row['marca'] ?? null,
-                'vehicle_type' => $row['tipo_vehiculo'] ?? null,
+                'vehicle_type' => $row['tipo'] ?? $row['tipo_vehiculo'] ?? null,
+                'color' => $row['color'] ?? null,
                 'model_year' => $row['modelo'] ?? null,
-                'serial_number' => $row['numero_serie'] ?? null,
-                'plate_number' => $row['placas'] ?? null,
+                'serial_number' => $serialNumber,
+                'engine_number' => $row['motor'] ?? null,
+                'plate_number' => $row['placa'] ?? $row['placas'] ?? null,
                 'area' => $row['area'] ?? null,
                 'location' => $row['ubicacion'] ?? null,
                 'custodian' => $row['resguardante'] ?? null,

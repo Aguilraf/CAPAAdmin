@@ -33,6 +33,19 @@ export default function Index() {
                                     </div>
                                 </Link>
 
+                                <Link
+                                    href={route('reportes.revolvente.index')}
+                                    className="block p-6 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                                >
+                                    <h4 className="font-bold text-orange-600 mb-2">Fondo Revolvente</h4>
+                                    <p className="text-sm text-gray-600">
+                                        Consulta de gastos por requerimiento de fondo revolvente, facturas y exportación de datos.
+                                    </p>
+                                    <div className="mt-4 flex items-center text-sm font-medium text-orange-500">
+                                        Ver Datos &rarr;
+                                    </div>
+                                </Link>
+
                                 {/* Card for History */}
                                 <Link
                                     href={route('reportes.historial')}
