@@ -10,7 +10,8 @@ export default function Create() {
         date: '',
         movements: [],
         has_draef: false,
-        draef_amount: ''
+        draef_subtotal: '',
+        draef_iva: ''
     });
 
     const [movements, setMovements] = useState([]);
@@ -75,8 +76,15 @@ export default function Create() {
 
     const selectedMovements = movements.filter(m => data.movements.includes(m.id));
     const movementsAmount = selectedMovements.reduce((sum, m) => sum + parseFloat(m.credit_amount), 0);
-    const draefAmount = data.has_draef ? parseFloat(data.draef_amount || 0) : 0;
+    const draefSubtotal = data.has_draef ? parseFloat(data.draef_subtotal || 0) : 0;
+    const draefIva = data.has_draef ? parseFloat(data.draef_iva || 0) : 0;
+    const draefAmount = draefSubtotal + draefIva;
     const totalAmount = movementsAmount + draefAmount;
+
+    const handleDraefSubtotalChange = (value) => {
+        const iva = Number(parseFloat(value || 0) * 0.16).toFixed(2);
+        setData((current) => ({ ...current, draef_subtotal: value, draef_iva: iva }));
+    };
 
     const formatMoney = (value) => Number(parseFloat(value || 0)).toLocaleString('en-US', {
         minimumFractionDigits: 2,
@@ -132,17 +140,35 @@ export default function Create() {
                             Tiene DRAEF
                         </label>
                         {data.has_draef && (
-                            <div className="mt-3 max-w-xs">
-                                <label className="block text-sm font-medium text-slate-700">Cantidad DRAEF</label>
-                                <input
-                                    type="number"
-                                    min="0.01"
-                                    step="0.01"
-                                    value={data.draef_amount}
-                                    onChange={(event) => setData('draef_amount', event.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                                />
-                                {errors.draef_amount && <p className="mt-2 text-sm text-red-600">{errors.draef_amount}</p>}
+                            <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Facturación (subtotal)</label>
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={data.draef_subtotal}
+                                        onChange={(event) => handleDraefSubtotalChange(event.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                    />
+                                    {errors.draef_subtotal && <p className="mt-2 text-sm text-red-600">{errors.draef_subtotal}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">IVA</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={data.draef_iva}
+                                        onChange={(event) => setData('draef_iva', event.target.value)}
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                    />
+                                    {errors.draef_iva && <p className="mt-2 text-sm text-red-600">{errors.draef_iva}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Total DRAEF</label>
+                                    <input type="text" disabled value={`$${formatMoney(draefAmount)}`} className="mt-1 block w-full rounded-md border-gray-200 bg-slate-100 shadow-sm" />
+                                </div>
                             </div>
                         )}
                     </div>

@@ -90,7 +90,8 @@ class DailyIncomeController extends Controller
             'date' => 'required|date',
             'movements' => 'required|array|min:1',
             'has_draef' => 'boolean',
-            'draef_amount' => 'nullable|required_if:has_draef,1|numeric|min:0.01',
+            'draef_subtotal' => 'nullable|required_if:has_draef,1|numeric|min:0.01',
+            'draef_iva' => 'nullable|required_if:has_draef,1|numeric|min:0',
         ]);
 
         if (DailyIncome::whereDate('income_date', $data['date'])->exists()) {
@@ -119,7 +120,9 @@ class DailyIncomeController extends Controller
                 ]);
             }
 
-            $draefAmount = !empty($data['has_draef']) ? (float) $data['draef_amount'] : 0;
+            $draefSubtotal = !empty($data['has_draef']) ? (float) $data['draef_subtotal'] : 0;
+            $draefIva = !empty($data['has_draef']) ? (float) $data['draef_iva'] : 0;
+            $draefAmount = $draefSubtotal + $draefIva;
             $totalAmount = $movements->sum('credit_amount') + $draefAmount;
 
             $dailyIncome = DailyIncome::create([
@@ -127,6 +130,8 @@ class DailyIncomeController extends Controller
                 'total_amount' => $totalAmount,
                 'total_movements' => $movements->count(),
                 'draef_amount' => $draefAmount,
+                'draef_subtotal' => $draefSubtotal,
+                'draef_iva' => $draefIva,
             ]);
 
             foreach ($movements as $movement) {

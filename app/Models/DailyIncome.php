@@ -14,6 +14,8 @@ class DailyIncome extends Model
         'total_amount',
         'total_movements',
         'draef_amount',
+        'draef_subtotal',
+        'draef_iva',
     ];
 
     public function details()

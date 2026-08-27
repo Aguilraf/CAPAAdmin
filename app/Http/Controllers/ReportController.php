@@ -7,6 +7,7 @@ use App\Models\Requirement;
 use App\Models\RequirementItem;
 use App\Models\DailyIncome;
 use App\Models\IncomePolicy;
+use App\Models\Empleado;
 use App\Exports\RevolventeReportExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
@@ -30,42 +31,42 @@ class ReportController extends Controller
                 ->whereBetween('income_date', [$from, $to])
                 ->orderBy('income_date')
                 ->get();
-            $policies = IncomePolicy::whereDate('start_date', '<=', $to)
+            $policies = IncomePolicy::with('details')
+                ->whereDate('start_date', '<=', $to)
                 ->whereDate('end_date', '>=', $from)
                 ->where('policy_type', 'Ingreso')
                 ->orderBy('start_date')
                 ->get();
         }
 
-        $banks = $incomes->flatMap(fn ($income) => $income->details->map(fn ($detail) => $detail->movement?->bank))
-            ->filter()
-            ->unique('id')
-            ->sortBy('name')
-            ->values()
-            ->map(fn ($bank) => [
-                'id' => (string) $bank->id,
-                'name' => $bank->name,
-                'account_number' => $bank->account_number,
-            ]);
+        $banks = $this->buildBankColumns($incomes);
 
-        $rows = $incomes->map(function ($income) use ($policies, $banks) {
+        $rows = $incomes->flatMap(function ($income) use ($policies, $banks) {
             $incomeDate = $income->income_date instanceof \Carbon\CarbonInterface
                 ? $income->income_date->toDateString()
                 : (string) $income->income_date;
             $policy = $policies->first(fn ($item) => $incomeDate >= $item->start_date->toDateString() && $incomeDate <= $item->end_date->toDateString());
-            $bankAmounts = $banks->mapWithKeys(fn ($bank) => [(string) $bank['id'] => 0])->all();
-            foreach ($income->details as $detail) {
+            $policyValues = $policy ? $policy->details->pluck('amount')->map(fn ($value) => (float) $value)->values() : collect();
+
+            return $income->details->map(function ($detail) use ($incomeDate, $policy, $banks, $policyValues) {
                 $amount = (float) ($detail->movement?->credit_amount ?? 0);
                 $bankId = (string) ($detail->movement?->bank_id ?? '');
-                if (array_key_exists($bankId, $bankAmounts)) $bankAmounts[$bankId] += $amount;
-            }
-            return ['id' => $income->id, 'date' => $incomeDate, 'concept' => 'RECAUDACION DEL MAC', 'cashier_difference' => 0, 'banks' => $bankAmounts, 'total_banks' => array_sum($bankAmounts), 'policy_number' => $policy?->policy_number ?: 'Sin póliza', 'policy_amount' => $policy ? (float) $policy->amount : 0];
+                $bankAmounts = $banks->mapWithKeys(fn ($bank) => [(string) $bank['id'] => $bank['id'] === $bankId ? $amount : 0])->all();
+
+                return ['id' => $detail->id, 'date' => $incomeDate, 'concept' => 'REC DEL MAC', 'cashier_difference' => 0, 'banks' => $bankAmounts, 'total_banks' => $amount, 'policy_number' => $policy?->policy_number ?: 'Sin póliza', 'policy_amount' => $policy ? (float) $policy->amount : 0, 'policy_values' => $policyValues];
+            });
         })->values();
 
+        $rows = $this->distributePolicyLines($rows, $banks);
+
         $draefTotal = $incomes->sum(fn ($income) => (float) $income->draef_amount);
+        $draefSubtotalTotal = $incomes->sum(fn ($income) => (float) $income->draef_subtotal);
+        $draefIvaTotal = $incomes->sum(fn ($income) => (float) $income->draef_iva);
         $policyTotal = $policies->where('policy_type', 'Ingreso')->sum(fn ($policy) => (float) $policy->amount);
         $draefPayments = $incomes->filter(fn ($income) => (float) $income->draef_amount > 0)->map(fn ($income) => [
             'date' => $income->income_date instanceof \Carbon\CarbonInterface ? $income->income_date->toDateString() : (string) $income->income_date,
+            'subtotal' => (float) $income->draef_subtotal,
+            'iva' => (float) $income->draef_iva,
             'amount' => (float) $income->draef_amount,
         ])->values();
 
@@ -73,6 +74,8 @@ class ReportController extends Controller
             'rows' => $rows,
             'banks' => $banks,
             'draefTotal' => $draefTotal,
+            'draefSubtotalTotal' => $draefSubtotalTotal,
+            'draefIvaTotal' => $draefIvaTotal,
             'policyTotal' => $policyTotal,
             'draefPayments' => $draefPayments,
             'filters' => $request->only(['fecha_desde', 'fecha_hasta']),
@@ -90,32 +93,119 @@ class ReportController extends Controller
             ->whereBetween('income_date', [$data['fecha_desde'], $data['fecha_hasta']])
             ->orderBy('income_date')
             ->get();
-        $policies = IncomePolicy::whereDate('start_date', '<=', $data['fecha_hasta'])
+        $policies = IncomePolicy::with('details')
+            ->whereDate('start_date', '<=', $data['fecha_hasta'])
             ->whereDate('end_date', '>=', $data['fecha_desde'])
             ->where('policy_type', 'Ingreso')
             ->orderBy('start_date')
             ->get();
-        $banks = $incomes->flatMap(fn ($income) => $income->details->map(fn ($detail) => $detail->movement?->bank))->filter()->unique('id')->sortBy('name')->values();
-        $rows = $incomes->map(function ($income) use ($banks, $policies) {
+        $banks = $this->buildBankColumns($incomes);
+        $rows = $incomes->flatMap(function ($income) use ($banks, $policies) {
             $incomeDate = $income->income_date instanceof \Carbon\CarbonInterface
                 ? $income->income_date->toDateString()
                 : (string) $income->income_date;
-            $amounts = $banks->mapWithKeys(fn ($bank) => [(string) $bank->id => 0])->all();
-            foreach ($income->details as $detail) {
-                $bankId = (string) ($detail->movement?->bank_id ?? '');
-                if (array_key_exists($bankId, $amounts)) $amounts[$bankId] += (float) ($detail->movement?->credit_amount ?? 0);
-            }
             $policy = $policies->first(fn ($item) => $incomeDate >= $item->start_date->toDateString() && $incomeDate <= $item->end_date->toDateString());
-            return ['date' => $incomeDate, 'amounts' => $amounts, 'total' => array_sum($amounts), 'policy' => $policy?->amount ?? 0, 'policy_number' => $policy?->policy_number ?? 'Sin póliza'];
-        });
-        $bankTotals = $banks->mapWithKeys(fn ($bank) => [(string) $bank->id => $rows->sum(fn ($row) => $row['amounts'][(string) $bank->id] ?? 0)])->all();
+            $policyValues = $policy ? $policy->details->pluck('amount')->map(fn ($value) => (float) $value)->values() : collect();
+
+            return $income->details->map(function ($detail) use ($incomeDate, $policy, $banks, $policyValues) {
+                $amount = (float) ($detail->movement?->credit_amount ?? 0);
+                $bankId = (string) ($detail->movement?->bank_id ?? '');
+                $amounts = $banks->mapWithKeys(fn ($bank) => [(string) $bank['id'] => $bank['id'] === $bankId ? $amount : 0])->all();
+
+                return ['date' => $incomeDate, 'amounts' => $amounts, 'total' => $amount, 'policy' => $policy?->amount ?? 0, 'policy_number' => $policy?->policy_number ?? 'Sin póliza', 'policy_values' => $policyValues];
+            });
+        })->values();
+
+        $rows = $this->distributePolicyLines($rows, $banks, true);
+        $bankTotals = $banks->mapWithKeys(fn ($bank) => [(string) $bank['id'] => $rows->sum(fn ($row) => $row['amounts'][(string) $bank['id']] ?? 0)])->all();
         $totalBanks = $rows->sum('total');
         $policyTotal = $policies->sum(fn ($policy) => (float) $policy->amount);
         $draefTotal = $incomes->sum(fn ($income) => (float) $income->draef_amount);
+        $draefSubtotalTotal = $incomes->sum(fn ($income) => (float) $income->draef_subtotal);
+        $draefIvaTotal = $incomes->sum(fn ($income) => (float) $income->draef_iva);
+        $draefPayments = $incomes->filter(fn ($income) => (float) $income->draef_amount > 0)->map(fn ($income) => [
+            'date' => $income->income_date instanceof \Carbon\CarbonInterface ? $income->income_date->toDateString() : (string) $income->income_date,
+            'subtotal' => (float) $income->draef_subtotal,
+            'iva' => (float) $income->draef_iva,
+            'amount' => (float) $income->draef_amount,
+        ])->values();
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.cobranza', compact('rows', 'banks', 'bankTotals', 'totalBanks', 'policyTotal', 'draefTotal', 'data'));
+        $subgerenteAdministrativo = Empleado::activos()->where('puesto', 'LIKE', '%SUBGERENTE ADMINISTRATIVO%')->first();
+        $subgerenteComercial = Empleado::activos()->where('puesto', 'LIKE', '%SUBGERENTE COMERCIAL%')->first();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.cobranza', compact('rows', 'banks', 'bankTotals', 'totalBanks', 'policyTotal', 'draefTotal', 'draefSubtotalTotal', 'draefIvaTotal', 'draefPayments', 'data', 'subgerenteAdministrativo', 'subgerenteComercial'));
         $pdf->setPaper('letter', 'landscape');
         return $pdf->download('Relacion_Ingresos_Recaudacion_' . $data['fecha_desde'] . '_' . $data['fecha_hasta'] . '.pdf');
+    }
+
+    private function buildBankColumns($incomes)
+    {
+        $banks = $incomes->flatMap(fn ($income) => $income->details->map(fn ($detail) => $detail->movement?->bank))
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values()
+            ->map(fn ($bank) => [
+                'id' => (string) $bank->id,
+                'name' => $bank->name ?: 'Sin banco',
+                'account_number' => $bank->account_number,
+            ]);
+
+        // Siempre se muestran mínimo 4 columnas de banco, aunque no tengan movimientos.
+        for ($i = $banks->count(); $i < 4; $i++) {
+            $banks->push(['id' => 'sin-banco-' . $i, 'name' => 'Sin banco', 'account_number' => null]);
+        }
+
+        return $banks;
+    }
+
+    /**
+     * Reparte los valores de cada póliza uno por renglón: el primero muestra el número,
+     * los siguientes un valor cada uno, y en cero cuando ya no hay valores pendientes.
+     */
+    private function distributePolicyLines($rows, $banks, bool $forPdf = false)
+    {
+        $bankIds = $banks->pluck('id')->all();
+        $rowsArray = $rows->values()->all();
+        $result = collect();
+        $index = 0;
+        $count = count($rowsArray);
+
+        while ($index < $count) {
+            $policyNumber = $rowsArray[$index]['policy_number'];
+            $groupStart = $index;
+            while ($index < $count && $rowsArray[$index]['policy_number'] === $policyNumber) {
+                $index++;
+            }
+            $groupRows = array_slice($rowsArray, $groupStart, $index - $groupStart);
+
+            $values = $groupRows[0]['policy_values'] ?? collect();
+            $values = $values instanceof \Illuminate\Support\Collection ? $values->all() : $values;
+
+            $lines = [];
+            if ($policyNumber !== 'Sin póliza') {
+                $lines[] = ['label' => true, 'text' => $policyNumber];
+            }
+            foreach ($values as $value) {
+                $lines[] = ['label' => false, 'value' => $value];
+            }
+
+            foreach ($groupRows as $position => $groupRow) {
+                unset($groupRow['policy_values']);
+                $groupRow['policy_line'] = $lines[$position] ?? ['label' => false, 'value' => 0];
+                $result->push($groupRow);
+            }
+
+            for ($extra = count($groupRows); $extra < count($lines); $extra++) {
+                $filler = $forPdf
+                    ? ['date' => null, 'amounts' => array_fill_keys($bankIds, null), 'total' => null, 'policy' => 0, 'policy_number' => $policyNumber]
+                    : ['id' => 'poliza-' . $policyNumber . '-' . $extra, 'date' => null, 'concept' => '', 'cashier_difference' => null, 'banks' => array_fill_keys($bankIds, null), 'total_banks' => null, 'policy_number' => $policyNumber, 'policy_amount' => 0];
+                $filler['policy_line'] = $lines[$extra];
+                $result->push($filler);
+            }
+        }
+
+        return $result->values();
     }
 
     public function revolventeReport(Request $request)
