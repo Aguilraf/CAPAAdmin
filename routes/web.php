@@ -1186,6 +1186,29 @@ Route::middleware('auth')->group(function () {
 });
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | FACTURAS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/invoices', [
+        \App\Http\Controllers\InvoiceController::class,
+        'index'
+    ])->name('invoices.index');
+
+    Route::post('/invoices/upload', [
+        \App\Http\Controllers\InvoiceController::class,
+        'upload'
+    ])->name('invoices.upload');
+
+    Route::get('/invoices/template', [
+        \App\Http\Controllers\InvoiceController::class,
+        'downloadTemplate'
+    ])->name('invoices.template');
+
+
+
 /*
 |--------------------------------------------------------------------------
 | AUTENTICACIÓN
