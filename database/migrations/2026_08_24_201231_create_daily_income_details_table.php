@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('daily_income_details', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('daily_income_details')) {
+            Schema::create('daily_income_details', function (Blueprint $table) {
+                $table->id();
+                $table->timestamps();
+            });
+        }
     }
 
     /**
@@ -25,3 +27,4 @@ return new class extends Migration
         Schema::dropIfExists('daily_income_details');
     }
 };
+

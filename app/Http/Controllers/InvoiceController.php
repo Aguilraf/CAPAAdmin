@@ -20,7 +20,7 @@ class InvoiceController extends Controller
             ->orderBy('fecha', 'desc')
             ->get();
 
-        $prefixes = Invoice::selectRaw('LEFT(numero_factura, 1) as prefix')
+        $prefixes = Invoice::selectRaw('SUBSTR(numero_factura, 1, 1) as prefix')
             ->distinct()
             ->pluck('prefix')
             ->filter()
