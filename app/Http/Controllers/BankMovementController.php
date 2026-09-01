@@ -14,7 +14,10 @@ class BankMovementController extends Controller
     public function index(Request $request)
     {
         $banks = Bank::where('active', true)->orderBy('name')->orderBy('account_number')->get(['id', 'name', 'account_number', 'import_template']);
+        $showHidden = $request->boolean('show_hidden');
+
         $movements = BankMovement::with('bank:id,name,account_number')
+            ->when(!$showHidden, fn ($query) => $query->where('is_visible', true))
             ->when($request->filled('bank_id'), fn ($query) => $query->where('bank_id', $request->integer('bank_id')))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $query->where(function ($movementQuery) use ($request) {
@@ -31,8 +34,17 @@ class BankMovementController extends Controller
         return Inertia::render('Incomes/Index', [
             'banks' => $banks,
             'movements' => $movements,
-            'filters' => $request->only(['bank_id', 'search']),
+            'filters' => $request->only(['bank_id', 'search', 'show_hidden']),
         ]);
+    }
+
+    public function toggleVisibility(BankMovement $movement)
+    {
+        $movement->update([
+            'is_visible' => !$movement->is_visible
+        ]);
+
+        return back()->with('success', $movement->is_visible ? 'Movimiento restaurado exitosamente.' : 'Movimiento ocultado exitosamente.');
     }
 
     public function downloadTemplate()

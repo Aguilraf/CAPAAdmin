@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     UploadCloud,
@@ -17,6 +17,30 @@ export default function Index({ availableSheets }) {
 
     const [fileName, setFileName] = useState(null);
     const [dragActive, setDragActive] = useState(false);
+    const [backupFile, setBackupFile] = useState(null);
+    const [restoring, setRestoring] = useState(false);
+
+    const handleRestore = (e) => {
+        e.preventDefault();
+        if (!confirm('¡ATENCIÓN CRÍTICA! Restaurar la base de datos sobrescribirá y REEMPLAZARÁ toda la información actual del sistema con el contenido del archivo de respaldo. ¿Estás completamente seguro de proceder?')) {
+            return;
+        }
+
+        setRestoring(true);
+        const formData = new FormData();
+        formData.append('file', backupFile);
+
+        router.post(route('import.backup.upload'), formData, {
+            forceFormData: true,
+            onSuccess: () => {
+                setBackupFile(null);
+                setRestoring(false);
+            },
+            onError: () => {
+                setRestoring(false);
+            }
+        });
+    };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -120,6 +144,49 @@ export default function Index({ availableSheets }) {
                                     <li>Las celdas vacías en campos obligatorios serán ignoradas.</li>
                                     <li>El sistema detecta duplicados por "CLAVE" o "CODIGO".</li>
                                 </ul>
+                            </div>
+                        </div>
+
+                        {/* Database Full Backup & Restore */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 overflow-hidden relative">
+                            <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 bg-purple-50 rounded-full opacity-50 blur-2xl"></div>
+
+                            <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center">
+                                <Database className="h-5 w-5 mr-2 text-purple-600" />
+                                Respaldo de Base de Datos
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Descarga o restaura un respaldo completo (.sql) de todo el sistema de manera automática, sin phpMyAdmin.
+                            </p>
+
+                            <div className="space-y-4">
+                                <a
+                                    href={route('import.backup.download')}
+                                    className="flex w-full items-center justify-center px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-sm rounded-xl transition duration-150 shadow-sm gap-2"
+                                >
+                                    <FileDown className="h-5 w-5" />
+                                    Descargar Respaldo SQL
+                                </a>
+
+                                <div className="border-t border-gray-100 pt-4">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Restaurar Respaldo</span>
+                                    <form onSubmit={handleRestore} className="space-y-2">
+                                        <input 
+                                            type="file" 
+                                            accept=".sql" 
+                                            onChange={e => setBackupFile(e.target.files[0])}
+                                            className="text-xs w-full border border-gray-200 rounded-lg p-2 bg-slate-50"
+                                            required
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={restoring || !backupFile}
+                                            className="w-full flex items-center justify-center px-4 py-2.5 bg-gray-950 hover:bg-black text-white text-xs font-bold rounded-lg shadow-md transition disabled:opacity-30 disabled:cursor-not-allowed gap-2"
+                                        >
+                                            {restoring ? 'Restaurando...' : 'Restaurar Base de Datos'}
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>

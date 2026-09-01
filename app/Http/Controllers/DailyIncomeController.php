@@ -50,6 +50,7 @@ class DailyIncomeController extends Controller
         $endDate = $date->copy()->addDays(5)->toDateString();
 
         $query = BankMovement::with('bank')
+            ->where('is_visible', true)
             ->where('is_used', false)
             ->whereNotExists(function ($subQuery) {
                 $subQuery->select(DB::raw(1))
@@ -103,6 +104,7 @@ class DailyIncomeController extends Controller
         return DB::transaction(function () use ($data) {
             $requestedMovementIds = array_values(array_unique($data['movements']));
             $movements = BankMovement::whereIn('id', $requestedMovementIds)
+                ->where('is_visible', true)
                 ->where('is_used', false)
                 ->whereRaw("UPPER(description) NOT LIKE '%ABONO POR LIQUIDACION DE INTERESES%'")
                 ->whereRaw("UPPER(description) NOT LIKE '%PAGO DE INTERES NOMINAL%'")

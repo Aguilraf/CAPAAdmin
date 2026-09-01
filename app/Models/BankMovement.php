@@ -23,6 +23,7 @@ class BankMovement extends Model
         'source_file',
         'fingerprint',
         'source_data',
+        'is_visible',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class BankMovement extends Model
         'debit_amount' => 'decimal:2',
         'balance' => 'decimal:2',
         'source_data' => 'array',
+        'is_visible' => 'boolean',
     ];
 
     public function bank()

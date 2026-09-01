@@ -5,6 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 const money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
@@ -17,7 +18,11 @@ export default function Index({ banks, movements, filters = {} }) {
         setData('bank_id', filters.bank_id || '');
     }, [filters.bank_id]);
 
-    const filter = (changes) => router.get(route('incomes.index'), { bank_id: changes.bank_id ?? filters.bank_id ?? '', search: changes.search ?? search }, { preserveState: true, replace: true });
+    const filter = (changes) => router.get(route('incomes.index'), { 
+        bank_id: changes.bank_id ?? filters.bank_id ?? '', 
+        search: changes.search ?? search,
+        show_hidden: changes.show_hidden ?? filters.show_hidden ?? false
+    }, { preserveState: true, replace: true });
     
     const handleBankChange = (event) => {
         const val = event.target.value;
@@ -71,11 +76,71 @@ export default function Index({ banks, movements, filters = {} }) {
                 )}
                 </form></div>
 
-                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg"><div className="flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between"><div><h3 className="text-lg font-semibold text-gray-900">Movimientos importados</h3><p className="text-sm text-gray-500">Los cargos y comisiones se conservan como información bancaria.</p></div><div className="flex flex-col gap-3 md:flex-row"><select value={filters.bank_id || ''} onChange={(event) => filter({ bank_id: event.target.value })} className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="">Todos los bancos</option>{banks.map((bank) => <option key={bank.id} value={bank.id}>{bank.name} · {bank.account_number}</option>)}</select><TextInput value={search} onChange={(event) => { setSearch(event.target.value); filter({ search: event.target.value }); }} className="w-full md:w-64" placeholder="Buscar concepto o referencia..." /></div></div>
-                    <div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fecha</th><th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Banco</th><th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Concepto / movimiento</th><th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Abono</th><th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Cargo</th><th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Saldo</th></tr></thead><tbody className="divide-y divide-gray-200 bg-white">
-                        {movements.data.map((movement) => <tr key={movement.id}><td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">{movement.operation_date}</td><td className="px-4 py-3 text-sm text-gray-700"><div>{movement.bank.name}</div><div className="text-xs text-gray-500">{movement.bank.account_number}</div></td><td className="max-w-md px-4 py-3 text-sm text-gray-700"><div className="font-medium">{movement.description || 'Sin concepto'}</div><div className="text-xs text-gray-500">{[movement.movement_number, movement.reference, movement.transaction_type].filter(Boolean).join(' · ')}</div></td><td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-green-700">{Number(movement.credit_amount) ? money.format(movement.credit_amount) : '—'}</td><td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-700">{Number(movement.debit_amount) ? money.format(movement.debit_amount) : '—'}</td><td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">{movement.balance !== null ? money.format(movement.balance) : '—'}</td></tr>)}
-                        {!movements.data.length && <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-500">Aún no hay movimientos importados.</td></tr>}
-                    </tbody></table></div><div className="p-4"><Pagination links={movements.links} /></div>
+                <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <div className="flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Movimientos importados</h3>
+                            <p className="text-sm text-gray-500">Los cargos y comisiones se conservan como información bancaria.</p>
+                        </div>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 font-medium mr-2">
+                                <input 
+                                    type="checkbox" 
+                                    checked={!!filters.show_hidden} 
+                                    onChange={(event) => filter({ show_hidden: event.target.checked })} 
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+                                />
+                                Mostrar movimientos ocultos
+                            </label>
+                            <select value={filters.bank_id || ''} onChange={(event) => filter({ bank_id: event.target.value })} className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Todos los bancos</option>
+                                {banks.map((bank) => <option key={bank.id} value={bank.id}>{bank.name} · {bank.account_number}</option>)}
+                            </select>
+                            <TextInput value={search} onChange={(event) => { setSearch(event.target.value); filter({ search: event.target.value }); }} className="w-full md:w-64" placeholder="Buscar concepto o referencia..." />
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fecha</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Banco</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Concepto / movimiento</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Abono</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Cargo</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Saldo</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Visibilidad</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 bg-white">
+                                {movements.data.map((movement) => {
+                                    const isHidden = movement.is_visible === false;
+                                    return (
+                                        <tr key={movement.id} className={isHidden ? 'bg-gray-50 opacity-40' : ''}>
+                                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">{movement.operation_date}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">
+                                                <div>{movement.bank.name}</div>
+                                                <div className="text-xs text-gray-500">{movement.bank.account_number}</div>
+                                            </td>
+                                            <td className="max-w-md px-4 py-3 text-sm text-gray-700">
+                                                <div className="font-medium">{movement.description || 'Sin concepto'}</div>
+                                                <div className="text-xs text-gray-500">{[movement.movement_number, movement.reference, movement.transaction_type].filter(Boolean).join(' · ')}</div>
+                                            </td>
+                                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-green-700">{Number(movement.credit_amount) ? money.format(movement.credit_amount) : '—'}</td>
+                                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-700">{Number(movement.debit_amount) ? money.format(movement.debit_amount) : '—'}</td>
+                                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">{movement.balance !== null ? money.format(movement.balance) : '—'}</td>
+                                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
+                                                <button onClick={() => router.post(route('incomes.toggle-visibility', movement.id))} title={isHidden ? 'Mostrar movimiento' : 'Ocultar de la lista'} className="text-gray-500 hover:text-indigo-600 transition">
+                                                    {isHidden ? <EyeOff className="w-5 h-5 text-red-500" /> : <Eye className="w-5 h-5 text-gray-400 hover:text-red-500" />}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {!movements.data.length && <tr><td colSpan="7" className="px-6 py-10 text-center text-gray-500">Aún no hay movimientos importados o no coinciden con los filtros.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div><div className="p-4"><Pagination links={movements.links} /></div>
                 </div>
             </div></div>
         </AuthenticatedLayout>

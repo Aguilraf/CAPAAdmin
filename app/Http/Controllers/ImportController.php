@@ -92,4 +92,96 @@ class ImportController extends Controller
     {
         return Excel::download(new CatalogsExport, 'Plantilla_Catalogos_CAPA.xlsx');
     }
+
+    public function downloadBackup()
+    {
+        try {
+            $tables = array_map('current', \DB::select('SHOW TABLES'));
+            $totalRecords = 0;
+            $tableCounts = [];
+
+            // Primera pasada para contar registros y generar el manifiesto
+            foreach ($tables as $table) {
+                $count = \DB::table($table)->count();
+                $totalRecords += $count;
+                $tableCounts[$table] = $count;
+            }
+
+            $sqlDump = "-- SIGEJMM AUTOMATIC DATABASE BACKUP\n";
+            $sqlDump .= "-- Generado: " . date('Y-m-d H:i:s') . "\n";
+            $sqlDump .= "-- TOTAL DE TABLAS RESPALDADAS: " . count($tables) . "\n";
+            $sqlDump .= "-- TOTAL DE REGISTROS RESPALDADOS: " . $totalRecords . "\n";
+            $sqlDump .= "-- MANIFIESTO DE TABLAS Y REGISTROS:\n";
+            foreach ($tableCounts as $table => $count) {
+                $sqlDump .= "--   - {$table}: {$count} registros\n";
+            }
+            $sqlDump .= "\nSET FOREIGN_KEY_CHECKS = 0;\n\n";
+
+            foreach ($tables as $table) {
+                $sqlDump .= "DROP TABLE IF EXISTS `{$table}`;\n";
+                $createTableResult = \DB::select("SHOW CREATE TABLE `{$table}`");
+                $createSql = $createTableResult[0]->{'Create Table'} ?? '';
+                $sqlDump .= $createSql . ";\n\n";
+
+                $rows = \DB::table($table)->get();
+                if ($rows->count() > 0) {
+                    $sqlDump .= "INSERT INTO `{$table}` (";
+                    $columns = array_keys((array)$rows->first());
+                    $sqlDump .= implode(', ', array_map(fn($col) => "`{$col}`", $columns)) . ") VALUES\n";
+
+                    $valuesList = [];
+                    foreach ($rows as $row) {
+                        $rowArray = (array)$row;
+                        $escapedValues = array_map(function($val) {
+                            if ($val === null) return 'NULL';
+                            return \DB::getPdo()->quote($val);
+                        }, $rowArray);
+                        $valuesList[] = "  (" . implode(', ', $escapedValues) . ")";
+                    }
+                    $sqlDump .= implode(",\n", $valuesList) . ";\n\n";
+                }
+            }
+
+            $sqlDump .= "SET FOREIGN_KEY_CHECKS = 1;\n";
+            $filename = 'sigejmm_backup_' . date('Y-m-d_H-i-s') . '.sql';
+
+            return response()->streamDownload(function() use ($sqlDump) {
+                echo $sqlDump;
+            }, $filename, [
+                'Content-Type' => 'application/sql',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error al generar el respaldo: ' . $e->getMessage());
+        }
+    }
+
+    public function uploadBackup(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $sqlContent = file_get_contents($file->getRealPath());
+
+            if (!str_contains($sqlContent, 'SET FOREIGN_KEY_CHECKS')) {
+                return redirect()->back()->with('error', 'El archivo no parece ser un respaldo válido de SIGEJMM.');
+            }
+
+            \DB::unprepared($sqlContent);
+
+            // Obtener el conteo dinámico post-restauración para informarlo en la confirmación
+            $tables = array_map('current', \DB::select('SHOW TABLES'));
+            $totalRecords = 0;
+            foreach ($tables as $table) {
+                $totalRecords += \DB::table($table)->count();
+            }
+
+            return redirect()->back()->with('success', "Base de datos restaurada exitosamente. Se importaron " . count($tables) . " tablas con un total de " . number_format($totalRecords) . " registros de forma automática.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error al restaurar la base de datos: ' . $e->getMessage());
+        }
+    }
 }

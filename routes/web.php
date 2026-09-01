@@ -190,6 +190,14 @@ Route::middleware('auth')->group(function () {
             ]
         )->name('incomes.import');
 
+        Route::post(
+            'ingresos/{movement}/toggle-visibility',
+            [
+                \App\Http\Controllers\BankMovementController::class,
+                'toggleVisibility'
+            ]
+        )->name('incomes.toggle-visibility');
+
         Route::get(
             'polizas-ingreso/crear',
             [
@@ -326,6 +334,22 @@ Route::middleware('auth')->group(function () {
                 'downloadTemplate'
             ]
         )->name('import.template');
+
+        Route::get(
+            '/importar/respaldo/descargar',
+            [
+                \App\Http\Controllers\ImportController::class,
+                'downloadBackup'
+            ]
+        )->name('import.backup.download');
+
+        Route::post(
+            '/importar/respaldo/subir',
+            [
+                \App\Http\Controllers\ImportController::class,
+                'uploadBackup'
+            ]
+        )->name('import.backup.upload');
 
 
         /*
