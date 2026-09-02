@@ -45,7 +45,20 @@ class Invoice extends Model
         'imp_pagado',
         'saldo_insoluto',
         'status',
-        'is_used'
+        'is_used',
+        'daily_income_id',
+        'income_policy_id',
+        'is_reconciled_without_income',
     ];
+
+    public function dailyIncome()
+    {
+        return $this->belongsTo(DailyIncome::class);
+    }
+
+    public function incomePolicy()
+    {
+        return $this->belongsTo(IncomePolicy::class);
+    }
 }
 

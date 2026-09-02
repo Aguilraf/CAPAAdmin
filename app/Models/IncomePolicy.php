@@ -30,4 +30,9 @@ class IncomePolicy extends Model
     {
         return $this->hasMany(IncomePolicyDetail::class);
     }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }

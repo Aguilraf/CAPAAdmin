@@ -22,5 +22,10 @@ class DailyIncome extends Model
     {
         return $this->hasMany(DailyIncomeDetail::class);
     }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }
 

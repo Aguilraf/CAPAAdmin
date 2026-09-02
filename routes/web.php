@@ -351,6 +351,27 @@ Route::middleware('auth')->group(function () {
             ]
         )->name('import.backup.upload');
 
+        /*
+        |--------------------------------------------------------------------------
+        | Conciliación Facturas Vs Ingresos
+        |--------------------------------------------------------------------------
+        */
+        Route::get(
+            '/conciliacion',
+            [
+                \App\Http\Controllers\ReconciliationController::class,
+                'index'
+            ]
+        )->name('reconciliation.index');
+
+        Route::post(
+            '/conciliacion',
+            [
+                \App\Http\Controllers\ReconciliationController::class,
+                'store'
+            ]
+        )->name('reconciliation.store');
+
 
         /*
         |--------------------------------------------------------------------------

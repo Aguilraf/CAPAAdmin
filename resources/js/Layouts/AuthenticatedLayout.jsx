@@ -54,7 +54,8 @@ export default function AuthenticatedLayout({ header, children }) {
                                         <Dropdown.Content align="right" width="48">
                                             <Dropdown.Link href={route('incomes.index')}>Ingresos Bancarios</Dropdown.Link>
                                             <Dropdown.Link href={route('daily-incomes.index')}>Cobranza del Día</Dropdown.Link>
-                                                <Dropdown.Link href={route('invoices.index')}>Facturas</Dropdown.Link>
+                                            <Dropdown.Link href={route('invoices.index')}>Facturas</Dropdown.Link>
+                                            <Dropdown.Link href={route('reconciliation.index')}>Conciliación de Facturas</Dropdown.Link>
 
                                             <Dropdown.Link href={route('daily-incomes.create')}>Nueva cobranza</Dropdown.Link>
                                             <Dropdown.Link href={route('income-policies.create')}>Agregar Póliza de Ingreso</Dropdown.Link>
