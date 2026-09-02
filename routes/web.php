@@ -372,6 +372,14 @@ Route::middleware('auth')->group(function () {
             ]
         )->name('reconciliation.store');
 
+        Route::delete(
+            '/conciliacion/cobranza/{dailyIncomeId}/poliza',
+            [
+                \App\Http\Controllers\ReconciliationController::class,
+                'unlinkPolicy'
+            ]
+        )->name('reconciliation.unlink-policy');
+
 
         /*
         |--------------------------------------------------------------------------

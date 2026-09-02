@@ -1,10 +1,26 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import { Eye, X } from 'lucide-react';
 
 const money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
+const invoiceTotal = (income) => (income.invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+const reconciliationTotal = (income) => Number(income.total_amount || 0) - Number(income.draef_amount || 0);
+
 export default function DailyIncomeDetails({ dailyIncomes, policy }) {
     const [selectedIncome, setSelectedIncome] = useState(null);
+
+    const unlinkPolicy = (income) => {
+        if (!window.confirm(`¿Quitar la relación de la póliza con la cobranza del ${income.income_date}? La cobranza y sus movimientos se conservarán.`)) {
+            return;
+        }
+
+        router.delete(route('reconciliation.unlink-policy', income.id), {
+            data: { policy_id: policy.id },
+            preserveScroll: true,
+            onSuccess: () => setSelectedIncome(null),
+        });
+    };
 
     return (
         <>
@@ -21,15 +37,18 @@ export default function DailyIncomeDetails({ dailyIncomes, policy }) {
                 <div className="divide-y divide-slate-100">
                     {dailyIncomes.length === 0 && <p className="px-6 py-5 text-sm text-slate-500">Selecciona una poliza para consultar sus cobranzas.</p>}
                     {dailyIncomes.map((income) => {
-                        const invoicesTotal = (income.invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
+                        const invoicesTotal = invoiceTotal(income);
                         return (
                             <div key={income.id} className="px-6 py-4 flex flex-wrap items-center gap-5 justify-between">
                                 <div className="font-semibold text-slate-700 text-sm">{income.income_date}</div>
-                                <div className="text-xs text-slate-500">Total cobranza <strong className="text-orange-600 text-sm">{money.format(income.total_amount)}</strong></div>
+                                <div className="text-xs text-slate-500">Total a conciliar <strong className="text-orange-600 text-sm">{money.format(reconciliationTotal(income))}</strong></div>
                                 <div className="text-xs text-slate-500">Total facturas <strong className="text-green-700 text-sm">{money.format(invoicesTotal)}</strong></div>
                                 <button type="button" onClick={() => setSelectedIncome(income)} className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">
                                     <Eye className="w-4 h-4" /> Ver detalle
                                 </button>
+                                {policy && <button type="button" onClick={() => unlinkPolicy(income)} className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100">
+                                    Quitar relación
+                                </button>}
                             </div>
                         );
                     })}
@@ -43,9 +62,9 @@ export default function DailyIncomeDetails({ dailyIncomes, policy }) {
                             <div>
                                 <h3 className="font-bold text-slate-800">Detalle de cobranza: {selectedIncome.income_date}</h3>
                                 <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
-                                    <span>Cobranza <strong className="text-orange-600">{money.format(selectedIncome.total_amount)}</strong></span>
-                                    <span>Facturas <strong className="text-green-700">{money.format((selectedIncome.invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0))}</strong></span>
-                                    <span>Diferencia <strong className={Number(selectedIncome.total_amount || 0) - (selectedIncome.invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0) >= 0 ? 'text-blue-700' : 'text-red-600'}>{money.format(Number(selectedIncome.total_amount || 0) - (selectedIncome.invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0))}</strong></span>
+                                    <span>Total a conciliar <strong className="text-orange-600">{money.format(reconciliationTotal(selectedIncome))}</strong></span>
+                                    <span>Facturas <strong className="text-green-700">{money.format(invoiceTotal(selectedIncome))}</strong></span>
+                                    <span>Diferencia <strong className={reconciliationTotal(selectedIncome) - invoiceTotal(selectedIncome) >= 0 ? 'text-blue-700' : 'text-red-600'}>{money.format(reconciliationTotal(selectedIncome) - invoiceTotal(selectedIncome))}</strong></span>
                                 </div>
                             </div>
                             <button type="button" onClick={() => setSelectedIncome(null)} aria-label="Cerrar detalle" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><X className="w-5 h-5" /></button>

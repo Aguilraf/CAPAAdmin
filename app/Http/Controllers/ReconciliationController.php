@@ -40,7 +40,10 @@ class ReconciliationController extends Controller
                     $selectedPolicy->start_date->toDateString(),
                     $selectedPolicy->end_date->toDateString()
                 ])
-                ->with(['details.movement.bank', 'invoices'])
+                ->with([
+                    'details.movement.bank',
+                    'invoices' => fn ($query) => $query->where('income_policy_id', $policyId),
+                ])
                 ->orderBy('income_date', 'asc')
                 ->get();
             }
@@ -154,5 +157,18 @@ class ReconciliationController extends Controller
         });
 
         return redirect()->back()->with('success', 'Conciliación guardada exitosamente.');
+    }
+
+    public function unlinkPolicy(Request $request, $dailyIncomeId)
+    {
+        $validated = $request->validate([
+            'policy_id' => 'required|integer|exists:income_policies,id',
+        ]);
+
+        Invoice::where('daily_income_id', $dailyIncomeId)
+            ->where('income_policy_id', $validated['policy_id'])
+            ->update(['income_policy_id' => null]);
+
+        return redirect()->back()->with('success', 'La relación entre la póliza y la cobranza fue eliminada.');
     }
 }
