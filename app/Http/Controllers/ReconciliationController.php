@@ -28,7 +28,7 @@ class ReconciliationController extends Controller
         $pendingInvoices = Invoice::whereRaw("DATE_FORMAT(fecha, '%Y-%m') = ?", [$month])->where('is_used', false)->count();
 
         $selectedPolicy = null;
-        $dailyIncomes = [];
+        $dailyIncomes = collect();
         $selectedDailyIncome = null;
         $invoicesList = [];
 
@@ -40,24 +40,26 @@ class ReconciliationController extends Controller
                     $selectedPolicy->start_date->toDateString(),
                     $selectedPolicy->end_date->toDateString()
                 ])
+                ->with(['details.movement.bank', 'invoices'])
                 ->orderBy('income_date', 'asc')
                 ->get();
             }
         }
 
+        $dailyIncomeSummaries = $dailyIncomes;
+        $dailyIncomes = $dailyIncomes->filter(fn ($income) => $income->invoices->isEmpty())->values();
+
         // 4. Si hay un día de cobranza seleccionado, cargar las facturas correspondientes (fecha >= fecha_cobranza)
         if ($dailyIncomeId && !$withoutIncome) {
             $selectedDailyIncome = DailyIncome::find($dailyIncomeId);
             if ($selectedDailyIncome) {
-                $invoicesList = Invoice::where(function ($query) use ($selectedDailyIncome, $policyId) {
-                    $query->where('fecha', '>=', $selectedDailyIncome->income_date)
-                        ->orWhere('income_policy_id', $policyId);
-                })
-                    ->where(function($query) use ($dailyIncomeId, $policyId) {
+                $invoicesList = Invoice::where('fecha', '>=', $selectedDailyIncome->income_date)
+                    ->where(function($query) use ($dailyIncomeId) {
                         $query->where('is_used', false)
-                              ->orWhere('daily_income_id', $dailyIncomeId)
-                              ->orWhere('income_policy_id', $policyId);
+                              ->orWhere('daily_income_id', $dailyIncomeId);
                     })
+                    ->orderByRaw("CASE WHEN numero_factura IS NULL OR numero_factura = '' THEN 1 ELSE 0 END")
+                    ->orderBy('numero_factura', 'asc')
                     ->orderBy('fecha', 'asc')
                     ->get();
             }
@@ -70,6 +72,8 @@ class ReconciliationController extends Controller
                     $query->where('is_used', false)
                           ->orWhere('is_reconciled_without_income', true);
                 })
+                ->orderByRaw("CASE WHEN numero_factura IS NULL OR numero_factura = '' THEN 1 ELSE 0 END")
+                ->orderBy('numero_factura', 'asc')
                 ->orderBy('fecha', 'asc')
                 ->get();
         }
@@ -78,6 +82,7 @@ class ReconciliationController extends Controller
             'policies' => $policies,
             'selectedPolicy' => $selectedPolicy,
             'dailyIncomes' => $dailyIncomes,
+            'dailyIncomeSummaries' => $dailyIncomeSummaries ?? [],
             'selectedDailyIncome' => $selectedDailyIncome,
             'invoicesList' => $invoicesList,
             'stats' => [
@@ -125,12 +130,6 @@ class ReconciliationController extends Controller
             } else {
                 // --- CON CONCILIACION DE COBRANZA ---
                 $dayId = $validated['daily_income_id'];
-
-                if (!empty($validated['policy_id'])) {
-                    $invoiceIds = $invoiceIds->merge(
-                        Invoice::where('income_policy_id', $validated['policy_id'])->pluck('id')
-                    )->unique()->values();
-                }
 
                 // Liberar las que estaban conciliadas antes con este día pero que ya no se mandaron
                 Invoice::where('daily_income_id', $dayId)
