@@ -5,7 +5,7 @@ import { Eye, X } from 'lucide-react';
 const money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
 const invoiceTotal = (income) => (income.invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
-const reconciliationTotal = (income) => Number(income.total_amount || 0) - Number(income.draef_amount || 0);
+const reconciliationTotal = (income) => Number(income.total_amount || 0);
 
 export default function DailyIncomeDetails({ dailyIncomes, policy }) {
     const [selectedIncome, setSelectedIncome] = useState(null);

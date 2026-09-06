@@ -15,6 +15,7 @@ class IncomePolicy extends Model
         'account',
         'concept',
         'amount',
+        'iva_amount',
         'start_date',
         'end_date',
         'observations',
@@ -22,6 +23,7 @@ class IncomePolicy extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'iva_amount' => 'decimal:2',
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
     ];
@@ -34,5 +36,10 @@ class IncomePolicy extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function bankMovements()
+    {
+        return $this->hasMany(BankMovement::class);
     }
 }

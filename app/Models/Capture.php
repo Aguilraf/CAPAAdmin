@@ -18,6 +18,7 @@ class Capture extends Model
         'community_id',
         'firefighter_id',
         'subtotal',
+        'receipt_number',
         'commission',
         'total',
         'rounding_commission',

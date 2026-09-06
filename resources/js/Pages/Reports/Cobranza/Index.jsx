@@ -16,6 +16,15 @@ export default function Index({ rows = [], banks = [], filters = {}, draefTotal 
         get(route('reportes.cobranza'), { preserveState: true, replace: true });
     };
 
+    const handleFechaDesdeChange = (value) => {
+        const shouldSyncHasta = !data.fecha_hasta || data.fecha_hasta === data.fecha_desde;
+        setData((current) => ({
+            ...current,
+            fecha_desde: value,
+            fecha_hasta: shouldSyncHasta ? value : current.fecha_hasta,
+        }));
+    };
+
     const totals = rows.reduce((result, row) => {
         Object.keys(row.banks || {}).forEach((bankId) => { result.banks[bankId] = (result.banks[bankId] || 0) + Number(row.banks[bankId] || 0); });
         result.totalBanks += Number(row.total_banks || 0);
@@ -28,7 +37,7 @@ export default function Index({ rows = [], banks = [], filters = {}, draefTotal 
             <div className="py-8 print:py-0"><div className="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:hidden">
                     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><h3 className="text-lg font-semibold text-slate-800">Generar reporte</h3><p className="mt-1 text-sm text-slate-500">Selecciona el rango para consultar cobranzas, pólizas y DRAEF.</p></div><Link href={route('reportes.index')} className="text-sm font-semibold text-slate-600 underline">Volver a reportes</Link></div>
-                    <form onSubmit={submit} className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"><div><label className="block text-sm font-medium text-slate-700">Fecha inicial</label><input type="date" value={data.fecha_desde} onChange={(e) => setData('fecha_desde', e.target.value)} className="mt-1 w-full rounded-md border-gray-300" required /></div><div><label className="block text-sm font-medium text-slate-700">Fecha final</label><input type="date" value={data.fecha_hasta} onChange={(e) => setData('fecha_hasta', e.target.value)} className="mt-1 w-full rounded-md border-gray-300" required /><div className="text-sm text-red-600">{errors.fecha_hasta}</div></div><PrimaryButton disabled={processing}>Consultar</PrimaryButton></form>
+                    <form onSubmit={submit} className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"><div><label className="block text-sm font-medium text-slate-700">Fecha inicial</label><input type="date" value={data.fecha_desde} onChange={(e) => handleFechaDesdeChange(e.target.value)} className="mt-1 w-full rounded-md border-gray-300" required /></div><div><label className="block text-sm font-medium text-slate-700">Fecha final</label><input type="date" value={data.fecha_hasta} onChange={(e) => setData('fecha_hasta', e.target.value)} className="mt-1 w-full rounded-md border-gray-300" required /><div className="text-sm text-red-600">{errors.fecha_hasta}</div></div><PrimaryButton disabled={processing}>Consultar</PrimaryButton></form>
                 </div>
 
                 <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm print:border-0 print:shadow-none">

@@ -24,6 +24,7 @@ class BankMovement extends Model
         'fingerprint',
         'source_data',
         'is_visible',
+        'income_policy_id',
     ];
 
     protected $casts = [
@@ -39,5 +40,10 @@ class BankMovement extends Model
     public function bank()
     {
         return $this->belongsTo(Bank::class);
+    }
+
+    public function incomePolicy()
+    {
+        return $this->belongsTo(IncomePolicy::class);
     }
 }

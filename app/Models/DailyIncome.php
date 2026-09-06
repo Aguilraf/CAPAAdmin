@@ -12,10 +12,12 @@ class DailyIncome extends Model
     protected $fillable = [
         'income_date',
         'total_amount',
+        'total_general',
         'total_movements',
         'draef_amount',
         'draef_subtotal',
         'draef_iva',
+        'dni_amount',
     ];
 
     public function details()

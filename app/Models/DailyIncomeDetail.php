@@ -12,6 +12,11 @@ class DailyIncomeDetail extends Model
     protected $fillable = [
         'daily_income_id',
         'bank_movement_id',
+        'is_dni',
+    ];
+
+    protected $casts = [
+        'is_dni' => 'boolean',
     ];
 
     public function movement()

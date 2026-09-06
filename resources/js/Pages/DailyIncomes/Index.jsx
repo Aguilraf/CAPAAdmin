@@ -141,7 +141,8 @@ export default function Index({ dailyIncomes }) {
                                     <thead>
                                         <tr className="bg-slate-100 text-sm font-semibold text-slate-700">
                                             <th className="border-b border-slate-200 px-4 py-3">Fecha</th>
-                                            <th className="border-b border-slate-200 px-4 py-3">Monto</th>
+                                            <th className="border-b border-slate-200 px-4 py-3">Total día</th>
+                                            <th className="border-b border-slate-200 px-4 py-3">Total general</th>
                                             <th className="border-b border-slate-200 px-4 py-3">Movimientos</th>
                                             <th className="border-b border-slate-200 px-4 py-3 text-right">Acciones</th>
                                         </tr>
@@ -150,7 +151,7 @@ export default function Index({ dailyIncomes }) {
                                     <tbody>
                                         {filteredIncomes.length === 0 ? (
                                             <tr>
-                                                <td colSpan="4" className="px-4 py-10 text-center text-sm text-slate-500">
+                                                <td colSpan="5" className="px-4 py-10 text-center text-sm text-slate-500">
                                                     No hay cobros del día registrados.
                                                 </td>
                                             </tr>
@@ -166,6 +167,9 @@ export default function Index({ dailyIncomes }) {
                                                             </td>
                                                             <td className="border-b border-slate-200 px-4 py-4 font-semibold text-emerald-700">
                                                                 {formatMoney(income.total_amount)}
+                                                            </td>
+                                                            <td className="border-b border-slate-200 px-4 py-4 font-semibold text-amber-700">
+                                                                {formatMoney(income.total_general ?? income.total_amount)}
                                                             </td>
                                                             <td className="border-b border-slate-200 px-4 py-4">
                                                                 <div className="flex items-center gap-2 text-slate-600">
@@ -200,7 +204,7 @@ export default function Index({ dailyIncomes }) {
 
                                                         {isExpanded && (
                                                             <tr key={`${income.id}-details`} className="bg-slate-50">
-                                                                <td colSpan="4" className="px-4 py-4">
+                                                                <td colSpan="5" className="px-4 py-4">
                                                                     <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
                                                                         {income.details.length === 0 && Number(income.draef_amount || 0) === 0 ? (
                                                                             <div className="text-sm text-slate-500">Sin movimientos asociados.</div>

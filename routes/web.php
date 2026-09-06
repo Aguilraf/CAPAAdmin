@@ -206,6 +206,11 @@ Route::middleware('auth')->group(function () {
             ]
         )->name('income-policies.create');
 
+        Route::get('polizas-ingreso/movimientos-dni', [
+            \App\Http\Controllers\IncomePolicyController::class,
+            'dniMovements'
+        ])->name('income-policies.dni-movements');
+
         Route::get('polizas-ingreso', [
             \App\Http\Controllers\IncomePolicyController::class,
             'index'
@@ -379,6 +384,22 @@ Route::middleware('auth')->group(function () {
                 'unlinkPolicy'
             ]
         )->name('reconciliation.unlink-policy');
+
+        Route::get(
+            '/conciliacion/pendientes',
+            [
+                \App\Http\Controllers\ReconciliationController::class,
+                'pendingInvoices'
+            ]
+        )->name('reconciliation.pending');
+
+        Route::post(
+            '/conciliacion/pendientes/{invoice}/estatus',
+            [
+                \App\Http\Controllers\ReconciliationController::class,
+                'updatePendingStatus'
+            ]
+        )->name('reconciliation.pending.update');
 
 
         /*

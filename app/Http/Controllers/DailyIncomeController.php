@@ -28,7 +28,16 @@ class DailyIncomeController extends Controller
 
     public function create()
     {
-        return Inertia::render('DailyIncomes/Create');
+        $lastDate = DailyIncome::max('income_date');
+        $nextDate = $lastDate ? Carbon::parse($lastDate)->addDay() : Carbon::today();
+
+        while ($nextDate->isWeekend()) {
+            $nextDate->addDay();
+        }
+
+        return Inertia::render('DailyIncomes/Create', [
+            'nextDate' => $nextDate->toDateString(),
+        ]);
     }
 
     public function checkDate(Request $request)
@@ -42,6 +51,22 @@ class DailyIncomeController extends Controller
         return response()->json([
             'exists' => DailyIncome::whereDate('income_date', $date)->exists(),
         ]);
+    }
+
+    public function dniMovements(Request $request)
+    {
+        $movements = BankMovement::with('bank')
+            ->whereNotNull('income_policy_id')
+            ->where('is_visible', true)
+            ->whereNotExists(function ($subQuery) {
+                $subQuery->select(DB::raw(1))
+                    ->from('daily_income_details')
+                    ->whereColumn('daily_income_details.bank_movement_id', 'bank_movements.id');
+            })
+            ->orderBy('operation_date', 'asc')
+            ->get();
+
+        return response()->json($movements);
     }
 
     public function getMovements(Request $request)
@@ -89,11 +114,21 @@ class DailyIncomeController extends Controller
     {
         $data = $request->validate([
             'date' => 'required|date',
-            'movements' => 'required|array|min:1',
+            'movements' => 'nullable|array',
+            'dni_movements' => 'nullable|array',
             'has_draef' => 'boolean',
             'draef_subtotal' => 'nullable|required_if:has_draef,1|numeric|min:0.01',
             'draef_iva' => 'nullable|required_if:has_draef,1|numeric|min:0',
         ]);
+
+        $movementIds = $data['movements'] ?? [];
+        $dniMovementIds = $data['dni_movements'] ?? [];
+
+        if (empty($movementIds) && empty($dniMovementIds)) {
+            throw ValidationException::withMessages([
+                'movements' => 'Debes seleccionar al menos un movimiento.',
+            ]);
+        }
 
         if (DailyIncome::whereDate('income_date', $data['date'])->exists()) {
             return redirect()->back()->withErrors([
@@ -101,45 +136,85 @@ class DailyIncomeController extends Controller
             ])->withInput();
         }
 
-        return DB::transaction(function () use ($data) {
-            $requestedMovementIds = array_values(array_unique($data['movements']));
-            $movements = BankMovement::whereIn('id', $requestedMovementIds)
-                ->where('is_visible', true)
-                ->where('is_used', false)
-                ->whereRaw("UPPER(description) NOT LIKE '%ABONO POR LIQUIDACION DE INTERESES%'")
-                ->whereRaw("UPPER(description) NOT LIKE '%PAGO DE INTERES NOMINAL%'")
-                ->whereNotExists(function ($subQuery) {
-                    $subQuery->select(DB::raw(1))
-                        ->from('daily_income_details')
-                        ->whereColumn('daily_income_details.bank_movement_id', 'bank_movements.id');
-                })
-                ->lockForUpdate()
-                ->get();
+        return DB::transaction(function () use ($data, $movementIds, $dniMovementIds) {
+            $requestedMovementIds = array_values(array_unique($movementIds));
+            $movements = collect();
 
-            if ($movements->count() !== count($requestedMovementIds)) {
-                throw ValidationException::withMessages([
-                    'movements' => 'Uno o más movimientos ya fueron utilizados en otra cobranza.',
-                ]);
+            if (!empty($requestedMovementIds)) {
+                $movements = BankMovement::whereIn('id', $requestedMovementIds)
+                    ->where('is_visible', true)
+                    ->where('is_used', false)
+                    ->whereRaw("UPPER(description) NOT LIKE '%ABONO POR LIQUIDACION DE INTERESES%'")
+                    ->whereRaw("UPPER(description) NOT LIKE '%PAGO DE INTERES NOMINAL%'")
+                    ->whereNotExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('daily_income_details')
+                            ->whereColumn('daily_income_details.bank_movement_id', 'bank_movements.id');
+                    })
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($movements->count() !== count($requestedMovementIds)) {
+                    throw ValidationException::withMessages([
+                        'movements' => 'Uno o más movimientos ya fueron utilizados en otra cobranza.',
+                    ]);
+                }
+            }
+
+            $requestedDniIds = array_values(array_unique($dniMovementIds));
+            $dniMovements = collect();
+
+            if (!empty($requestedDniIds)) {
+                $dniMovements = BankMovement::whereIn('id', $requestedDniIds)
+                    ->whereNotNull('income_policy_id')
+                    ->where('is_visible', true)
+                    ->whereNotExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('daily_income_details')
+                            ->whereColumn('daily_income_details.bank_movement_id', 'bank_movements.id');
+                    })
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($dniMovements->count() !== count($requestedDniIds)) {
+                    throw ValidationException::withMessages([
+                        'dni_movements' => 'Uno o más pagos no identificados ya fueron utilizados.',
+                    ]);
+                }
             }
 
             $draefSubtotal = !empty($data['has_draef']) ? (float) $data['draef_subtotal'] : 0;
             $draefIva = !empty($data['has_draef']) ? (float) $data['draef_iva'] : 0;
             $draefAmount = $draefSubtotal + $draefIva;
-            $totalAmount = $movements->sum('credit_amount') + $draefAmount;
+            $dniAmount = $dniMovements->sum('credit_amount');
+            $totalAmount = $movements->sum('credit_amount');
+            $totalGeneral = $totalAmount + $dniAmount + $draefAmount;
 
             $dailyIncome = DailyIncome::create([
                 'income_date' => $data['date'],
                 'total_amount' => $totalAmount,
-                'total_movements' => $movements->count(),
+                'total_general' => $totalGeneral,
+                'total_movements' => $movements->count() + $dniMovements->count(),
                 'draef_amount' => $draefAmount,
                 'draef_subtotal' => $draefSubtotal,
                 'draef_iva' => $draefIva,
+                'dni_amount' => $dniAmount,
             ]);
 
             foreach ($movements as $movement) {
                 DailyIncomeDetail::create([
                     'daily_income_id' => $dailyIncome->id,
                     'bank_movement_id' => $movement->id,
+                ]);
+
+                $movement->update(['is_used' => true]);
+            }
+
+            foreach ($dniMovements as $movement) {
+                DailyIncomeDetail::create([
+                    'daily_income_id' => $dailyIncome->id,
+                    'bank_movement_id' => $movement->id,
+                    'is_dni' => true,
                 ]);
 
                 $movement->update(['is_used' => true]);
@@ -154,7 +229,7 @@ class DailyIncomeController extends Controller
         return DB::transaction(function () use ($dailyIncome, $dailyIncomeDetail) {
             $movement = $dailyIncomeDetail->movement;
 
-            if ($movement) {
+            if ($movement && !$dailyIncomeDetail->is_dni) {
                 $movement->update(['is_used' => false]);
             }
 
@@ -167,9 +242,14 @@ class DailyIncomeController extends Controller
                 return redirect()->route('daily-incomes.index')->with('success', 'Se eliminó la cobranza del día porque ya no quedó ningún movimiento asociado.');
             }
 
+            $dayAmount = $dailyIncome->details()->with('movement')->where('is_dni', false)->get()->sum(fn ($detail) => (float) ($detail->movement?->credit_amount ?? 0));
+            $dniAmount = $dailyIncome->details()->with('movement')->where('is_dni', true)->get()->sum(fn ($detail) => (float) ($detail->movement?->credit_amount ?? 0));
+
             $dailyIncome->update([
-                'total_amount' => $dailyIncome->details()->with('movement')->get()->sum(fn ($detail) => (float) ($detail->movement?->credit_amount ?? 0)) + (float) $dailyIncome->draef_amount,
+                'total_amount' => $dayAmount,
+                'total_general' => $dayAmount + $dniAmount + (float) $dailyIncome->draef_amount,
                 'total_movements' => $dailyIncome->details()->count(),
+                'dni_amount' => $dniAmount,
             ]);
 
             return redirect()->route('daily-incomes.index')->with('success', 'Movimiento quitado y liberado para otra cobranza.');
@@ -180,7 +260,7 @@ class DailyIncomeController extends Controller
     {
         return DB::transaction(function () use ($dailyIncome) {
             foreach ($dailyIncome->details as $detail) {
-                if ($detail->movement) {
+                if ($detail->movement && !$detail->is_dni) {
                     $detail->movement->update(['is_used' => false]);
                 }
             }

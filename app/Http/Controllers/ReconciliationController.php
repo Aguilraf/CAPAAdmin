@@ -171,4 +171,39 @@ class ReconciliationController extends Controller
 
         return redirect()->back()->with('success', 'La relación entre la póliza y la cobranza fue eliminada.');
     }
+
+    public function pendingInvoices(Request $request)
+    {
+        $month = $request->query('month', date('Y-m'));
+
+        $invoices = Invoice::whereRaw("DATE_FORMAT(fecha, '%Y-%m') = ?", [$month])
+            ->where('is_used', false)
+            ->orderByRaw("CASE WHEN numero_factura IS NULL OR numero_factura = '' THEN 1 ELSE 0 END")
+            ->orderBy('numero_factura', 'asc')
+            ->orderBy('fecha', 'asc')
+            ->get();
+
+        return response()->json([
+            'invoices' => $invoices,
+            'statuses' => Invoice::PENDING_STATUSES,
+        ]);
+    }
+
+    public function updatePendingStatus(Request $request, Invoice $invoice)
+    {
+        $validated = $request->validate([
+            'pending_status' => 'required|in:cancelada,anio_anterior,otro',
+            'pending_note' => 'required_if:pending_status,anio_anterior,otro|nullable|string|max:1000',
+        ]);
+
+        $invoice->update([
+            'pending_status' => $validated['pending_status'],
+            'pending_note' => $validated['pending_note'] ?? null,
+            'is_used' => true,
+            'is_reconciled_without_income' => true,
+            'daily_income_id' => null,
+        ]);
+
+        return response()->json(['message' => 'Estatus asignado correctamente.', 'invoice' => $invoice]);
+    }
 }

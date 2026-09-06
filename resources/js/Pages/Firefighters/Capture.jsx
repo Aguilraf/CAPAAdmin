@@ -13,6 +13,7 @@ export default function Capture({ auth, communities: initialCommunities, firefig
         community_id: '',
         firefighter_id: '',
         subtotal: '',
+        receipt_number: '',
         commission: '', // Calculated
         total: '',      // Calculated
         rounding_commission: '0',
@@ -195,6 +196,7 @@ export default function Capture({ auth, communities: initialCommunities, firefig
                 community_id: '',
                 firefighter_id: '',
                 subtotal: '',
+                receipt_number: '',
                 rounding_commission: '0',
                 rounding_total: '0'
             }));
@@ -328,6 +330,24 @@ export default function Capture({ auth, communities: initialCommunities, firefig
                                                 </option>
                                                 {firefighters.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                             </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Número de Recibos</label>
+                                            <input
+                                                type="text"
+                                                name="receipt_number"
+                                                value={formData.receipt_number}
+                                                onChange={handleChange}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        subtotalInputRef.current?.focus();
+                                                    }
+                                                }}
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                                                placeholder="Ej. 1234"
+                                            />
                                         </div>
 
                                         <div>

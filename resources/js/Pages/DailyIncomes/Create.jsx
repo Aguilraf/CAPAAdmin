@@ -4,11 +4,12 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import axios from 'axios';
 
-export default function Create() {
+export default function Create({ nextDate }) {
     const { errors } = usePage().props;
     const { data, setData, post, processing } = useForm({
-        date: '',
+        date: nextDate || '',
         movements: [],
+        dni_movements: [],
         has_draef: false,
         draef_subtotal: '',
         draef_iva: ''
@@ -16,6 +17,36 @@ export default function Create() {
 
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [dniMovements, setDniMovements] = useState([]);
+    const [dniLoading, setDniLoading] = useState(false);
+    const [showDniPanel, setShowDniPanel] = useState(false);
+
+    const fetchDniMovements = async () => {
+        setDniLoading(true);
+        try {
+            const response = await axios.get(route('daily-incomes.dni-movements'));
+            setDniMovements(response.data);
+        } finally {
+            setDniLoading(false);
+        }
+    };
+
+    const toggleDniPanel = () => {
+        const next = !showDniPanel;
+        setShowDniPanel(next);
+        if (next && dniMovements.length === 0) {
+            fetchDniMovements();
+        }
+    };
+
+    const toggleDniMovement = (id) => {
+        const current = data.dni_movements;
+        if (current.includes(id)) {
+            setData('dni_movements', current.filter(m => m !== id));
+        } else {
+            setData('dni_movements', [...current, id]);
+        }
+    };
 
     const fetchMovements = async (date) => {
         setLoading(true);
@@ -76,10 +107,13 @@ export default function Create() {
 
     const selectedMovements = movements.filter(m => data.movements.includes(m.id));
     const movementsAmount = selectedMovements.reduce((sum, m) => sum + parseFloat(m.credit_amount), 0);
+    const selectedDniMovements = dniMovements.filter(m => data.dni_movements.includes(m.id));
+    const dniMovementsAmount = selectedDniMovements.reduce((sum, m) => sum + parseFloat(m.credit_amount), 0);
     const draefSubtotal = data.has_draef ? parseFloat(data.draef_subtotal || 0) : 0;
     const draefIva = data.has_draef ? parseFloat(data.draef_iva || 0) : 0;
     const draefAmount = draefSubtotal + draefIva;
-    const totalAmount = movementsAmount + draefAmount;
+    const totalAmount = movementsAmount;
+    const totalGeneral = movementsAmount + dniMovementsAmount + draefAmount;
 
     const handleDraefSubtotalChange = (value) => {
         const iva = Number(parseFloat(value || 0) * 0.16).toFixed(2);
@@ -120,15 +154,72 @@ export default function Create() {
                         </div>
                         <div className="flex items-end">
                             <div className="flex flex-wrap items-center gap-4">
-                                <div className="text-xl font-bold">
-                                {data.date ? `Total: $${formatMoney(totalAmount)} (${data.movements.length} movimientos)` : 'Total: $0.00 (0 movimientos)'}
+                                <div className="text-lg font-bold">
+                                {data.date ? `Total día: $${formatMoney(totalAmount)} (${data.movements.length} movimientos)` : 'Total día: $0.00 (0 movimientos)'}
                                 </div>
-                                <PrimaryButton type="submit" disabled={processing || !data.date || data.movements.length === 0}>
+                                <div className="text-lg font-bold text-amber-700">
+                                {data.date ? `Total general: $${formatMoney(totalGeneral)} (${data.movements.length + data.dni_movements.length} movimientos)` : 'Total general: $0.00 (0 movimientos)'}
+                                </div>
+                                <PrimaryButton type="submit" disabled={processing || !data.date || (data.movements.length === 0 && data.dni_movements.length === 0)}>
                                     Guardar Ingreso
                                 </PrimaryButton>
+                                <button
+                                    type="button"
+                                    onClick={toggleDniPanel}
+                                    className="inline-flex items-center rounded-md border border-amber-400 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+                                >
+                                    Pagos No Identificados{data.dni_movements.length > 0 ? ` (${data.dni_movements.length})` : ''}
+                                </button>
                             </div>
                         </div>
                     </div>
+
+                    {showDniPanel && (
+                        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-semibold text-amber-800">Pagos No Identificados (DNI)</h3>
+                                    <p className="text-xs text-amber-700">Movimientos ya asociados a una póliza DNI. Al capturarlos aquí se marcan como usados y se agregan a esta cobranza de forma informativa (no afectan la conciliación contra facturas).</p>
+                                </div>
+                                <div className="text-right text-sm font-semibold text-amber-800">Seleccionado: ${formatMoney(dniMovementsAmount)}</div>
+                            </div>
+
+                            {dniLoading ? (
+                                <p className="mt-3 text-sm text-amber-700">Cargando movimientos...</p>
+                            ) : (
+                                <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-amber-200 bg-white">
+                                    <table className="min-w-full divide-y divide-amber-100 text-sm">
+                                        <thead className="bg-amber-100 text-left text-xs uppercase text-amber-700">
+                                            <tr>
+                                                <th className="px-3 py-2">Sel.</th>
+                                                <th className="px-3 py-2">Fecha</th>
+                                                <th className="px-3 py-2">Banco</th>
+                                                <th className="px-3 py-2">Movimiento</th>
+                                                <th className="px-3 py-2">Concepto</th>
+                                                <th className="px-3 py-2 text-right">Importe</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-amber-50">
+                                            {dniMovements.length === 0 && (
+                                                <tr><td colSpan="6" className="px-3 py-6 text-center text-slate-400">No hay pagos no identificados disponibles.</td></tr>
+                                            )}
+                                            {dniMovements.map((m) => (
+                                                <tr key={m.id} onClick={() => toggleDniMovement(m.id)} className={`cursor-pointer ${data.dni_movements.includes(m.id) ? 'bg-amber-100' : 'hover:bg-amber-50'}`}>
+                                                    <td className="px-3 py-2"><input type="checkbox" checked={data.dni_movements.includes(m.id)} onChange={() => toggleDniMovement(m.id)} onClick={(e) => e.stopPropagation()} /></td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">{formatDate(m.operation_date)}</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">{m.bank?.name}</td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">{m.movement_number || m.reference || '-'}</td>
+                                                    <td className="px-3 py-2">{m.description}</td>
+                                                    <td className="px-3 py-2 text-right whitespace-nowrap">${formatMoney(m.credit_amount)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                            {errors.dni_movements && <p className="mt-2 text-sm text-red-600">{errors.dni_movements}</p>}
+                        </div>
+                    )}
 
                     <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
                         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -233,7 +324,7 @@ export default function Create() {
                     )}
 
                     {errors.movements && <p className="mt-3 text-sm text-red-600">{errors.movements}</p>}
-                    <PrimaryButton type="submit" className="mt-4" disabled={processing || !data.date || data.movements.length === 0}>Guardar Ingreso</PrimaryButton>
+                    <PrimaryButton type="submit" className="mt-4" disabled={processing || !data.date || (data.movements.length === 0 && data.dni_movements.length === 0)}>Guardar Ingreso</PrimaryButton>
                 </form>
             </div>
         </AuthenticatedLayout>

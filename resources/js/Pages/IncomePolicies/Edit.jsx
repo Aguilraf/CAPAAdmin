@@ -2,8 +2,12 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { Head, useForm } from '@inertiajs/react';
+import { useState } from 'react';
+import DniMovementsPicker from './DniMovementsPicker';
 
-export default function Edit({ policy, accounts = [], policyTypes = [] }) {
+const DNI_TYPE = 'DNI (pagos no identificados)';
+
+export default function Edit({ policy, accounts = [], policyTypes = [], banks = [] }) {
     const existing = new Map(policy.details.map((detail) => [detail.income_account_id, detail.amount]));
     const { data, setData, put, transform, processing, errors } = useForm({
         policy_number: policy.policy_number,
@@ -13,13 +17,16 @@ export default function Edit({ policy, accounts = [], policyTypes = [] }) {
         end_date: String(policy.end_date).slice(0, 10),
         observations: policy.observations || '',
         details: accounts.map((account) => ({ income_account_id: account.id, amount: existing.get(account.id) || '' })),
+        movement_ids: (policy.bank_movements || []).map((movement) => movement.id),
     });
 
-    const total = data.details.reduce((sum, detail) => sum + Number(detail.amount || 0), 0);
+    const isDni = data.policy_type === DNI_TYPE;
+    const [dniTotals, setDniTotals] = useState({ total: Number(policy.amount || 0), iva: Number(policy.iva_amount || 0) });
+    const total = isDni ? dniTotals.total : data.details.reduce((sum, detail) => sum + Number(detail.amount || 0), 0);
     const setAmount = (id, amount) => setData('details', data.details.map((detail) => detail.income_account_id === id ? { ...detail, amount } : detail));
     const submit = (event) => {
         event.preventDefault();
-        transform((form) => ({ ...form, details: form.details.filter((detail) => Number(detail.amount || 0) > 0) }));
+        transform((form) => ({ ...form, details: isDni ? [] : form.details.filter((detail) => Number(detail.amount || 0) > 0) }));
         put(route('income-policies.update', policy.id));
     };
 
@@ -34,9 +41,33 @@ export default function Edit({ policy, accounts = [], policyTypes = [] }) {
                     <div><label className="block text-sm font-medium text-slate-700">Fecha final *</label><input type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} className="mt-1 w-full rounded-md border-gray-300" required /></div>
                 </div>
                 <div><label className="block text-sm font-medium text-slate-700">Concepto *</label><textarea value={data.concept} onChange={(e) => setData('concept', e.target.value)} className="mt-1 w-full rounded-md border-gray-300" required /></div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between"><h3 className="font-semibold text-slate-800">Cuentas de la póliza</h3><strong className="text-emerald-700">Total: {total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</strong></div><div className="mt-4 overflow-x-auto"><table className="min-w-full"><thead><tr className="text-left text-xs uppercase text-slate-500"><th className="px-3 py-2">Cuenta contable</th><th className="px-3 py-2">Concepto</th><th className="px-3 py-2">Importe</th></tr></thead><tbody>{accounts.map((account) => <tr key={account.id}><td className="px-3 py-2 text-sm">{account.accounting_account}</td><td className="px-3 py-2 text-sm">{account.concept}</td><td className="px-3 py-2"><input type="number" min="0" step="0.01" value={data.details.find((detail) => detail.income_account_id === account.id)?.amount || ''} onChange={(e) => setAmount(account.id, e.target.value)} className="w-full rounded-md border-gray-300" /></td></tr>)}</tbody></table></div><InputError className="mt-2" message={errors.details} /></div>
+                {isDni ? (
+                    <>
+                        <DniMovementsPicker
+                            date={data.start_date}
+                            banks={banks}
+                            incomePolicyId={policy.id}
+                            selectedIds={data.movement_ids}
+                            onChange={(ids) => setData('movement_ids', ids)}
+                            onTotalsChange={setDniTotals}
+                        />
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                                <p className="text-xs font-semibold uppercase text-emerald-700">Total</p>
+                                <p className="text-lg font-bold text-emerald-800">{dniTotals.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
+                            </div>
+                            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                                <p className="text-xs font-semibold uppercase text-emerald-700">IVA (16% incluido)</p>
+                                <p className="text-lg font-bold text-emerald-800">{dniTotals.iva.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</p>
+                            </div>
+                        </div>
+                        <InputError className="mt-2" message={errors.movement_ids} />
+                    </>
+                ) : (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between"><h3 className="font-semibold text-slate-800">Cuentas de la póliza</h3><strong className="text-emerald-700">Total: {total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</strong></div><div className="mt-4 overflow-x-auto"><table className="min-w-full"><thead><tr className="text-left text-xs uppercase text-slate-500"><th className="px-3 py-2">Cuenta contable</th><th className="px-3 py-2">Concepto</th><th className="px-3 py-2">Importe</th></tr></thead><tbody>{accounts.map((account) => <tr key={account.id}><td className="px-3 py-2 text-sm">{account.accounting_account}</td><td className="px-3 py-2 text-sm">{account.concept}</td><td className="px-3 py-2"><input type="number" min="0" step="0.01" value={data.details.find((detail) => detail.income_account_id === account.id)?.amount || ''} onChange={(e) => setAmount(account.id, e.target.value)} className="w-full rounded-md border-gray-300" /></td></tr>)}</tbody></table></div><InputError className="mt-2" message={errors.details} /></div>
+                )}
                 <div><label className="block text-sm font-medium text-slate-700">Observaciones</label><textarea value={data.observations} onChange={(e) => setData('observations', e.target.value)} className="mt-1 w-full rounded-md border-gray-300" /></div>
-                <div className="flex justify-end"><PrimaryButton disabled={processing || total <= 0}>{processing ? 'Guardando...' : 'Guardar cambios'}</PrimaryButton></div>
+                <div className="flex justify-end"><PrimaryButton disabled={processing || (isDni ? data.movement_ids.length === 0 : total <= 0)}>{processing ? 'Guardando...' : 'Guardar cambios'}</PrimaryButton></div>
             </form></div></div>
         </AuthenticatedLayout>
     );

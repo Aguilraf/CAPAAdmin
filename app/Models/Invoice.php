@@ -49,6 +49,14 @@ class Invoice extends Model
         'daily_income_id',
         'income_policy_id',
         'is_reconciled_without_income',
+        'pending_status',
+        'pending_note',
+    ];
+
+    const PENDING_STATUSES = [
+        'cancelada' => 'Cancelada',
+        'anio_anterior' => 'Año anterior',
+        'otro' => 'Otro',
     ];
 
     public function dailyIncome()

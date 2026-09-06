@@ -71,6 +71,54 @@ export default function Dashboard() {
                             </Link>
                         )}
 
+                        {/* Tarjeta de Cobranza del Día */}
+                        <Link
+                            href={route('daily-incomes.index')}
+                            className="block group"
+                        >
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg border-2 border-transparent hover:border-teal-500 transition-all duration-200 h-full">
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="p-3 rounded-full bg-teal-100 text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-200">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m0-12a9 9 0 110 18 9 9 0 010-18z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-teal-600 mb-2">
+                                        Cobranza del Día
+                                    </h3>
+                                    <p className="text-gray-500 text-sm">
+                                        Consulta y administra las cobranzas registradas por día.
+                                    </p>
+                                </div>
+                            </div>
+                        </Link>
+
+                        {/* Tarjeta de Conciliación de Facturas */}
+                        <Link
+                            href={route('reconciliation.index')}
+                            className="block group"
+                        >
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg border-2 border-transparent hover:border-orange-500 transition-all duration-200 h-full">
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="p-3 rounded-full bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors duration-200">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-orange-600 mb-2">
+                                        Conciliación de Facturas
+                                    </h3>
+                                    <p className="text-gray-500 text-sm">
+                                        Concilia facturas contra los ingresos y cobranzas registradas.
+                                    </p>
+                                </div>
+                            </div>
+                        </Link>
+
                         {/* Tarjeta de Mis Vacaciones */}
                         {(user.permissions?.includes('ver vacaciones') || user.roles?.some(r => r.name === 'Administrador')) && (
                             <Link
